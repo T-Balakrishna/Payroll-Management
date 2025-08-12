@@ -1,0 +1,24 @@
+/* .modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-box {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-box input,
+.modal-box select {
+  display: block;
+  width: 100%;
+  margin-bottom: 10px;
+} */

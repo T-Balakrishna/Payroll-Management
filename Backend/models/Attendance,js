@@ -1,0 +1,8 @@
+const {DataTypes} = require('sequelize')
+const seq = require('../config/db')
+
+const Employee = seq.define('Employee', {
+    
+  });
+
+module.exports = Attendance
