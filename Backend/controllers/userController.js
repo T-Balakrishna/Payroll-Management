@@ -1,69 +1,124 @@
-const User = require('../models/User'); // Sequelize model
+const User = require('../models/User');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
-// Create
+// Create a new user
 exports.createUser = async (req, res) => {
   try {
+<<<<<<< Updated upstream
     const { userMail , userNumber, role, departmentId, password, createdBy } = req.body;
+=======
+    const { userMail, userName, userNumber, role, departmentId, password, createdBy } = req.body;
+
+    const existing = await User.findOne({ where: { userMail } });
+    if (existing) return res.status(400).json({ error: "User already exists" });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+>>>>>>> Stashed changes
     const newUser = await User.create({
       userMail,      
       userNumber,
       role,
       departmentId,
-      password,
+      password: hashedPassword,
       createdBy
     });
 
-    res.status(201).json(newUser);
-  } catch (error) {
-    console.error("❌ Error creating user:", error);
-    res.status(500).send("Error creating user: " + error.message);
+    res.status(201).json({ message: "User created", user: newUser });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
-// Read All (only active)
+// Get all users
 exports.getAllUsers = async (req, res) => {
   try {
-    const users = await User.findAll({ where: { status: 'active' } });
+    const users = await User.findAll();
     res.json(users);
-  } catch (error) {
-    res.status(500).send("Error fetching users: " + error.message);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
-// Read One by ID (only active)
+// Get user by ID
 exports.getUserById = async (req, res) => {
   try {
-    const user = await User.findOne({ where: { userId: req.params.id, status: 'active' } });
-    if (!user) return res.status(404).send("User not found or inactive");
+    const user = await User.findByPk(req.params.id);
+    if (!user) return res.status(404).json({ error: "User not found" });
     res.json(user);
-  } catch (error) {
-    res.status(500).send("Error fetching user: " + error.message);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
-// Update
+// Update user
 exports.updateUser = async (req, res) => {
   try {
-    const user = await User.findOne({ where: { userId: req.params.id, status: 'active' } });
-    if (!user) return res.status(404).send("User not found or inactive");
+    const { userName, userNumber, role, departmentId } = req.body;
+    const user = await User.findByPk(req.params.id);
+    if (!user) return res.status(404).json({ error: "User not found" });
 
-    await user.update({ ...req.body, updatedBy: req.body.updatedBy });
-    res.json(user);
-  } catch (error) {
-    console.error("❌ Error updating user:", error);
-    res.status(500).send("Error updating user: " + error.message);
+    await user.update({ userName, userNumber, role, departmentId });
+    res.json({ message: "User updated", user });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
-// Soft Delete (set status to inactive)
+// Delete user
 exports.deleteUser = async (req, res) => {
   try {
-    const user = await User.findOne({ where: { userId: req.params.id, status: 'active' } });
-    if (!user) return res.status(404).send("User not found or already inactive");
+    const user = await User.findByPk(req.params.id);
+    if (!user) return res.status(404).json({ error: "User not found" });
 
-    await user.update({ status: 'inactive', updatedBy: req.body.updatedBy });
-    res.json({ message: "User deactivated successfully" });
-  } catch (error) {
-    res.status(500).send("Error deleting user: " + error.message);
+    await user.destroy();
+    res.json({ message: "User deleted" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Normal login
+exports.loginUser = async (req, res) => {
+  try {
+    const { userMail, password } = req.body;
+    const user = await User.findOne({ where: { userMail, status: 'active' } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(401).json({ error: "Invalid credentials" });
+
+    const token = jwt.sign({ id: user.userId, role: user.role }, "mySecretKey", { expiresIn: "1h" });
+    res.json({ message: "Login success", token, role: user.role });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Google OAuth login
+exports.googleLogin = async (req, res) => {
+  try {
+    const { email, name } = req.body; 
+    if (!email) return res.status(400).json({ error: "Email is required" });
+
+    let user = await User.findOne({ where: { userMail: email } });
+
+    if (!user) {
+      user = await User.create({
+        userMail: email,
+        userName: name || email.split('@')[0],
+        userNumber: "0000",
+        role: "User",
+        departmentId: 1,
+        password: await bcrypt.hash("googleAuth", 10),
+        createdBy: "GoogleOAuth"
+      });
+    }
+
+    const token = jwt.sign({ id: user.userId, role: user.role }, "mySecretKey", { expiresIn: "1h" });
+    res.json({ message: "Google login success", token, role: user.role });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };

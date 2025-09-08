@@ -1,17 +1,9 @@
-// import { useState } from "react";
-// import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
-// import DesignationMaster from "./pages/DesignationMaster";
-// import DepartmentMaster from "./pages/DepartmentMaster";
-// import AddUser from "./pages/AddUser";
-// import BusMaster from "./pages/BusMaster";
-// import CasteMaster from "./pages/CasteMaster";
-// import EmployeeTypeMaster from "./pages/EmployeeTypeMaster";
-// import HolidayMaster from "./pages/HolidayMaster";
-// import LeaveMaster from "./pages/LeaveMaster";
-// import ReligionMaster from "./pages/ReligionMaster";
-// import ShiftMaster from "./pages/ShiftMaster";
-// import CategoryMaster from "./pages/CategoryMaster";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Login from "./pages/LoginPage";
+import UserDashboard from "./pages/DashboardPage"; // your existing user dashboard
+import AdminDashboard from "./pages/Admin"; // create this new file
 
+<<<<<<< Updated upstream
 
 // function App() {
 //   const [count, setCount] = useState(0);
@@ -241,3 +233,16 @@ function App() {
 }
 
 export default App;
+=======
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Login />} />
+        <Route path="/userDashboard" element={<UserDashboard />} />
+        <Route path="/adminDashboard" element={<AdminDashboard />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+>>>>>>> Stashed changes
