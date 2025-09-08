@@ -20,7 +20,7 @@ const employeeTypeRoute = require('./routes/employeeTypeRoute');
 // const loginRoute = require('./routes/loginRoute');
 const religionRoute = require('./routes/religionRoute');
 const shiftRoute = require('./routes/shiftRoute');
-//const userRoute = require('./routes/userRoute');
+const userRoute = require('./routes/userRoute');
 
 
 // Map routes
@@ -36,7 +36,7 @@ app.use('/api/employeeTypes', employeeTypeRoute);
 // app.use('/api/logins', loginRoute);
 app.use('/api/religions', religionRoute);
 app.use('/api/shifts', shiftRoute);
-//app.use('/api/users', userRoute);
+app.use('/api/users', userRoute);
 
 // Import models so Sequelize can sync tables
 require('./models/Bus');
@@ -51,7 +51,7 @@ require('./models/EmployeeType');
 // require('./models/Login');
 require('./models/Religion');
 require('./models/Shift');
-//require('./models/User');
+require('./models/User');
 
 // Start server
 const startServer = async () => {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { FileText, Pencil, Trash } from "lucide-react";
 
+// ✅ Add/Edit Policy Form inside Modal
 function AddOrEditPolicy({ onSave, onCancel, editData }) {
   const [policyName, setPolicyName] = useState(editData?.policyName || "");
   const [description, setDescription] = useState(editData?.description || "");
@@ -9,7 +10,7 @@ function AddOrEditPolicy({ onSave, onCancel, editData }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!policyName) return alert("Policy Name is required");
+    if (!policyName.trim()) return alert("Policy Name is required");
 
     const adminName = localStorage.getItem("adminName") || "system";
 
@@ -17,21 +18,25 @@ function AddOrEditPolicy({ onSave, onCancel, editData }) {
       policyName,
       description,
       status,
-      updatedBy: adminName, // ✅ always set updatedBy
+      updatedBy: adminName,
     };
 
     onSave(policyData, editData?.leavePolicyId);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-200 to-gray-100 flex items-center justify-center">
-      <div className="max-w-2xl w-full bg-white rounded-2xl shadow-xl p-8">
+    // ✅ MODAL OVERLAY WITH BLUR + CENTERED CARD
+    <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm bg-black/30">
+      <div className="max-w-2xl w-full bg-white rounded-2xl shadow-xl p-8 relative">
         <div className="flex justify-center mb-4">
           <FileText className="text-gray-600" size={40} />
         </div>
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+          {/* Policy Name */}
           <div>
-            <label className="block font-bold text-gray-700 mb-2">Policy Name</label>
+            <label className="block font-bold text-gray-700 mb-2">
+              Policy Name
+            </label>
             <input
               type="text"
               value={policyName}
@@ -41,8 +46,11 @@ function AddOrEditPolicy({ onSave, onCancel, editData }) {
             />
           </div>
 
+          {/* Description */}
           <div>
-            <label className="block font-bold text-gray-700 mb-2">Description</label>
+            <label className="block font-bold text-gray-700 mb-2">
+              Description
+            </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -51,23 +59,14 @@ function AddOrEditPolicy({ onSave, onCancel, editData }) {
             />
           </div>
 
-          <div>
-            <label className="block font-bold text-gray-700 mb-2">Status</label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="border border-gray-300 bg-white text-black rounded-lg p-3 w-full outline-none"
-            >
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
+          {/* Status */}
 
+          {/* Buttons */}
           <div className="flex justify-end gap-3">
             <button
               type="button"
               onClick={onCancel}
-              className="bg-blue-700 text-white px-6 py-3 rounded-lg"
+              className="bg-gray-500 text-white px-6 py-3 rounded-lg"
             >
               Cancel
             </button>
@@ -84,6 +83,7 @@ function AddOrEditPolicy({ onSave, onCancel, editData }) {
   );
 }
 
+// Leave Policy Master Page
 export default function LeavePolicyMaster() {
   const [policies, setPolicies] = useState([]);
   const [search, setSearch] = useState("");
@@ -143,9 +143,8 @@ export default function LeavePolicyMaster() {
 
     try {
       const adminName = localStorage.getItem("adminName") || "system";
-
       await axios.delete(`http://localhost:5000/api/leave-policies/${id}`, {
-        data: { updatedBy: adminName }, // ✅ always send updatedBy
+        data: { updatedBy: adminName },
       });
 
       fetchPolicies();
@@ -154,17 +153,8 @@ export default function LeavePolicyMaster() {
     }
   };
 
-  return showForm ? (
-    <AddOrEditPolicy
-      onSave={handleSave}
-      onCancel={() => {
-        setShowForm(false);
-        setEditData(null);
-      }}
-      editData={editData}
-    />
-  ) : (
-    <div className="min-h-screen p-6 flex flex-col justify-center align-center">
+  return (
+    <div className="min-h-screen p-6 flex flex-col">
       <div className="flex justify-between items-center mb-4">
         <input
           type="text"
@@ -184,14 +174,14 @@ export default function LeavePolicyMaster() {
         </button>
       </div>
 
+      {/* Scrollable Table */}
       <div className="overflow-y-auto" style={{ maxHeight: "260px" }}>
         <table className="w-full text-left border border-gray-300">
           <thead>
-            <tr className="bg-gray-100 sticky top-0">
+            <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
               <th className="py-2 px-4">ID</th>
               <th className="py-2 px-4">Policy Name</th>
               <th className="py-2 px-4">Description</th>
-              <th className="py-2 px-4">Status</th>
               <th className="py-2 px-4">Actions</th>
             </tr>
           </thead>
@@ -201,7 +191,6 @@ export default function LeavePolicyMaster() {
                 <td className="py-2 px-4">{p.leavePolicyId}</td>
                 <td className="py-2 px-4">{p.policyName}</td>
                 <td className="py-2 px-4">{p.description}</td>
-                <td className="py-2 px-4">{p.status}</td>
                 <td className="py-2 px-4 flex gap-2">
                   <button
                     className="bg-blue-500 text-white px-1 py-1 rounded-md"
@@ -228,6 +217,18 @@ export default function LeavePolicyMaster() {
           </tbody>
         </table>
       </div>
+
+      {/* ✅ Render modal conditionally */}
+      {showForm && (
+        <AddOrEditPolicy
+          onSave={handleSave}
+          onCancel={() => {
+            setShowForm(false);
+            setEditData(null);
+          }}
+          editData={editData}
+        />
+      )}
     </div>
   );
 }

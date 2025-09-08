@@ -3,10 +3,9 @@ const User = require('../models/User'); // Sequelize model
 // Create
 exports.createUser = async (req, res) => {
   try {
-    const { userMail, userName, userNumber, role, departmentId, password, createdBy } = req.body;
+    const { userMail , userNumber, role, departmentId, password, createdBy } = req.body;
     const newUser = await User.create({
-      userMail,
-      userName,
+      userMail,      
       userNumber,
       role,
       departmentId,
