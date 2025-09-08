@@ -29,10 +29,10 @@ export default function AddUser({ adminName }) {
       try {
         const res = await axios.get(`http://localhost:5000/api/users/lastEmpNumber/${formData.departmentId}`);
         const lastEmp = res.data?.userNumber || null;
-        const dept = departments.find(d => d.departmentId === parseInt(formData.departmentId));
+        const department = departments.find(d => d.departmentId === parseInt(formData.departmentId));
         let newEmpNum = lastEmp
-          ? `${dept.deptShort.toLowerCase()}${parseInt(lastEmp.replace(/\D/g, "")) + 1}`
-          : `${dept.deptShort.toLowerCase()}1`;
+          ? `${department.departmentAckr.toLowerCase()}${parseInt(lastEmp.replace(/\D/g, "")) + 1}`
+          : `${department.departmentAckr.toLowerCase()}1`;
 
         setFormData(prev => ({ ...prev, userNumber: newEmpNum }));
       } catch (err) {
@@ -113,11 +113,11 @@ export default function AddUser({ adminName }) {
         </select>
 
         {autoGenerate && (
-        <select name="deptId" value={formData.deptId} onChange={handleChange}
+        <select name="departmentId" value={formData.departmentId} onChange={handleChange}
           className="w-full p-2 border rounded" required>
           <option value="">Select Department</option>
-          {departments.map(dept => (
-            <option key={dept.deptId} value={dept.deptId}>{dept.deptShort}</option>
+          {departments.map(department => (
+            <option key={department.departmentId} value={department.departmentId}>{department.departmentAckr}</option>
           ))}
         </select>
 )}

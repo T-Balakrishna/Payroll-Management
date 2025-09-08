@@ -10,7 +10,6 @@ app.use(express.urlencoded({ extended: true }));
 // Import routes
 const busRoute = require('./routes/busRoute');
 const casteRoute = require('./routes/casteRoute');
-const categoryRoute = require('./routes/categoryRoute');
 const departmentRoute = require('./routes/departmentRoute');
 const designationRoute = require('./routes/designationRoute');
 const empRoute = require('./routes/employeeRoute');
@@ -27,7 +26,6 @@ const shiftRoute = require('./routes/shiftRoute');
 // Map routes
 app.use('/api/buses', busRoute);
 app.use('/api/castes', casteRoute);
-app.use('/api/categories', categoryRoute);
 app.use('/api/departments', departmentRoute);
 app.use('/api/designations', designationRoute);
 app.use('/api/employees', empRoute);
@@ -43,7 +41,6 @@ app.use('/api/shifts', shiftRoute);
 // Import models so Sequelize can sync tables
 require('./models/Bus');
 require('./models/Caste');
-require('./models/Category');
 require('./models/Department');
 require('./models/Designation');
 require('./models/Employee');

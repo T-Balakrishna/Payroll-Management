@@ -200,7 +200,6 @@ const handleSave = async (busData, busId) => {
               <th className="py-2 px-4">Bus Number</th>
               <th className="py-2 px-4">Driver Name</th>
               <th className="py-2 px-4">Route Details</th>
-              <th className="py-2 px-4">Status</th>
               <th className="py-2 px-4">Actions</th>
             </tr>
           </thead>
@@ -210,7 +209,6 @@ const handleSave = async (busData, busId) => {
                 <td className="py-2 px-4">{b.busNumber}</td>
                 <td className="py-2 px-4">{b.busDriverName}</td>
                 <td className="py-2 px-4">{b.busRouteDetails}</td>
-                <td className="py-2 px-4">{b.status}</td>
                 <td className="py-2 px-4 flex gap-2">
                   <button
                     className="bg-blue-500 text-white px-1 py-1 rounded-md"

@@ -182,7 +182,6 @@ function DepartmentMaster() {
               <th className="py-2 px-4">ID</th>
               <th className="py-2 px-4">Name</th>
               <th className="py-2 px-4">Ackr</th>
-              <th className="py-2 px-4">Status</th>
               <th className="py-2 px-4">Actions</th>
             </tr>
           </thead>
@@ -192,7 +191,6 @@ function DepartmentMaster() {
                 <td className="py-2 px-4">{d.departmentId}</td>
                 <td className="py-2 px-4">{d.departmentName}</td>
                 <td className="py-2 px-4">{d.departmentAckr}</td>
-                <td className="py-2 px-4">{d.status}</td>
                 <td className="py-2 px-4 flex gap-2">
                   <button
                     className="bg-blue-500 text-white px-1 py-1 rounded-md"
