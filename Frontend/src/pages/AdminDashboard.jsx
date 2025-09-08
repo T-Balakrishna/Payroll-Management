@@ -227,26 +227,10 @@ const Admin = () => {
               {modalComponent === "religion" && <ReligionMaster />}
               {modalComponent === "shift" && <ShiftMaster />}
               {modalComponent === "users" && <AddUser />}
-              {modalComponent === "login" && <Login />}
-              {modalComponent === "register" && <Register />}
             </div>
           </div>
         </div>
       )}
-
-      {/* Custom CSS for modal animation */}
-      <style jsx>{`
-        @keyframes modalSlideIn {
-          from {
-            opacity: 0;
-            transform: scale(0.95) translateY(-20px);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
-        }
-      `}</style>
     </div>
   );
 };

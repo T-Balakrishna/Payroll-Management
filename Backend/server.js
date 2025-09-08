@@ -31,26 +31,15 @@ const designationRoute = require('./routes/designationRoute');
 const employeeGradeRoute = require('./routes/employeeGradeRoute');
 const employeeRoute = require('./routes/employeeRoute');
 const employeeTypeRoute = require('./routes/employeeTypeRoute');
-<<<<<<< Updated upstream
-const holidayRoute = require('./routes/holidayRoute');
-const holidayPlanRoute = require('./routes/holidayPlanRoute');
-const leavePolicyRoute = require('./routes/leavePolicyRoute');
-const leaveRequestRoute = require('./routes/leaveRequestRoute');
-=======
 // const holidayRoute = require('./routes/holidayRoute');
 // const holidayPlanRoute = require('./routes/holidayPlanRoute');
 // const leaveRoute = require('./routes/leaveRoute');
->>>>>>> Stashed changes
 // const loginRoute = require('./routes/loginRoute');
 const punchRoute = require('./routes/punchRoute');
 const religionRoute = require('./routes/religionRoute');
 const shiftRoute = require('./routes/shiftRoute');
-<<<<<<< Updated upstream
-const userRoute = require('./routes/userRoute');
-
-=======
-const userRoute = require('./routes/userRoute');   // ✅ added
->>>>>>> Stashed changes
+const userRoute = require('./routes/userRoute');  
+const authRoute = require('./routes/authRoute');  
 
 // Map routes
 app.use('/api/attendance', attendanceRoute);
@@ -62,28 +51,17 @@ app.use('/api/designations', designationRoute);
 app.use('/api/employees', employeeRoute);
 app.use('/api/employeeGrades', employeeGradeRoute);
 app.use('/api/employeeTypes', employeeTypeRoute);
-<<<<<<< Updated upstream
-app.use('/api/holidays', holidayRoute);
-app.use('/api/holidayPlans', holidayPlanRoute);
-app.use('/api/leaveRequests', leaveRequestRoute);
-app.use('/api/leavePolicies', leavePolicyRoute);
-=======
 // app.use('/api/holidays', holidayRoute);
 // app.use('/api/holidayPlans', holidayPlanRoute);
 // app.use('/api/leaves', leaveRoute);
->>>>>>> Stashed changes
 // app.use('/api/logins', loginRoute);
 app.use('/api/punches', punchRoute);
 app.use('/api/religions', religionRoute);
 app.use('/api/shifts', shiftRoute);
-<<<<<<< Updated upstream
-app.use('/api/users', userRoute);
-=======
 app.use('/api/users', userRoute);   // ✅ expose users
->>>>>>> Stashed changes
+app.use('/api/auth', authRoute);    // ✅ expose auth (login + google login)
 
 // Import models so Sequelize can sync tables
-
 require('./models/Attendance');
 require('./models/BiometricDevice');
 require('./models/Bus');
@@ -103,11 +81,7 @@ require('./models/Punch');
 // require('./models/Login');
 require('./models/Religion');
 require('./models/Shift');
-<<<<<<< Updated upstream
-require('./models/User');
-=======
 require('./models/User');   // ✅ user model
->>>>>>> Stashed changes
 
 // Start server
 const startServer = async () => {
@@ -115,14 +89,9 @@ const startServer = async () => {
     await seq.authenticate();
     console.log("✅ DB Connected successfully");
 
-<<<<<<< Updated upstream
-    await seq.sync({force:false});
-    console.log("Tables created");
-=======
     // ⚠️ safer: alter = keep data, adjust schema if needed
     await seq.sync({ alter: true });
     console.log("✅ Tables synced");
->>>>>>> Stashed changes
 
     app.listen(5000, () => {
       console.log("🚀 Listening at http://localhost:5000");
