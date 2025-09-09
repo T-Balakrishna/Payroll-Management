@@ -1,73 +1,85 @@
-const Punch = require('../models/Punch');
-const Employee = require('../models/Employee');
-const BiometricDevice = require('../models/BiometricDevice');
+const { Op } = require("sequelize");
+const Punch = require("../models/Punch");
+const ZKLib = require("node-zklib");
 
-// Log a punch
-exports.createPunch = async (req, res) => {
+// const user = localStorage.getItem('adminName')
+// Fetch from biometric & save
+exports.fetchPunches = async (req, res) => {
   try {
-    const { biometricId, employeeId, deviceId, punchTimestamp, createdBy } = req.body;
-    const newPunch = await Punch.create({ biometricId, employeeId, deviceId, punchTimestamp, createdBy });
-    res.status(201).json(newPunch);
-  } catch (error) {
-    res.status(500).send("Error creating punch: " + error.message);
+    const zk = new ZKLib("172.17.1.5", 4370, 10000, 4000); // Change IP
+    await zk.createSocket();
+
+    const logs = await zk.getAttendances();
+    const newLogs = [];
+
+    for (const log of logs.data) {
+      const exists = await Punch.findOne({
+        where: {
+          biometricNumber: log.deviceUserId,
+          punchTimestamp: log.recordTime
+        }
+      });
+
+      if (!exists) {
+        const saved = await Punch.create({
+          biometricNumber: log.deviceUserId,
+          employeeNumber:"dummy",
+          punchTimestamp: log.recordTime,
+          deviceIp: log.ip
+        });
+        newLogs.push(saved);
+      }
+    }
+
+    await zk.disconnect();
+    res.json({ message: "Punches fetched and stored", newLogs });
+  } catch (err) {
+    console.error("❌ Error fetching punches:", err);
+    res.status(500).send("Error fetching punches: " + err.message);
   }
 };
 
-// Get all punches
-exports.getAllPunches = async (req, res) => {
+// Get today’s punches (all employees)
+exports.getTodayPunches = async (req, res) => {
   try {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
     const punches = await Punch.findAll({
-      include: [
-        { model: Employee, attributes: ['employeeName', 'employeeId'] },
-        { model: BiometricDevice, attributes: ['deviceName', 'ipAddress', 'location'] }
-      ],
-      order: [['punchTimestamp', 'DESC']]
+      where: {
+        recordTime: {
+          [Op.between]: [startOfDay, endOfDay]
+        }
+      },
+      order: [["recordTime", "ASC"]]
     });
+
     res.json(punches);
-  } catch (error) {
-    res.status(500).send("Error fetching punches: " + error.message);
+  } catch (err) {
+    console.error("❌ Error fetching today’s punches:", err);
+    res.status(500).send("Error: " + err.message);
   }
 };
 
-// Get punch by ID
-exports.getPunchById = async (req, res) => {
+// Get all punches of a specific biometricNumber
+exports.getPunchesById = async (req, res) => {
   try {
-    const punch = await Punch.findOne({
-      where: { punchId: req.params.id },
-      include: [
-        { model: Employee, attributes: ['employeeName', 'employeeId'] },
-        { model: BiometricDevice, attributes: ['deviceName', 'ipAddress', 'location'] }
-      ]
+    const { id } = req.params; // biometricNumber
+    const punches = await AttendanceLog.findAll({
+      where: { biometricNumber: id },
+      order: [["recordTime", "DESC"]]
     });
-    if (!punch) return res.status(404).send("Punch not found");
-    res.json(punch);
-  } catch (error) {
-    res.status(500).send("Error fetching punch: " + error.message);
-  }
-};
 
-// Update punch
-exports.updatePunch = async (req, res) => {
-  try {
-    const punch = await Punch.findOne({ where: { punchId: req.params.id } });
-    if (!punch) return res.status(404).send("Punch not found");
+    if (!punches.length) {
+      return res.status(404).json({ message: "No punches found for this user" });
+    }
 
-    await punch.update(req.body);
-    res.json(punch);
-  } catch (error) {
-    res.status(500).send("Error updating punch: " + error.message);
-  }
-};
-
-// Delete punch
-exports.deletePunch = async (req, res) => {
-  try {
-    const punch = await Punch.findOne({ where: { punchId: req.params.id } });
-    if (!punch) return res.status(404).send("Punch not found");
-
-    await punch.destroy();
-    res.json({ message: "Punch deleted successfully" });
-  } catch (error) {
-    res.status(500).send("Error deleting punch: " + error.message);
+    res.json(punches);
+  } catch (err) {
+    console.error("❌ Error fetching punches by ID:", err);
+    res.status(500).send("Error: " + err.message);
   }
 };

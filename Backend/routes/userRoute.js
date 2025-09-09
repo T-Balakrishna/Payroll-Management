@@ -5,7 +5,8 @@ const {
   getAllUsers,
   getUserById,
   updateUser,
-  deleteUser
+  deleteUser,
+  // getLastEmpNumber
 } = require('../controllers/userController');
 
 router.post('/', createUser);
@@ -13,5 +14,6 @@ router.get('/', getAllUsers);
 router.get('/:id', getUserById);
 router.put('/:id', updateUser);
 router.delete('/:id', deleteUser);
+// router.get("/lastEmpNumber/:departmentId", getLastEmpNumber);
 
 module.exports = router;

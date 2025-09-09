@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const seq = require('./config/db');
+const cron = require("node-cron");
+const axios = require("axios");
 
 const app = express();
 app.use(cors());
@@ -82,6 +84,15 @@ const startServer = async () => {
 
     app.listen(5000, () => {
       console.log("Listening at http://localhost:5000");
+    });
+
+    cron.schedule("* * * * *", async () => {
+      try {
+        await axios.get("http://localhost:5000/api/punches/");
+        console.log("✅ Punches fetched (every 1 hour)");
+      } catch (err) {
+        console.error("❌ Error in cron job:", err.message);
+      }
     });
   } catch (error) {
     console.log(error.message);

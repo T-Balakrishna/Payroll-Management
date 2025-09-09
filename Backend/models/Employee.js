@@ -58,7 +58,7 @@ const Employee = sequelize.define('Employee', {
   employeeNumber: { type: DataTypes.STRING, allowNull: false, unique: true },
 
   // Attendance & Leaves
-  biometricId: { type: DataTypes.STRING },
+  // biometricId: { type: DataTypes.STRING },
   holidayListPolicyId: { type: DataTypes.INTEGER },
   leavePolicyId: { 
     type: DataTypes.INTEGER, 

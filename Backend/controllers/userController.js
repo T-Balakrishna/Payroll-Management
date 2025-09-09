@@ -67,3 +67,4 @@ exports.deleteUser = async (req, res) => {
     res.status(500).send("Error deleting user: " + error.message);
   }
 };
+
