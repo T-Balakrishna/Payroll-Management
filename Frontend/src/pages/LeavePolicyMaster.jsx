@@ -1,116 +1,80 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { Calendar } from "lucide-react";
+import { FileText, Pencil, Trash } from "lucide-react";
 
-function AddOrEdit({ onSave, onCancel, editData }) {
-  const [empId, setEmpId] = useState(editData?.emp_id || "");
-  const [leaveType, setLeaveType] = useState(editData?.leave_type || ""); // ✅ New field
-  const [fromDate, setFromDate] = useState(editData?.from_date || "");
-  const [toDate, setToDate] = useState(editData?.to_date || "");
-  const [leaveReason, setLeaveReason] = useState(editData?.leave_reason || "");
-  const status = "pending"; // default
+// ✅ Add/Edit Policy Form inside Modal
+function AddOrEditPolicy({ onSave, onCancel, editData }) {
+  const [policyName, setPolicyName] = useState(editData?.policyName || "");
+  const [description, setDescription] = useState(editData?.description || "");
+  const [status, setStatus] = useState(editData?.status || "active");
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!empId || !leaveType || !fromDate || !toDate || !leaveReason)
-      return alert("Please fill all fields");
+    if (!policyName.trim()) return alert("Policy Name is required");
 
-    const leaveData = {
-      emp_id: empId,
-      leave_type: leaveType, // ✅ added
-      from_date: fromDate,
-      to_date: toDate,
-      leave_reason: leaveReason,
-      status: status,
+    const adminName = localStorage.getItem("adminName") || "system";
+
+    const policyData = {
+      policyName,
+      description,
+      status,
+      updatedBy: adminName,
     };
 
-    onSave(leaveData, editData?.ticket_no);
+    onSave(policyData, editData?.leavePolicyId);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white-900 via-white-800 to-white-900 flex items-center justify-center">
-      <div className="max-w-2xl w-full bg-purple-500 rounded-2xl shadow-xl p-8">
-        <div className="flex justify-center align-center">
-          <Calendar className="text-black-400 mb-4" size={40} />
+    // ✅ MODAL OVERLAY WITH BLUR + CENTERED CARD
+    <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm bg-black/30">
+      <div className="max-w-2xl w-full bg-white rounded-2xl shadow-xl p-8 relative">
+        <div className="flex justify-center mb-4">
+          <FileText className="text-gray-600" size={40} />
         </div>
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+          {/* Policy Name */}
           <div>
-            <label className="block font-bold text-black-300 mb-2">
-              Employee ID
-            </label>
-            <input
-              type="number"
-              value={empId}
-              onChange={(e) => setEmpId(e.target.value)}
-              placeholder="Enter employee ID"
-              className="border border-gray-300/40 bg-white text-black rounded-lg p-3 w-full outline-none"
-            />
-          </div>
-
-          {/* ✅ Leave Type */}
-          <div>
-            <label className="block font-bold text-black-300 mb-2">
-              Leave Type
+            <label className="block font-bold text-gray-700 mb-2">
+              Policy Name
             </label>
             <input
               type="text"
-              value={leaveType}
-              onChange={(e) => setLeaveType(e.target.value)}
-              placeholder="Enter leave type (e.g. Sick, Casual)"
-              className="border border-gray-300/40 bg-white text-black rounded-lg p-3 w-full outline-none"
+              value={policyName}
+              onChange={(e) => setPolicyName(e.target.value)}
+              placeholder="Enter policy name"
+              className="border border-gray-300 bg-white text-black rounded-lg p-3 w-full outline-none"
             />
           </div>
 
+          {/* Description */}
           <div>
-            <label className="block font-bold text-black-300 mb-2">
-              From Date
+            <label className="block font-bold text-gray-700 mb-2">
+              Description
             </label>
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              className="border border-gray-300/40 bg-white text-black rounded-lg p-3 w-full outline-none"
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Enter description"
+              className="border border-gray-300 bg-white text-black rounded-lg p-3 w-full outline-none"
             />
           </div>
 
-          <div>
-            <label className="block font-bold text-black-300 mb-2">
-              To Date
-            </label>
-            <input
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-              className="border border-gray-300/40 bg-white text-black rounded-lg p-3 w-full outline-none"
-            />
-          </div>
+          {/* Status */}
 
-          <div>
-            <label className="block font-bold text-black-300 mb-2">
-              Leave Reason
-            </label>
-            <input
-              type="text"
-              value={leaveReason}
-              onChange={(e) => setLeaveReason(e.target.value)}
-              placeholder="Enter leave reason"
-              className="border border-gray-300/40 bg-white text-black rounded-lg p-3 w-full outline-none"
-            />
-          </div>
-
+          {/* Buttons */}
           <div className="flex justify-end gap-3">
             <button
               type="button"
               onClick={onCancel}
-              className="bg-gray-400 text-white px-6 py-3 rounded-lg"
+              className="bg-gray-500 text-white px-6 py-3 rounded-lg"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="bg-sky-500 hover:bg-sky-700 text-white px-6 py-3 rounded-lg"
+              className="bg-blue-700 text-white px-6 py-3 rounded-lg"
             >
-              {editData ? "Update Changes" : "Save Changes"}
+              {editData ? "Update Policy" : "Save Policy"}
             </button>
           </div>
         </form>
@@ -119,135 +83,88 @@ function AddOrEdit({ onSave, onCancel, editData }) {
   );
 }
 
-function LeaveMaster() {
-  const [leaves, setLeaves] = useState([]);
+// Leave Policy Master Page
+export default function LeavePolicyMaster() {
+  const [policies, setPolicies] = useState([]);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editData, setEditData] = useState(null);
 
-  const fetchLeaves = async () => {
+  const fetchPolicies = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/leaves");
-      setLeaves(res.data);
+      const res = await axios.get("http://localhost:5000/api/leave-policies");
+      setPolicies(res.data);
     } catch (err) {
-      console.error("Error fetching leaves:", err);
+      console.error("Error fetching leave policies:", err);
     }
   };
 
   useEffect(() => {
-    fetchLeaves();
+    fetchPolicies();
   }, []);
 
-  const filteredData = leaves.filter(
-    (l) =>
-      l.ticket_no?.toString().includes(search) ||
-      l.emp_id?.toString().includes(search) ||
-      l.leave_type?.toLowerCase().includes(search.toLowerCase()) || // ✅ searchable
-      l.leave_reason?.toLowerCase().includes(search.toLowerCase()) ||
-      l.status?.toLowerCase().includes(search.toLowerCase())
+  const filteredData = policies.filter(
+    (p) =>
+      p.policyName?.toLowerCase().includes(search.toLowerCase()) ||
+      p.description?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleSave = async (leaveData, ticket_no) => {
+  const handleSave = async (data, id) => {
     try {
-      const from = new Date(leaveData.from_date);
-      const to = new Date(leaveData.to_date);
-      if (from > to) {
-        alert("From Date must be earlier than or equal to To Date.");
-        return;
-      }
+      const adminName = localStorage.getItem("adminName") || "system";
 
-      
-      // const empCheck = await axios.get(
-      //   `http://localhost:5000/api/employees/${leaveData.emp_id}`
-      // );
-      // if (!empCheck.data) {
-      //   alert("Employee ID not found in Employee Table.");
-      //   return;
-      // }
-
-      try {
-        const empCheck = await axios.get(`http://localhost:5000/api/employees/${leaveData.emp_id}`);
-
-        if (!empCheck.data || Object.keys(empCheck.data).length === 0) {
-          alert("Employee ID not found in Employee Table.");
-          return;
-        }
-      } catch (error) {
-        if (error.response && error.response.status === 404) {
-          alert("Employee ID not found in Employee Table.");
-        } else {
-          alert("Error checking employee ID. Please try again.");
-          console.error(error);
-        }
-        return;
-      }
-
-
-      if (ticket_no) {
-        await axios.put(`http://localhost:5000/api/leaves/${ticket_no}`, leaveData);
+      if (id) {
+        await axios.put(`http://localhost:5000/api/leave-policies/${id}`, {
+          ...data,
+          updatedBy: adminName,
+        });
       } else {
-        await axios.post("http://localhost:5000/api/leaves", leaveData);
+        await axios.post("http://localhost:5000/api/leave-policies", {
+          ...data,
+          createdBy: adminName,
+        });
       }
 
-      fetchLeaves();
       setShowForm(false);
       setEditData(null);
+      fetchPolicies();
     } catch (err) {
-      console.error("Error saving leave:", err);
-      alert("Error occurred while saving leave. Please try again.");
+      console.error("Error saving policy:", err);
     }
   };
 
-  const handleEdit = (leave) => {
-    setEditData(leave);
+  const handleEdit = (policy) => {
+    setEditData(policy);
     setShowForm(true);
   };
 
-  const handleUpdateStatus = async (ticket_no, status) => {
-  try {
-    await axios.put(`http://localhost:5000/api/leaves/${ticket_no}/status`, {
-      ticket_no: ticket_no,
-      status: status
-    });
-    // Refresh data
-    fetchLeaves();
-  } catch (err) {
-    console.error("Error updating status:", err);
-    alert("Failed to update leave status");
-  }
-};
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this policy?")) return;
 
-
-  const handleDelete = async (ticket_no) => {
     try {
-      await axios.delete(`http://localhost:5000/api/leaves/${ticket_no}`);
-      fetchLeaves();
+      const adminName = localStorage.getItem("adminName") || "system";
+      await axios.delete(`http://localhost:5000/api/leave-policies/${id}`, {
+        data: { updatedBy: adminName },
+      });
+
+      fetchPolicies();
     } catch (err) {
-      console.error("Error deleting leave:", err);
+      console.error("Error deleting policy:", err);
     }
   };
 
-  return showForm ? (
-    <AddOrEdit
-      onSave={handleSave}
-      onCancel={() => {
-        setShowForm(false);
-        setEditData(null);
-      }}
-      editData={editData}
-    />
-  ) : (
-    <div className="min-h-screen p-6 flex flex-col justify-center align-center">
+  return (
+    <div className="min-h-screen p-6 flex flex-col">
       <div className="flex justify-between items-center mb-4">
         <input
           type="text"
-          placeholder="Search leave..."
+          placeholder="Search policies..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="border border-gray-300/40 bg-white text-black rounded-lg p-3 w-1/3 outline-none"
+          className="border border-gray-300 bg-white text-black rounded-lg p-3 w-1/3 outline-none"
         />
         <button
-          className="bg-green-500 hover:bg-green-600 text-white px-5 py-2 rounded-lg shadow-md"
+          className="bg-blue-700 text-white px-5 py-2 rounded-lg shadow-md"
           onClick={() => {
             setShowForm(true);
             setEditData(null);
@@ -257,58 +174,61 @@ function LeaveMaster() {
         </button>
       </div>
 
+      {/* Scrollable Table */}
       <div className="overflow-y-auto" style={{ maxHeight: "260px" }}>
         <table className="w-full text-left border border-gray-300">
           <thead>
-            <tr className="bg-gray-100 sticky top-0">              
-              <th className="py-2 px-4">Employee ID</th>
-              <th className="py-2 px-4">Leave Type</th> 
-              <th className="py-2 px-4">From Date</th>
-              <th className="py-2 px-4">To Date</th>
-              <th className="py-2 px-4">Reason</th>
+            <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+              <th className="py-2 px-4">ID</th>
+              <th className="py-2 px-4">Policy Name</th>
+              <th className="py-2 px-4">Description</th>
               <th className="py-2 px-4">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filteredData.map((l) => (
-              <tr key={l.ticket_no} className="border-t">                
-                <td className="py-2 px-4">{l.emp_id}</td>
-                <td className="py-2 px-4">{l.leave_type}</td> 
-                <td className="py-2 px-4">{l.from_date}</td>
-                <td className="py-2 px-4">{l.to_date}</td>
-                <td className="py-2 px-4">{l.leave_reason}</td>                
+            {filteredData.map((p) => (
+              <tr key={p.leavePolicyId} className="border-t">
+                <td className="py-2 px-4">{p.leavePolicyId}</td>
+                <td className="py-2 px-4">{p.policyName}</td>
+                <td className="py-2 px-4">{p.description}</td>
                 <td className="py-2 px-4 flex gap-2">
-                  <td className="py-2 px-4 flex gap-2">
                   <button
-                    className="bg-green-500 text-white px-2 py-1 rounded-md"
-                    onClick={() => handleUpdateStatus(l.ticket_no, "approved")}
+                    className="bg-blue-500 text-white px-1 py-1 rounded-md"
+                    onClick={() => handleEdit(p)}
                   >
-                    
-                    Approve
+                    <Pencil />
                   </button>
                   <button
-                    className="bg-red-500 text-white px-2 py-1 rounded-md"
-                    onClick={() => handleUpdateStatus(l.ticket_no, "rejected")}
-                  >                    
-                    Reject
+                    className="bg-red-600 text-white px-1 py-1 rounded-md"
+                    onClick={() => handleDelete(p.leavePolicyId)}
+                  >
+                    <Trash />
                   </button>
-                </td>
-
                 </td>
               </tr>
             ))}
             {filteredData.length === 0 && (
               <tr>
-                <td colSpan="8" className="text-center py-4">
-                  No data found
+                <td colSpan="5" className="text-center py-4">
+                  No policies found
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {/* ✅ Render modal conditionally */}
+      {showForm && (
+        <AddOrEditPolicy
+          onSave={handleSave}
+          onCancel={() => {
+            setShowForm(false);
+            setEditData(null);
+          }}
+          editData={editData}
+        />
+      )}
     </div>
   );
 }
-
-export default LeaveMaster;

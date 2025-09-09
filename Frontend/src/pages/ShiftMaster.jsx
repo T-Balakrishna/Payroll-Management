@@ -3,60 +3,58 @@ import axios from "axios";
 import { Building2, Pencil, Trash } from "lucide-react";
 
 function AddOrEditShift({ onSave, onCancel, editData }) {
-  const [shiftName, setShiftName] = useState(editData?.shift_name || "");
-  const [fromTime, setFromTime] = useState(editData?.from_time || "");
-  const [toTime, setToTime] = useState(editData?.to_time || "");
-  const [minHours, setMinHours] = useState(editData?.min_hours || "");
-  
-  // NEW: State for "Ends Next Day"
-  const [nextDay, setNextDay] = useState(editData?.next_day || false);
+  const [shiftName, setShiftName] = useState(editData?.shiftName || "");
+  const [shiftInStartTime, setShiftInStartTime] = useState(editData?.shiftInStartTime || "");
+  const [shiftInEndTime, setShiftInEndTime] = useState(editData?.shiftInEndTime || "");
+  const [shiftOutStartTime, setShiftOutStartTime] = useState(editData?.shiftOutStartTime || "");
+  const [shiftOutEndTime, setShiftOutEndTime] = useState(editData?.shiftOutEndTime || "");
+  const [shiftMinHours, setShiftMinHours] = useState(editData?.shiftMinHours || "");
+  const [shiftNextDay, setShiftNextDay] = useState(editData?.shiftNextDay || false);
 
   const handleSubmit = (e) => {
-  e.preventDefault();
-  if (!shiftName || !fromTime || !toTime || !minHours)
-    return alert("Please fill all fields");
+    e.preventDefault();
+    if (!shiftName || !shiftInStartTime || !shiftInEndTime || !shiftOutStartTime || !shiftOutEndTime || !shiftMinHours) {
+      return alert("Please fill all fields");
+    }
 
-  // --- NEW: Calculate duration ---
-  const [fromH, fromM] = fromTime.split(":").map(Number);
-  const [toH, toM] = toTime.split(":").map(Number);
+    // --- Calculate duration (In Time only for validation) ---
+    const [fromH, fromM] = shiftInStartTime.split(":").map(Number);
+    const [toH, toM] = shiftInEndTime.split(":").map(Number);
 
-  let durationMinutes = (toH * 60 + toM) - (fromH * 60 + fromM);
+    let durationMinutes = (toH * 60 + toM) - (fromH * 60 + fromM);
+    if (shiftNextDay) durationMinutes += 24 * 60;
 
-  if (nextDay) { // shift ends next day
-    durationMinutes += 24 * 60;
-  }
+    const durationHours = durationMinutes / 60;
+    if (Number(shiftMinHours) > durationHours) {
+      return alert(`Minimum hours cannot exceed shift duration (${durationHours.toFixed(2)} hours)`);
+    }
 
-  const durationHours = durationMinutes / 60;
+    const currentUser = localStorage.getItem("username") || "system";
 
-  if (Number(minHours) > durationHours) {
-    return alert(
-      `Minimum hours cannot exceed shift duration (${durationHours.toFixed(2)} hours)`
-    );
-  }
+    const shiftData = {
+      shiftName,
+      shiftInStartTime,
+      shiftInEndTime,
+      shiftOutStartTime,
+      shiftOutEndTime,
+      shiftMinHours,
+      shiftNextDay,
+      createdBy: editData ? editData.createdBy : currentUser,
+      updatedBy: currentUser,
+    };
 
-  const shiftData = {
-    shift_name: shiftName,
-    from_time: fromTime,
-    to_time: toTime,
-    min_hours: minHours,
-    next_day: nextDay,
+    onSave(shiftData, editData?.shiftId);
   };
-
-  onSave(shiftData, editData?.shift_id);
-};
-
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white-900 via-white-800 to-white-900 flex items-center justify-center">
-      <div className="max-w-2xl w-full bg-purple-500 rounded-2xl shadow-xl p-8">
+      <div className="max-w-2xl w-full bg-white rounded-2xl shadow-xl p-8">
         <div className="flex justify-center align-center mb-4">
           <Building2 className="text-black-400" size={40} />
         </div>
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           <div>
-            <label className="block font-bold text-black-300 mb-2">
-              Shift Name
-            </label>
+            <label className="block font-bold text-black-300 mb-2">Shift Name</label>
             <input
               type="text"
               value={shiftName}
@@ -67,36 +65,51 @@ function AddOrEditShift({ onSave, onCancel, editData }) {
           </div>
 
           <div>
-            <label className="block font-bold text-black-300 mb-2">
-              From Time
-            </label>
+            <label className="block font-bold text-black-300 mb-2">From Time</label>
             <input
               type="time"
-              value={fromTime}
-              onChange={(e) => setFromTime(e.target.value)}
+              value={shiftInStartTime}
+              onChange={(e) => setShiftInStartTime(e.target.value)}
               className="border border-gray-300/40 bg-white text-black rounded-lg p-3 w-full outline-none"
             />
           </div>
 
           <div>
-            <label className="block font-bold text-black-300 mb-2">
-              To Time
-            </label>
+            <label className="block font-bold text-black-300 mb-2">To Time</label>
             <input
               type="time"
-              value={toTime}
-              onChange={(e) => setToTime(e.target.value)}
+              value={shiftInEndTime}
+              onChange={(e) => setShiftInEndTime(e.target.value)}
               className="border border-gray-300/40 bg-white text-black rounded-lg p-3 w-full outline-none"
             />
           </div>
 
-          {/* NEW: Checkbox for Next Day */}
+          <div>
+            <label className="block font-bold text-black-300 mb-2">Out Start Time</label>
+            <input
+              type="time"
+              value={shiftOutStartTime}
+              onChange={(e) => setShiftOutStartTime(e.target.value)}
+              className="border border-gray-300/40 bg-white text-black rounded-lg p-3 w-full outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block font-bold text-black-300 mb-2">Out End Time</label>
+            <input
+              type="time"
+              value={shiftOutEndTime}
+              onChange={(e) => setShiftOutEndTime(e.target.value)}
+              className="border border-gray-300/40 bg-white text-black rounded-lg p-3 w-full outline-none"
+            />
+          </div>
+
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
               id="nextDay"
-              checked={nextDay}
-              onChange={() => setNextDay(!nextDay)}
+              checked={shiftNextDay}
+              onChange={() => setShiftNextDay(!shiftNextDay)}
             />
             <label htmlFor="nextDay" className="text-black-300 font-bold">
               Ends Next Day
@@ -104,31 +117,22 @@ function AddOrEditShift({ onSave, onCancel, editData }) {
           </div>
 
           <div>
-            <label className="block font-bold text-black-300 mb-2">
-              Minimum Hours
-            </label>
+            <label className="block font-bold text-black-300 mb-2">Minimum Hours</label>
             <input
               type="number"
-              value={minHours}
-              onChange={(e) => setMinHours(e.target.value)}
+              value={shiftMinHours}
+              onChange={(e) => setShiftMinHours(e.target.value)}
               placeholder="Enter minimum hours"
               className="border border-gray-300/40 bg-white text-black rounded-lg p-3 w-full outline-none"
             />
           </div>
 
           <div className="flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="bg-gray-400 text-white px-6 py-3 rounded-lg"
-            >
+            <button type="button" onClick={onCancel} className="bg-blue-700 text-white px-6 py-3 rounded-lg">
               Cancel
             </button>
-            <button
-              type="submit"
-              className="bg-sky-500 hover:bg-sky-700 text-white px-6 py-3 rounded-lg"
-            >
-              {editData ? "Update Changes" : "Save Changes"}
+            <button type="submit" className="bg-blue-700 text-white px-6 py-3 rounded-lg">
+              {editData ? "Update Changes" : "Save"}
             </button>
           </div>
         </form>
@@ -158,16 +162,18 @@ export default function ShiftMaster() {
 
   const filteredData = shifts.filter(
     (s) =>
-      s.shift_name?.toLowerCase().includes(search.toLowerCase()) ||
-      s.from_time?.includes(search) ||
-      s.to_time?.includes(search) ||
-      s.min_hours?.toString().includes(search)
+      s.shiftName?.toLowerCase().includes(search.toLowerCase()) ||
+      s.shiftInStartTime?.includes(search) ||
+      s.shiftInEndTime?.includes(search) ||
+      s.shiftOutStartTime?.includes(search) ||
+      s.shiftOutEndTime?.includes(search) ||
+      s.shiftMinHours?.toString().includes(search)
   );
 
-  const handleSave = async (data, shift_id) => {
+  const handleSave = async (data, shiftId) => {
     try {
-      if (shift_id) {
-        await axios.put(`http://localhost:5000/api/shifts/${shift_id}`, data);
+      if (shiftId) {
+        await axios.put(`http://localhost:5000/api/shifts/${shiftId}`, data);
       } else {
         await axios.post("http://localhost:5000/api/shifts", data);
       }
@@ -184,9 +190,13 @@ export default function ShiftMaster() {
     setShowForm(true);
   };
 
-  const handleDelete = async (shift_id) => {
+  const handleDelete = async (shiftId) => {
+    if (!window.confirm("Are you sure you want to delete this shift?")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/shifts/${shift_id}`);
+      const currentUser = localStorage.getItem("username") || "system";
+      await axios.delete(`http://localhost:5000/api/shifts/${shiftId}`, {
+        data: { updatedBy: currentUser },
+      });
       fetchShifts();
     } catch (err) {
       console.error("Error deleting shift:", err);
@@ -213,7 +223,7 @@ export default function ShiftMaster() {
           className="border border-gray-300/40 bg-white text-black rounded-lg p-3 w-1/3 outline-none"
         />
         <button
-          className="bg-green-500 hover:bg-green-600 text-white px-5 py-2 rounded-lg shadow-md"
+          className="bg-blue-700 text-white px-5 py-2 rounded-lg shadow-md"
           onClick={() => {
             setShowForm(true);
             setEditData(null);
@@ -223,28 +233,30 @@ export default function ShiftMaster() {
         </button>
       </div>
 
-      <div className="overflow-y-auto" style={{ maxHeight: "260px" }}>
+      <div className="overflow-y-auto" style={{ maxHeight: "300px" }}>
         <table className="w-full text-left border border-gray-300">
           <thead>
             <tr className="bg-gray-100 sticky top-0">
               <th className="py-2 px-4">ID</th>
               <th className="py-2 px-4">Shift Name</th>
-              <th className="py-2 px-4">From Time</th>
-              <th className="py-2 px-4">To Time</th>
+              <th className="py-2 px-4">In Start</th>
+              <th className="py-2 px-4">In End</th>
+              <th className="py-2 px-4">Out Start</th>
+              <th className="py-2 px-4">Out End</th>
               <th className="py-2 px-4">Min Hours</th>
               <th className="py-2 px-4">Actions</th>
             </tr>
           </thead>
           <tbody>
             {filteredData.map((s) => (
-              <tr key={s.shift_id} className="border-t">
-                <td className="py-2 px-4">{s.shift_id}</td>
-                <td className="py-2 px-4">{s.shift_name}</td>
-                <td className="py-2 px-4">{s.from_time}</td>
-                <td className="py-2 px-4">
-                  {s.to_time} {s.next_day ? "(Next Day)" : ""} {/* NEW */}
-                </td>
-                <td className="py-2 px-4">{s.min_hours}</td>
+              <tr key={s.shiftId} className="border-t">
+                <td className="py-2 px-4">{s.shiftId}</td>
+                <td className="py-2 px-4">{s.shiftName}</td>
+                <td className="py-2 px-4">{s.shiftInStartTime}</td>
+                <td className="py-2 px-4">{s.shiftInEndTime}</td>
+                <td className="py-2 px-4">{s.shiftOutStartTime}</td>
+                <td className="py-2 px-4">{s.shiftOutEndTime}</td>
+                <td className="py-2 px-4">{s.shiftMinHours}</td>
                 <td className="py-2 px-4 flex gap-2">
                   <button
                     className="bg-blue-500 text-white px-1 py-1 rounded-md"
@@ -253,8 +265,8 @@ export default function ShiftMaster() {
                     <Pencil />
                   </button>
                   <button
-                    className="bg-red-500 text-white px-1 py-1 rounded-md"
-                    onClick={() => handleDelete(s.shift_id)}
+                    className="bg-red-600 text-white px-1 py-1 rounded-md"
+                    onClick={() => handleDelete(s.shiftId)}
                   >
                     <Trash />
                   </button>
@@ -263,7 +275,7 @@ export default function ShiftMaster() {
             ))}
             {filteredData.length === 0 && (
               <tr>
-                <td colSpan="6" className="text-center py-4">
+                <td colSpan="8" className="text-center py-4">
                   No data found
                 </td>
               </tr>
