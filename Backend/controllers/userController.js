@@ -5,10 +5,13 @@ const bcrypt = require('bcryptjs');
 exports.createUser = async (req, res) => {
   try {
     const { userMail, userName, userNumber, role, departmentId, password, createdBy } = req.body;
+
     const existing = await User.findOne({ where: { userMail } });
     if (existing) return res.status(400).json({ error: "User already exists" });
 
+    // Hash the password before saving
     const hashedPassword = await bcrypt.hash(password, 10);
+
     const newUser = await User.create({
       userMail,
       userName,
@@ -49,11 +52,18 @@ exports.getUserById = async (req, res) => {
 // Update user
 exports.updateUser = async (req, res) => {
   try {
-    const { userName, userNumber, role, departmentId } = req.body;
+    const { userName, userNumber, role, departmentId, password } = req.body;
+
     const user = await User.findByPk(req.params.id);
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    await user.update({ userName, userNumber, role, departmentId });
+    // If password is provided, hash it
+    let updatedData = { userName, userNumber, role, departmentId };
+    if (password) {
+      updatedData.password = await bcrypt.hash(password, 10);
+    }
+
+    await user.update(updatedData);
     res.json({ message: "User updated", user });
   } catch (err) {
     res.status(500).json({ error: err.message });

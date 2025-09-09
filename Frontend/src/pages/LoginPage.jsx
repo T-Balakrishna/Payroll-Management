@@ -5,17 +5,17 @@ import API from "../api";
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState(""); // email or userNumber
   const [password, setPassword] = useState("");
 
   const handleLogin = async () => {
-    if (!email || !password) return alert("Enter email & password");
+    if (!identifier || !password) return alert("Enter email/userNumber & password");
 
     try {
-      const res = await API.post("/auth/login", { userMail: email, password });
-      const { token, role } = res.data;
+      const res = await API.post("/auth/login", { identifier, password });
+      const { token, user } = res.data;
       localStorage.setItem("token", token);
-      navigate(role === "Admin" ? "/adminDashboard" : "/userDashboard");
+      navigate(user.role === "Admin" ? "/adminDashboard" : "/userDashboard");
     } catch (err) {
       alert(err.response?.data?.msg || "Login failed");
     }
@@ -26,9 +26,9 @@ export default function LoginPage() {
 
     try {
       const apiRes = await API.post("/auth/google-login", { token: res.credential });
-      const { token, role } = apiRes.data;
+      const { token, user } = apiRes.data;
       localStorage.setItem("token", token);
-      navigate(role === "Admin" ? "/adminDashboard" : "/userDashboard");
+      navigate(user.role === "Admin" ? "/adminDashboard" : "/userDashboard");
     } catch (err) {
       alert(err.response?.data?.msg || "Google login failed");
     }
@@ -40,10 +40,10 @@ export default function LoginPage() {
         <h2 className="text-xl font-bold mb-4">LOGIN</h2>
 
         <input
-          type="email"
-          placeholder="College Mail"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          type="text"
+          placeholder="Email or User Number"
+          value={identifier}
+          onChange={(e) => setIdentifier(e.target.value)}
           className="w-full mb-4 p-2 border rounded"
         />
         <input
