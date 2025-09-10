@@ -14,7 +14,9 @@ export default function LoginPage() {
     try {
       const res = await API.post("/auth/login", { identifier, password });
       const { token, user } = res.data;
+
       localStorage.setItem("token", token);
+      localStorage.setItem("userNumber", user.userNumber);
       navigate(user.role === "Admin" ? "/adminDashboard" : "/userDashboard");
     } catch (err) {
       alert(err.response?.data?.msg || "Login failed");
@@ -27,7 +29,10 @@ export default function LoginPage() {
     try {
       const apiRes = await API.post("/auth/google-login", { token: res.credential });
       const { token, user } = apiRes.data;
+
       localStorage.setItem("token", token);
+      localStorage.setItem("userNumber", user.userNumber);
+
       navigate(user.role === "Admin" ? "/adminDashboard" : "/userDashboard");
     } catch (err) {
       alert(err.response?.data?.msg || "Google login failed");

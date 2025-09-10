@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { Building2, Pencil, Trash, Plus, X } from "lucide-react";
+
 
 // ✅ Modal Form Component
 function AddOrEdit({ onSave, onCancel, editData }) {
@@ -8,11 +10,14 @@ function AddOrEdit({ onSave, onCancel, editData }) {
   const [departmentAckr, setDepartmentAckr] = useState(editData?.departmentAckr || "");
   const [status, setStatus] = useState(editData?.status || "active");
 
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!departmentName || !departmentAckr) return alert("Please fill all fields");
 
+
     const adminName = localStorage.getItem("adminName") || "system";
+
 
     const departmentData = {
       departmentName,
@@ -22,8 +27,10 @@ function AddOrEdit({ onSave, onCancel, editData }) {
       updatedBy: adminName,
     };
 
+
     onSave(departmentData, editData?.departmentId);
   };
+
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm">
@@ -36,6 +43,7 @@ function AddOrEdit({ onSave, onCancel, editData }) {
           <X size={22} />
         </button>
 
+
         {/* Icon */}
         <div className="flex justify-center mb-6">
           <div className="bg-blue-100 p-4 rounded-full">
@@ -43,10 +51,12 @@ function AddOrEdit({ onSave, onCancel, editData }) {
           </div>
         </div>
 
+
         {/* Title */}
         <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">
           {editData ? "Edit Department" : "Add New Department"}
         </h2>
+
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -61,8 +71,9 @@ function AddOrEdit({ onSave, onCancel, editData }) {
             />
           </div>
 
+
           <div>
-            <label className="block font-medium text-gray-700 mb-2">Short Name (Ackr)</label>
+            <label className="block font-medium text-gray-700 mb-2">Acronym</label>
             <input
               type="text"
               value={departmentAckr}
@@ -71,6 +82,7 @@ function AddOrEdit({ onSave, onCancel, editData }) {
               className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
             />
           </div>
+
 
           {/* Buttons */}
           <div className="flex justify-end gap-3 pt-4">
@@ -94,12 +106,14 @@ function AddOrEdit({ onSave, onCancel, editData }) {
   );
 }
 
+
 // ✅ Main Component
 function DepartmentMaster() {
   const [departments, setDepartments] = useState([]);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editData, setEditData] = useState(null);
+
 
   const fetchDepartments = async () => {
     try {
@@ -110,9 +124,11 @@ function DepartmentMaster() {
     }
   };
 
+
   useEffect(() => {
     fetchDepartments();
   }, []);
+
 
   const filteredData = departments.filter(
     (d) =>
@@ -120,6 +136,7 @@ function DepartmentMaster() {
       d.departmentAckr?.toLowerCase().includes(search.toLowerCase()) ||
       d.status?.toLowerCase().includes(search.toLowerCase())
   );
+
 
   const handleSave = async (departmentData, departmentId) => {
     try {
@@ -136,10 +153,12 @@ function DepartmentMaster() {
     }
   };
 
+
   const handleEdit = (department) => {
     setEditData(department);
     setShowForm(true);
   };
+
 
   const handleDelete = async (departmentId) => {
     if (!window.confirm("Are you sure you want to delete this department?")) return;
@@ -153,6 +172,7 @@ function DepartmentMaster() {
       console.error("Error deleting department:", err);
     }
   };
+
 
   return (
     <div className="min-h-screen p-6 flex flex-col">
@@ -176,6 +196,7 @@ function DepartmentMaster() {
         </button>
       </div>
 
+
       {/* Table */}
       <div className="overflow-y-auto border border-gray-200 rounded-lg shadow-sm" style={{ maxHeight: "320px" }}>
         <table className="w-full text-left text-sm">
@@ -183,7 +204,7 @@ function DepartmentMaster() {
             <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
               <th className="py-3 px-4">ID</th>
               <th className="py-3 px-4">Name</th>
-              <th className="py-3 px-4">Ackr</th>
+              <th className="py-3 px-4">Acronym</th>
               <th className="py-3 px-4">Actions</th>
             </tr>
           </thead>
@@ -219,6 +240,7 @@ function DepartmentMaster() {
           </tbody>
         </table>
       </div>
+
 
       {/* Show Modal */}
       {showForm && (

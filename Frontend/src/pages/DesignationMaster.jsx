@@ -2,17 +2,21 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { GraduationCap, Pencil, Trash, Plus, X } from "lucide-react";
 
+
 // ✅ Modal Component
 function AddOrEdit({ onSave, onCancel, editData }) {
   const [designationName, setDesignationName] = useState(editData?.designationName || "");
   const [designationAckr, setDesignationAckr] = useState(editData?.designationAckr || "");
   const [status, setStatus] = useState(editData?.status || "active");
 
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!designationName || !designationAckr) return alert("Please fill all fields");
 
+
     const adminName = localStorage.getItem("adminName") || "system";
+
 
     const designationData = {
       designationName,
@@ -22,8 +26,10 @@ function AddOrEdit({ onSave, onCancel, editData }) {
       updatedBy: adminName,
     };
 
+
     onSave(designationData, editData?.designationId);
   };
+
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm">
@@ -36,6 +42,7 @@ function AddOrEdit({ onSave, onCancel, editData }) {
           <X size={22} />
         </button>
 
+
         {/* Icon */}
         <div className="flex justify-center mb-6">
           <div className="bg-blue-100 p-4 rounded-full">
@@ -43,10 +50,12 @@ function AddOrEdit({ onSave, onCancel, editData }) {
           </div>
         </div>
 
+
         {/* Title */}
         <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">
           {editData ? "Edit Designation" : "Add New Designation"}
         </h2>
+
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -60,6 +69,7 @@ function AddOrEdit({ onSave, onCancel, editData }) {
               className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
             />
           </div>
+
 
           <div>
             <label className="block font-medium text-gray-700 mb-2">Acronym</label>
@@ -93,12 +103,14 @@ function AddOrEdit({ onSave, onCancel, editData }) {
   );
 }
 
+
 // ✅ Main Component
 function DesignationMaster() {
   const [designations, setDesignations] = useState([]);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editData, setEditData] = useState(null);
+
 
   const fetchDesignations = async () => {
     try {
@@ -109,9 +121,11 @@ function DesignationMaster() {
     }
   };
 
+
   useEffect(() => {
     fetchDesignations();
   }, []);
+
 
   const filteredData = designations.filter(
     (d) =>
@@ -119,6 +133,7 @@ function DesignationMaster() {
       d.designationAckr?.toLowerCase().includes(search.toLowerCase()) ||
       d.status?.toLowerCase().includes(search.toLowerCase())
   );
+
 
   const handleSave = async (designationData, designationId) => {
     try {
@@ -138,10 +153,12 @@ function DesignationMaster() {
     }
   };
 
+
   const handleEdit = (designation) => {
     setEditData(designation);
     setShowForm(true);
   };
+
 
   const handleDelete = async (designationId) => {
     if (!window.confirm("Are you sure you want to delete this designation?")) return;
@@ -155,6 +172,7 @@ function DesignationMaster() {
       console.error("Error deleting designation:", err);
     }
   };
+
 
   return (
     <div className="min-h-screen p-6 flex flex-col">
@@ -177,6 +195,7 @@ function DesignationMaster() {
           <Plus size={18} /> Add Designation
         </button>
       </div>
+
 
       {/* Table */}
       <div className="overflow-y-auto border border-gray-200 rounded-lg shadow-sm" style={{ maxHeight: "320px" }}>
@@ -221,6 +240,7 @@ function DesignationMaster() {
           </tbody>
         </table>
       </div>
+
 
       {/* Modal */}
       {showForm && (

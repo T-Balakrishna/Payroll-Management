@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { User, Search, Plus, X, Trash, Pencil } from "lucide-react";
 
+
 // ✅ Modal Component
 function AddOrEditUser({
   formData,
@@ -17,10 +18,12 @@ function AddOrEditUser({
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+
   const handleSubmit = (e) => {
     e.preventDefault();
     onSave(e);
   };
+
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm">
@@ -33,10 +36,12 @@ function AddOrEditUser({
           <X size={20} />
         </button>
 
+
         {/* Heading */}
         <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">
           {formData.userId ? "Edit User" : "Add New User"}
         </h2>
+
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -50,6 +55,7 @@ function AddOrEditUser({
             required
           />
 
+
           <input
             type="password"
             name="password"
@@ -59,6 +65,7 @@ function AddOrEditUser({
             className="w-full p-3 border rounded-lg"
             required={!formData.userId} // not required on edit
           />
+
 
           <select
             name="role"
@@ -73,20 +80,24 @@ function AddOrEditUser({
             <option value="Department Admin">Department Admin</option>
           </select>
 
-          <select
-            name="departmentId"
-            value={formData.departmentId}
-            onChange={handleChange}
-            className="w-full p-3 border rounded-lg"
-            required
-          >
-            <option value="">Select Department</option>
-            {departments.map((d) => (
-              <option key={d.departmentId} value={d.departmentId}>
-                {d.departmentAckr}
-              </option>
-            ))}
-          </select>
+
+        {(autoGenerate || formData.role==='Department Admin') && (
+        <select
+          name="departmentId"
+          value={formData.departmentId}
+          onChange={handleChange}
+          className="w-full p-3 border rounded-lg"
+          required
+        >
+          <option value="">Select Department</option>
+          {departments.map((d) => (
+            <option key={d.departmentId} value={d.departmentId}>
+              {d.departmentAckr}
+            </option>
+          ))}
+        </select>
+      )}
+
 
           <div className="flex items-center gap-2">
             <input
@@ -108,6 +119,7 @@ function AddOrEditUser({
               Auto Generate
             </label>
           </div>
+
 
           {/* Footer */}
           <div className="flex justify-end gap-3 pt-4">
@@ -131,8 +143,10 @@ function AddOrEditUser({
   );
 }
 
+
 // ✅ Main Page
-export default function AddUser({ adminName }) {
+export default function AddUser() {
+  const userNumber=localStorage.getItem("userNumber");
   const [departments, setDepartments] = useState([]);
   const [users, setUsers] = useState([]);
   const [formData, setFormData] = useState({
@@ -147,13 +161,16 @@ export default function AddUser({ adminName }) {
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState("");
 
+
   useEffect(() => {
     axios.get("http://localhost:5000/api/departments")
       .then((res) => setDepartments(res.data))
       .catch(console.error);
 
+
     fetchUsers();
   }, []);
+
 
   const fetchUsers = async () => {
     try {
@@ -163,6 +180,7 @@ export default function AddUser({ adminName }) {
       console.error("Error fetching users:", err);
     }
   };
+
 
   const handleAutoGenerate = async (checked) => {
     setAutoGenerate(checked);
@@ -189,19 +207,21 @@ export default function AddUser({ adminName }) {
     }
   };
 
+
   const handleSave = async (e) => {
     e.preventDefault();
     try {
       if (formData.userId) {
         await axios.put(`http://localhost:5000/api/users/${formData.userId}`, {
           ...formData,
-          updatedBy: adminName,
+          updatedBy: userNumber,
         });
         alert("User updated!");
       } else {
+
         await axios.post("http://localhost:5000/api/users", {
           ...formData,
-          createdBy: adminName,
+          createdBy: userNumber,
         });
         alert("User added!");
       }
@@ -212,11 +232,12 @@ export default function AddUser({ adminName }) {
     }
   };
 
+
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this user?")) return;
     try {
       await axios.delete(`http://localhost:5000/api/users/${id}`, {
-        data: { updatedBy: adminName },
+        data: { updatedBy: userNumber },
       });
       alert("User deleted!");
       fetchUsers();
@@ -224,6 +245,7 @@ export default function AddUser({ adminName }) {
       console.error("Error deleting user:", err);
     }
   };
+
 
   const resetForm = () => {
     setFormData({
@@ -238,12 +260,14 @@ export default function AddUser({ adminName }) {
     setShowForm(false);
   };
 
+
   const filteredUsers = users.filter(
     (u) =>
       u.userMail?.toLowerCase().includes(search.toLowerCase()) ||
       u.userNumber?.toLowerCase().includes(search.toLowerCase()) ||
       u.role?.toLowerCase().includes(search.toLowerCase())
   );
+
 
   return (
     <div className="h-screen bg-gray-50 p-6 relative">
@@ -258,6 +282,7 @@ export default function AddUser({ adminName }) {
           handleAutoGenerate={handleAutoGenerate}
         />
       )}
+
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
@@ -279,6 +304,7 @@ export default function AddUser({ adminName }) {
         </button>
       </div>
 
+
       {/* Table */}
       <div className="bg-white rounded-xl shadow-md overflow-hidden border">
         <div className="max-h-[500px] overflow-y-auto">
@@ -288,7 +314,6 @@ export default function AddUser({ adminName }) {
                 <th className="py-3 px-4 text-left">Email</th>
                 <th className="py-3 px-4 text-left">User Number</th>
                 <th className="py-3 px-4 text-left">Role</th>
-                <th className="py-3 px-4 text-left">Department</th>
                 <th className="py-3 px-4 text-center">Actions</th>
               </tr>
             </thead>
@@ -299,9 +324,6 @@ export default function AddUser({ adminName }) {
                     <td className="py-3 px-4">{u.userMail}</td>
                     <td className="py-3 px-4">{u.userNumber}</td>
                     <td className="py-3 px-4">{u.role}</td>
-                    <td className="py-3 px-4">
-                      {u.department?.departmentAckr || "N/A"}
-                    </td>
                     <td className="py-3 px-4 text-center flex justify-center gap-3">
                       <button
                         onClick={() => {

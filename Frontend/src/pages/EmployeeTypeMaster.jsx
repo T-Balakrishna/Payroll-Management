@@ -1,24 +1,29 @@
+
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { Pencil, Trash, Users } from "lucide-react";
+
 
 function AddOrEditEmployeeType({ onSave, onCancel, editData }) {
   const [employeeTypeName, setEmployeeTypeName] = useState(editData?.employeeTypeName || "");
   const [employeeTypeAckr, setEmployeeTypeAckr] = useState(editData?.employeeTypeAckr || "");
 
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!employeeTypeName || !employeeTypeAckr) 
+    if (!employeeTypeName || !employeeTypeAckr)
       return alert("Please enter employee type name and short name");
 
+
     onSave(
-      { 
-        employeeTypeName, 
-        employeeTypeAckr 
-      }, 
+      {
+        employeeTypeName,
+        employeeTypeAckr
+      },
       editData?.employeeTypeId
     );
   };
+
 
   return (
     <div className="fixed inset-0 z-50 backdrop-blur-sm flex items-center justify-center">
@@ -41,8 +46,9 @@ function AddOrEditEmployeeType({ onSave, onCancel, editData }) {
             />
           </div>
 
+
           <div>
-            <label className="block font-bold text-gray-700 mb-2">Employee Type Short (Ackr)</label>
+            <label className="block font-bold text-gray-700 mb-2">Acronym</label>
             <input
               type="text"
               value={employeeTypeAckr}
@@ -51,6 +57,7 @@ function AddOrEditEmployeeType({ onSave, onCancel, editData }) {
               className="border border-gray-300 bg-white text-black rounded-lg p-3 w-full outline-none focus:ring-2 focus:ring-blue-500 transition"
             />
           </div>
+
 
           <div className="flex justify-end gap-3">
             <button
@@ -73,11 +80,13 @@ function AddOrEditEmployeeType({ onSave, onCancel, editData }) {
   );
 }
 
+
 export default function EmployeeTypeMaster() {
   const [employeeTypes, setEmployeeTypes] = useState([]);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editData, setEditData] = useState(null);
+
 
   const fetchEmployeeTypes = async () => {
     try {
@@ -88,9 +97,11 @@ export default function EmployeeTypeMaster() {
     }
   };
 
+
   useEffect(() => {
     fetchEmployeeTypes();
   }, []);
+
 
   const filteredData = employeeTypes.filter(
     (type) =>
@@ -98,9 +109,11 @@ export default function EmployeeTypeMaster() {
       type.employeeTypeAckr?.toLowerCase().includes(search.toLowerCase())
   );
 
+
   const handleSave = async (data, employeeTypeId) => {
     try {
       const adminName = localStorage.getItem("adminName") || "system";
+
 
       if (employeeTypeId) {
         await axios.put(`http://localhost:5000/api/employeeTypes/${employeeTypeId}`, {
@@ -114,6 +127,7 @@ export default function EmployeeTypeMaster() {
         });
       }
 
+
       setShowForm(false);
       setEditData(null);
       fetchEmployeeTypes();
@@ -122,10 +136,12 @@ export default function EmployeeTypeMaster() {
     }
   };
 
+
   const handleEdit = (type) => {
     setEditData(type);
     setShowForm(true);
   };
+
 
   const handleDelete = async (id) => {
     const updatedBy=localStorage.getItem("adminName");
@@ -138,6 +154,7 @@ export default function EmployeeTypeMaster() {
       console.error(err);
     }
   };
+
 
   return showForm ? (
     <AddOrEditEmployeeType
@@ -169,13 +186,14 @@ export default function EmployeeTypeMaster() {
         </button>
       </div>
 
+
       <div className="overflow-y-auto border border-gray-300 rounded-lg shadow-md" style={{ maxHeight: "260px" }}>
         <table className="w-full text-left border-collapse">
           <thead className="sticky top-0">
             <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
               <th className="py-2 px-4">ID</th>
               <th className="py-2 px-4">Employee Type Name</th>
-              <th className="py-2 px-4">Employee Type Ackr</th>
+              <th className="py-2 px-4">Employee Type Acronym</th>
               <th className="py-2 px-4">Actions</th>
             </tr>
           </thead>
