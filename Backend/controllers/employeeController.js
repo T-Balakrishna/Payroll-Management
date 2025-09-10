@@ -138,35 +138,3 @@ exports.deleteEmployee = async (req, res) => {
 
 
 // Don't remove this
-exports.getLastEmpNumber = async (req, res) => {
-  try {
-    const { departmentId } = req.params;
-
-    // Find the department to get its acronym/prefix
-    const dept = await Department.findByPk(departmentId);
-    if (!dept) return res.status(404).json({ message: "Department not found" });
-
-    const deptPrefix = dept.Ackr
-
-    // Find the latest employee in this department by empNumber
-    const lastEmp = await Employee.findOne({
-      where: { departmentId },
-      order: [["createdAt", "DESC"]],
-    });
-
-    let nextNumber;
-    if (lastEmp && lastEmp.empNumber.startsWith(deptPrefix)) {
-      // Extract the numeric part
-      const lastNum = parseInt(lastEmp.empNumber.replace(/\D/g, ""), 10);
-      nextNumber = `${deptPrefix}${lastNum + 1}`;
-    } else {
-      // First employee in this department
-      nextNumber = `${deptPrefix}101`;
-    }
-
-    res.json({ lastEmpNumber: nextNumber });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
-  }
-};
