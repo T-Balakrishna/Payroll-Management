@@ -125,7 +125,7 @@ const HolidayPlans = () => {
       fetchHolidays(plan.holidayPlanId).then(setHolidays);
 
     } catch (err) {
-      alert('Holiday plan with same name and dates already exists')
+      alert("Error creating/updating holiday plan:", err)
       setPlanForm({ startYear: "", endYear: "", weeklyOff: [] });
       setPlanModalOpen(false);
       console.error("Error creating/updating holiday plan:", err);

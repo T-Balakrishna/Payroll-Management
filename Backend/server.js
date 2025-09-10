@@ -79,7 +79,7 @@ const startServer = async () => {
     await seq.authenticate();
     console.log("DB Connected successfully");
 
-    await seq.sync({force:false});
+    await seq.sync({force:true});
     console.log("Tables created");
 
     app.listen(5000, () => {
