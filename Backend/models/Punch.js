@@ -5,9 +5,9 @@ const BiometricDevice = require('./BiometricDevice');
 
 const Punch = seq.define('Punch', {
   punchId: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  biometricId: { type: DataTypes.STRING, allowNull: false },
-  employeeId: { type: DataTypes.INTEGER, allowNull: true, references: { model: Employee, key: 'employeeId' } },
-  deviceId: { type: DataTypes.INTEGER, allowNull: true, references: { model: BiometricDevice, key: 'deviceId' } },
+  biometricNumber: { type: DataTypes.STRING, allowNull: false },
+  employeeNumber: { type: DataTypes.INTEGER, allowNull: true,  },
+  deviceIp: { type: DataTypes.INTEGER, allowNull: true,},
   punchTimestamp: { type: DataTypes.DATE, allowNull: false },
   createdBy: { type: DataTypes.STRING, allowNull: true },
   updatedBy: { type: DataTypes.STRING, allowNull: true }
@@ -17,10 +17,14 @@ const Punch = seq.define('Punch', {
 });
 
 // Associations
-Employee.hasMany(Punch, { foreignKey: 'employeeId' });
-Punch.belongsTo(Employee, { foreignKey: 'employeeId' });
+// Employee.hasMany(Punch, { foreignKey: 'employeeNumber' });
+// Punch.belongsTo(Employee, { foreignKey: 'employeeNumber' });
 
-BiometricDevice.hasMany(Punch, { foreignKey: 'deviceId' });
-Punch.belongsTo(BiometricDevice, { foreignKey: 'deviceId' });
+// BiometricDevice.hasMany(Punch, { foreignKey: 'deviceIp' });
+// Punch.belongsTo(BiometricDevice, { foreignKey: 'deviceIp' });
 
 module.exports = Punch;
+
+
+//references: { model: Employee, key: 'employeeNumber' }
+// references: { model: BiometricDevice, key: 'deviceIp' } 

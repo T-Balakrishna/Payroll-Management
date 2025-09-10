@@ -5,6 +5,7 @@ import DepartmentMaster from './DepartmentMaster.jsx';
 import DesignationMaster from './DesignationMaster.jsx';
 import ShiftMaster from './ShiftMaster.jsx';
 import EmployeeTypeMaster from './EmployeeTypeMaster.jsx';
+import HolidayMaster from './HolidayMaster.jsx';
 import LeavePolicyMaster from './LeavePolicyMaster.jsx';
 import ReligionMaster from './ReligionMaster.jsx';
 import AddUser from './AddUser.jsx';
@@ -119,7 +120,7 @@ const Admin = () => {
       case "department": return <DepartmentMaster />;
       case "designation": return <DesignationMaster />;
       case "employeeType": return <EmployeeTypeMaster />;
-      case "holiday": return <div className="bg-white p-6 rounded-lg shadow">Holiday Master Component</div>;
+      case "holiday": return <HolidayMaster />;
       case "leave": return <LeavePolicyMaster />;
       case "religion": return <ReligionMaster />;
       case "shift": return <ShiftMaster />;

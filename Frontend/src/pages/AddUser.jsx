@@ -154,7 +154,7 @@ export default function AddUser() {
     userMail: "",
     userNumber: "",
     role: "",
-    departmentId: "",
+    departmentId: null,
     password: "",
   });
   const [autoGenerate, setAutoGenerate] = useState(false);

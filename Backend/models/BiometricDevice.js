@@ -3,10 +3,8 @@ const seq = require('../config/db');
 
 const BiometricDevice = seq.define('BiometricDevice', {
   deviceId: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  deviceName: { type: DataTypes.STRING, allowNull: false },
-  ipAddress: { type: DataTypes.STRING, allowNull: false },
+  deviceIp: { type: DataTypes.STRING, allowNull: false ,unique:true},
   location: { type: DataTypes.STRING, allowNull: true },
-  deviceType: { type: DataTypes.STRING, allowNull: true },
   status: { type: DataTypes.ENUM('active','inactive'), defaultValue: 'active' },
   createdBy: { type: DataTypes.STRING, allowNull: true },
   updatedBy: { type: DataTypes.STRING, allowNull: true }

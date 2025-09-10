@@ -3,6 +3,8 @@ const cors = require('cors');
 const helmet = require('helmet');   // ✅ add helmet
 const morgan = require('morgan');   // ✅ add morgan
 const seq = require('./config/db');
+const cron = require("node-cron");
+const axios = require("axios");
 
 const app = express();
 
@@ -31,8 +33,8 @@ const designationRoute = require('./routes/designationRoute');
 const employeeGradeRoute = require('./routes/employeeGradeRoute');
 const employeeRoute = require('./routes/employeeRoute');
 const employeeTypeRoute = require('./routes/employeeTypeRoute');
-// const holidayRoute = require('./routes/holidayRoute');
-// const holidayPlanRoute = require('./routes/holidayPlanRoute');
+const holidayRoute = require('./routes/holidayRoute');
+const holidayPlanRoute = require('./routes/holidayPlanRoute');
 // const leaveRoute = require('./routes/leaveRoute');
 // const loginRoute = require('./routes/loginRoute');
 const punchRoute = require('./routes/punchRoute');
@@ -51,8 +53,8 @@ app.use('/api/designations', designationRoute);
 app.use('/api/employees', employeeRoute);
 app.use('/api/employeeGrades', employeeGradeRoute);
 app.use('/api/employeeTypes', employeeTypeRoute);
-// app.use('/api/holidays', holidayRoute);
-// app.use('/api/holidayPlans', holidayPlanRoute);
+app.use('/api/holidays', holidayRoute);
+app.use('/api/holidayPlans', holidayPlanRoute);
 // app.use('/api/leaves', leaveRoute);
 // app.use('/api/logins', loginRoute);
 app.use('/api/punches', punchRoute);
@@ -90,11 +92,20 @@ const startServer = async () => {
     console.log("✅ DB Connected successfully");
 
     // ⚠️ safer: alter = keep data, adjust schema if needed
-    await seq.sync({ alter: false });
+    await seq.sync({ force: false });
     console.log("✅ Tables synced");
 
     app.listen(5000, () => {
       console.log("🚀 Listening at http://localhost:5000");
+    });
+
+    cron.schedule("* * * * *", async () => {
+      try {
+        await axios.get("http://localhost:5000/api/punches/");
+        console.log("✅ Punches fetched (every 1 hour)");
+      } catch (err) {
+        console.error("❌ Error in cron job:", err.message);
+      }
     });
   } catch (error) {
     console.log("❌ Error starting server:", error.message);

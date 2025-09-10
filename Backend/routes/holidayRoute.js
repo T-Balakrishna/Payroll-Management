@@ -1,22 +1,11 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const {
-  createHoliday,
-  getAllHolidays,
-  getHolidayById,
-  updateHoliday,
-  deleteHoliday,
-  getAllHolidaysByPlan,
-  createHolidaysBulk
-} = require('../controllers/holidayController');
+const holidayController = require("../controllers/holidayController");
 
-router.post('/', createHoliday);
-router.get('/', getAllHolidays);
-router.get('/:id', getHolidayById);
-router.put('/:id', updateHoliday);
-router.delete('/:id', deleteHoliday);
-router.get('/byPlan/:holidayPlanId', getAllHolidaysByPlan);
-router.post('/bulk', createHolidaysBulk);
-
+// Holiday routes
+router.post("/", holidayController.addHoliday);
+router.get("/:planId", holidayController.getHolidaysByPlan);
+router.put("/:id", holidayController.updateHoliday);
+router.delete("/:id", holidayController.deleteHoliday);
 
 module.exports = router;

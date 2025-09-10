@@ -1,17 +1,14 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const {
-  createPunch,
-  getAllPunches,
-  getPunchById,
-  updatePunch,
-  deletePunch
-} = require('../controllers/punchController');
+const punchController = require("../controllers/punchController");
 
-router.post('/', createPunch);
-router.get('/', getAllPunches);
-router.get('/:id', getPunchById);
-router.put('/:id', updatePunch);
-router.delete('/:id', deletePunch);
+// Fetch new punches from biometric
+router.get("/", punchController.fetchPunches);
+
+// Get today’s punches (all employees)
+router.get("/today", punchController.getTodayPunches);
+
+// Get all punches for a user by biometricId
+router.get("/user/:id", punchController.getPunchesById);
 
 module.exports = router;
