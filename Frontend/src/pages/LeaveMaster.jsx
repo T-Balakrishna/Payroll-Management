@@ -247,7 +247,7 @@ function LeaveMaster() {
           className="border border-gray-300/40 bg-white text-black rounded-lg p-3 w-1/3 outline-none"
         />
         <button
-          className="bg-green-500 hover:bg-green-600 text-white px-5 py-2 rounded-lg shadow-md"
+          className="bg-blue-700 text-white px-5 py-2 rounded-lg shadow-md"
           onClick={() => {
             setShowForm(true);
             setEditData(null);

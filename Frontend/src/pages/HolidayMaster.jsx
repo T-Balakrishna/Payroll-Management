@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { Calendar, Pencil, Trash, Plus, X } from "lucide-react";
 
-const HolidayPlans = () => {
+function HolidayPlans() {
   const [holidayPlans, setHolidayPlans] = useState([]);
   const [holidays, setHolidays] = useState([]);
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -10,7 +11,7 @@ const HolidayPlans = () => {
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [holidayModalOpen, setHolidayModalOpen] = useState(false);
 
-  const user = localStorage.getItem("adminName")
+  const user = localStorage.getItem("adminName") || "system";
   const [planForm, setPlanForm] = useState({
     startYear: "",
     endYear: "",
@@ -23,13 +24,7 @@ const HolidayPlans = () => {
   });
 
   const weekDays = [
-    "Sunday",
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
+    "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
   ];
 
   useEffect(() => {
@@ -71,20 +66,9 @@ const HolidayPlans = () => {
     const startYear = parseInt(planForm.startYear);
     const endYear = parseInt(planForm.endYear);
 
-    if (isNaN(startYear) || isNaN(endYear)) {
-      alert("Enter valid years.");
-      return;
-    }
-
-    if (endYear !== startYear + 1) {
-      alert("End year must be exactly 1 year greater than start year.");
-      return;
-    }
-
-    if (planForm.weeklyOff.length === 0) {
-      alert("There must be at least one WeeklyOff");
-      return;
-    }
+    if (isNaN(startYear) || isNaN(endYear)) return alert("Enter valid years.");
+    if (endYear !== startYear + 1) return alert("End year must be exactly 1 year greater than start year.");
+    if (planForm.weeklyOff.length === 0) return alert("There must be at least one WeeklyOff");
 
     const holidayPlanName = `${startYear}-${endYear}`;
     const startDate = `${startYear}-06-01`;
@@ -93,26 +77,21 @@ const HolidayPlans = () => {
     try {
       let plan;
       if (selectedPlan) {
-        // Update weeklyOffs
         await axios.put(`http://localhost:5000/api/holidayPlans/${selectedPlan.holidayPlanId}`, {
           holidayPlanName,
           startDate,
           endDate,
           weeklyOff: planForm.weeklyOff,
-          updatedBy : user,
+          updatedBy: user,
         });
         plan = selectedPlan;
-
-        // Regenerate weeklyOff holidays in backend
-        // await axios.post(`http://localhost:5000/api/holidays/regenerateWeeklyOffs/${selectedPlan.holidayPlanId}`);
       } else {
-        // Create new plan
         const res = await axios.post("http://localhost:5000/api/holidayPlans", {
           holidayPlanName,
           startDate,
           endDate,
           weeklyOff: planForm.weeklyOff,
-          createdBy : user,
+          createdBy: user,
         });
         plan = res.data;
       }
@@ -123,8 +102,8 @@ const HolidayPlans = () => {
 
       fetchHolidayPlans();
       fetchHolidays(plan.holidayPlanId).then(setHolidays);
-
     } catch (err) {
+
       alert("Error creating/updating holiday plan:", err)
       setPlanForm({ startYear: "", endYear: "", weeklyOff: [] });
       setPlanModalOpen(false);
@@ -136,8 +115,8 @@ const HolidayPlans = () => {
   const handleDeletePlan = async (id) => {
     if (!window.confirm("Are you sure you want to delete this plan?")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/holidayPlans/${id}`,{
-        data: { updatedBy: user }
+      await axios.delete(`http://localhost:5000/api/holidayPlans/${id}`, {
+        data: { updatedBy: user },
       });
       fetchHolidayPlans();
       if (selectedPlan?.holidayPlanId === id) {
@@ -152,15 +131,11 @@ const HolidayPlans = () => {
   // Save or update Holiday
   const handleSaveHoliday = async () => {
     if (!selectedPlan) return;
-
-    const holidayDate = holidayForm.holidayDate;
-    const description = holidayForm.description;
-
     try {
       await axios.post("http://localhost:5000/api/holidays", {
         holidayPlanId: selectedPlan.holidayPlanId,
-        holidayDate,
-        description,
+        holidayDate: holidayForm.holidayDate,
+        description: holidayForm.description,
       });
 
       setHolidayModalOpen(false);
@@ -173,11 +148,10 @@ const HolidayPlans = () => {
     }
   };
 
-  // Delete Holiday
   const handleDeleteHoliday = async (id) => {
     try {
       await axios.delete(`http://localhost:5000/api/holidays/${id}`, {
-        data: { updatedBy: user }
+        data: { updatedBy: user },
       });
       fetchHolidays(selectedPlan.holidayPlanId).then(setHolidays);
     } catch (err) {
@@ -186,40 +160,42 @@ const HolidayPlans = () => {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Holiday Plans</h1>
-
-      <button
-        onClick={() => {
-          setSelectedPlan(null);
-          setPlanForm({ startYear: "", endYear: "", weeklyOff: [] });
-          setPlanModalOpen(true);
-        }}
-        className="bg-blue-500 text-white px-4 py-2 rounded"
-      >
-        Add Holiday Plan
-      </button>
+    <div className="min-h-screen p-6 flex flex-col space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Holiday Plans</h1>
+        <button
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md"
+          onClick={() => {
+            setSelectedPlan(null);
+            setPlanForm({ startYear: "", endYear: "", weeklyOff: [] });
+            setPlanModalOpen(true);
+          }}
+        >
+          <Plus size={18} /> Add Holiday Plan
+        </button>
+      </div>
 
       {/* Holiday Plans Table */}
-      <div className="overflow-y-auto max-h-64 border rounded mt-4">
-        <table className="min-w-full border">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="border px-4 py-2">Plan Name</th>
-              <th className="border px-4 py-2">Start Date</th>
-              <th className="border px-4 py-2">End Date</th>
-              <th className="border px-4 py-2">Actions</th>
+      <div className="overflow-y-auto border border-gray-200 rounded-lg shadow-sm" style={{ maxHeight: "280px" }}>
+        <table className="w-full text-left text-sm">
+          <thead className="sticky top-0">
+            <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+              <th className="py-3 px-4">Plan</th>
+              <th className="py-3 px-4">Start Date</th>
+              <th className="py-3 px-4">End Date</th>
+              <th className="py-3 px-4">Actions</th>
             </tr>
           </thead>
           <tbody>
             {holidayPlans.map((plan) => (
-              <tr key={plan.holidayPlanId}>
-                <td className="border px-4 py-2">{plan.holidayPlanName}</td>
-                <td className="border px-4 py-2">{plan.startDate}</td>
-                <td className="border px-4 py-2">{plan.endDate}</td>
-                <td className="border px-4 py-2">
+              <tr key={plan.holidayPlanId} className="border-t hover:bg-gray-50">
+                <td className="py-2 px-4">{plan.holidayPlanName}</td>
+                <td className="py-2 px-4">{plan.startDate}</td>
+                <td className="py-2 px-4">{plan.endDate}</td>
+                <td className="py-2 px-4 flex gap-2">
                   <button
-                    className="bg-yellow-500 text-white px-2 py-1 rounded mr-2"
+                    className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-md"
                     onClick={() => {
                       setPlanForm({
                         startYear: parseInt(plan.startDate.slice(0, 4)),
@@ -228,33 +204,37 @@ const HolidayPlans = () => {
                       });
                       setSelectedPlan(plan);
                       setPlanModalOpen(true);
-                                          
                     }}
                   >
-                    Edit
+                    <Pencil size={16} />
                   </button>
                   <button
-                    className="bg-red-500 text-white px-2 py-1 rounded"
+                    className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md"
                     onClick={() => handleDeletePlan(plan.holidayPlanId)}
                   >
-                    Delete
+                    <Trash size={16} />
                   </button>
                 </td>
               </tr>
             ))}
+            {holidayPlans.length === 0 && (
+              <tr>
+                <td colSpan="4" className="text-center py-4 text-gray-500">
+                  No holiday plans found
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
 
-      {/* Select Plan */}
+      {/* Holiday Selection */}
       <div>
         <label className="font-semibold mr-2">Select Holiday Plan:</label>
         <select
           value={selectedPlan?.holidayPlanId || ""}
           onChange={(e) => {
-            const plan = holidayPlans.find(
-              (p) => p.holidayPlanId == e.target.value
-            );
+            const plan = holidayPlans.find((p) => p.holidayPlanId == e.target.value);
             setSelectedPlan(plan);
             if (!plan) {
               setHolidays([]);
@@ -262,7 +242,7 @@ const HolidayPlans = () => {
             }
             fetchHolidays(plan.holidayPlanId).then(setHolidays);
           }}
-          className="border px-2 py-1 rounded"
+          className="border px-2 py-2 rounded-lg"
         >
           <option value="">-- Select --</option>
           {holidayPlans.map((plan) => (
@@ -277,42 +257,40 @@ const HolidayPlans = () => {
       {selectedPlan && (
         <div>
           <div className="flex justify-between items-center mb-2">
-            <h2 className="text-xl font-semibold">
-              Holidays in {selectedPlan.holidayPlanName}
-            </h2>
+            <h2 className="text-xl font-semibold">Holidays in {selectedPlan.holidayPlanName}</h2>
             <button
               onClick={() => {
                 setHolidayForm({ holidayDate: "", description: "" });
                 setSelectedHoliday(null);
                 setHolidayModalOpen(true);
               }}
-              className="bg-green-500 text-white px-4 py-2 rounded"
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg shadow-md"
             >
-              Add Holiday
+              <Plus size={18} /> Add Holiday
             </button>
           </div>
 
-          <div className="overflow-y-auto max-h-64 border rounded">
-            <table className="min-w-full border">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="px-4 py-2 border">Date</th>
-                  <th className="px-4 py-2 border">Description</th>
-                  <th className="px-4 py-2 border">Actions</th>
+          <div className="overflow-y-auto border border-gray-200 rounded-lg shadow-sm" style={{ maxHeight: "280px" }}>
+            <table className="w-full text-left text-sm">
+              <thead className="sticky top-0">
+                <tr className="bg-gradient-to-r from-green-600 to-emerald-600 text-white">
+                  <th className="py-3 px-4">Date</th>
+                  <th className="py-3 px-4">Description</th>
+                  <th className="py-3 px-4">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {(holidays || []).map((h) => (
-                  <tr key={h.holidayId}>
-                    <td className="border px-4 py-2">{h.holidayDate}</td>
-                    <td className="border px-4 py-2">{h.description}</td>
-                    <td className="border px-4 py-2">
+                {holidays.map((h) => (
+                  <tr key={h.holidayId} className="border-t hover:bg-gray-50">
+                    <td className="py-2 px-4">{h.holidayDate}</td>
+                    <td className="py-2 px-4">{h.description}</td>
+                    <td className="py-2 px-4 flex gap-2">
                       {String(h.holidayId).startsWith("wo-") ? (
                         <span className="text-gray-400">Weekly Off</span>
                       ) : (
                         <>
                           <button
-                            className="bg-yellow-500 text-white px-2 py-1 rounded mr-1"
+                            className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-md"
                             onClick={() => {
                               setHolidayForm({
                                 holidayDate: h.holidayDate,
@@ -322,19 +300,26 @@ const HolidayPlans = () => {
                               setHolidayModalOpen(true);
                             }}
                           >
-                            Edit
+                            <Pencil size={16} />
                           </button>
                           <button
-                            className="bg-red-500 text-white px-2 py-1 rounded"
+                            className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md"
                             onClick={() => handleDeleteHoliday(h.holidayId)}
                           >
-                            Delete
+                            <Trash size={16} />
                           </button>
                         </>
                       )}
                     </td>
                   </tr>
                 ))}
+                {holidays.length === 0 && (
+                  <tr>
+                    <td colSpan="3" className="text-center py-4 text-gray-500">
+                      No holidays found
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -343,33 +328,43 @@ const HolidayPlans = () => {
 
       {/* Add/Edit Holiday Plan Modal */}
       {planModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white p-6 rounded w-96">
-            <h2 className="text-xl font-bold mb-4">
-              {selectedPlan ? "Edit" : "Add"} Holiday Plan
+        <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="relative max-w-xl w-full bg-white rounded-2xl shadow-xl p-8 border border-gray-200">
+            <button
+              onClick={() => setPlanModalOpen(false)}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-800"
+            >
+              <X size={22} />
+            </button>
+
+            <div className="flex justify-center mb-6">
+              <div className="bg-blue-100 p-4 rounded-full">
+                <Calendar className="text-blue-600" size={40} />
+              </div>
+            </div>
+
+            <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">
+              {selectedPlan ? "Edit Holiday Plan" : "Add New Holiday Plan"}
             </h2>
+
             <input
               type="number"
               placeholder="Start Year"
               value={planForm.startYear}
-              onChange={(e) =>
-                setPlanForm({ ...planForm, startYear: e.target.value })
-              }
-              className="border p-2 w-full mb-2"
+              onChange={(e) => setPlanForm({ ...planForm, startYear: e.target.value })}
+              className="border border-gray-300 rounded-lg p-3 w-full mb-3 focus:ring-2 focus:ring-blue-500 outline-none"
             />
             <input
               type="number"
               placeholder="End Year"
               value={planForm.endYear}
-              onChange={(e) =>
-                setPlanForm({ ...planForm, endYear: e.target.value })
-              }
-              className="border p-2 w-full mb-2"
+              onChange={(e) => setPlanForm({ ...planForm, endYear: e.target.value })}
+              className="border border-gray-300 rounded-lg p-3 w-full mb-3 focus:ring-2 focus:ring-blue-500 outline-none"
             />
 
             <div className="flex flex-wrap gap-4 mb-4">
               {weekDays.map((day) => (
-                <label key={day} className="flex items-center gap-1">
+                <label key={day} className="flex items-center gap-2 text-gray-700">
                   <input
                     type="checkbox"
                     checked={planForm.weeklyOff.includes(day)}
@@ -380,18 +375,18 @@ const HolidayPlans = () => {
               ))}
             </div>
 
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-3">
               <button
                 onClick={() => setPlanModalOpen(false)}
-                className="bg-gray-400 text-white px-4 py-2 rounded"
+                className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSavePlan}
-                className="bg-blue-500 text-white px-4 py-2 rounded"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow-md"
               >
-                Save
+                {selectedPlan ? "Update Changes" : "Save"}
               </button>
             </div>
           </div>
@@ -400,41 +395,51 @@ const HolidayPlans = () => {
 
       {/* Add/Edit Holiday Modal */}
       {holidayModalOpen && selectedPlan && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white p-6 rounded w-96">
-            <h2 className="text-xl font-bold mb-4">
-              {selectedHoliday ? "Edit" : "Add"} Holiday to {selectedPlan.holidayPlanName}
+        <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="relative max-w-xl w-full bg-white rounded-2xl shadow-xl p-8 border border-gray-200">
+            <button
+              onClick={() => setHolidayModalOpen(false)}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-800"
+            >
+              <X size={22} />
+            </button>
+
+            <div className="flex justify-center mb-6">
+              <div className="bg-green-100 p-4 rounded-full">
+                <Calendar className="text-green-600" size={40} />
+              </div>
+            </div>
+
+            <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">
+              {selectedHoliday ? "Edit Holiday" : "Add New Holiday"}
             </h2>
+
             <input
               type="date"
               value={holidayForm.holidayDate}
-              onChange={(e) =>
-                setHolidayForm({ ...holidayForm, holidayDate: e.target.value })
-              }
-              className="border p-2 w-full mb-2"
+              onChange={(e) => setHolidayForm({ ...holidayForm, holidayDate: e.target.value })}
+              className="border border-gray-300 rounded-lg p-3 w-full mb-3 focus:ring-2 focus:ring-green-500 outline-none"
             />
             <input
               type="text"
               placeholder="Description"
               value={holidayForm.description}
-              onChange={(e) =>
-                setHolidayForm({ ...holidayForm, description: e.target.value })
-              }
-              className="border p-2 w-full mb-2"
+              onChange={(e) => setHolidayForm({ ...holidayForm, description: e.target.value })}
+              className="border border-gray-300 rounded-lg p-3 w-full mb-3 focus:ring-2 focus:ring-green-500 outline-none"
             />
 
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-3">
               <button
                 onClick={() => setHolidayModalOpen(false)}
-                className="bg-gray-400 text-white px-4 py-2 rounded"
+                className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveHoliday}
-                className="bg-green-500 text-white px-4 py-2 rounded"
+                className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg shadow-md"
               >
-                Save
+                {selectedHoliday ? "Update Changes" : "Save"}
               </button>
             </div>
           </div>
@@ -442,6 +447,6 @@ const HolidayPlans = () => {
       )}
     </div>
   );
-};
+}
 
 export default HolidayPlans;

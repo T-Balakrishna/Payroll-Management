@@ -46,4 +46,3 @@ const HolidayPlan = sequelize.define("HolidayPlan", {
 });
 
 module.exports = HolidayPlan;
-

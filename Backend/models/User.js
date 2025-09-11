@@ -1,10 +1,10 @@
 const { DataTypes } = require("sequelize");
-const sequelize = require("../config/db"); 
+const sequelize = require("../config/db");
 
 const User = sequelize.define("User", {
   userId: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   userMail: { type: DataTypes.STRING, allowNull: false, unique: true, validate: { isEmail: true } },
-  userNumber: { type: DataTypes.STRING, allowNull: false },
+  userNumber: { type: DataTypes.STRING, allowNull: false ,unique:true},
   role: { type: DataTypes.ENUM("Staff", "Admin", "Department Admin"), allowNull: false },
   departmentId: { type: DataTypes.INTEGER, allowNull: true, references: { model: "Department", key: "departmentId" } },
   password: { type: DataTypes.STRING, allowNull: false },

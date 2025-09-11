@@ -1,11 +1,25 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');   // ✅ add helmet
+const morgan = require('morgan');   // ✅ add morgan
 const seq = require('./config/db');
 const cron = require("node-cron");
 const axios = require("axios");
 
 const app = express();
-app.use(cors());
+
+// ✅ Add Helmet for security headers
+app.use(helmet());
+
+// ✅ Add request logging
+app.use(morgan('dev'));
+
+// ✅ Add CORS for frontend and allow credentials
+app.use(cors({
+  origin: "http://localhost:5173", // your React frontend
+  credentials: true,
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -21,14 +35,13 @@ const employeeRoute = require('./routes/employeeRoute');
 const employeeTypeRoute = require('./routes/employeeTypeRoute');
 const holidayRoute = require('./routes/holidayRoute');
 const holidayPlanRoute = require('./routes/holidayPlanRoute');
-const leavePolicyRoute = require('./routes/leavePolicyRoute');
-const leaveRequestRoute = require('./routes/leaveRequestRoute');
+// const leaveRoute = require('./routes/leaveRoute');
 // const loginRoute = require('./routes/loginRoute');
 const punchRoute = require('./routes/punchRoute');
 const religionRoute = require('./routes/religionRoute');
 const shiftRoute = require('./routes/shiftRoute');
-const userRoute = require('./routes/userRoute');
-
+const userRoute = require('./routes/userRoute');  
+const authRoute = require('./routes/authRoute');  
 
 // Map routes
 app.use('/api/attendance', attendanceRoute);
@@ -42,16 +55,15 @@ app.use('/api/employeeGrades', employeeGradeRoute);
 app.use('/api/employeeTypes', employeeTypeRoute);
 app.use('/api/holidays', holidayRoute);
 app.use('/api/holidayPlans', holidayPlanRoute);
-app.use('/api/leaveRequests', leaveRequestRoute);
-app.use('/api/leavePolicies', leavePolicyRoute);
+// app.use('/api/leaves', leaveRoute);
 // app.use('/api/logins', loginRoute);
 app.use('/api/punches', punchRoute);
 app.use('/api/religions', religionRoute);
 app.use('/api/shifts', shiftRoute);
-app.use('/api/users', userRoute);
+app.use('/api/users', userRoute);   // ✅ expose users
+app.use('/api/auth', authRoute);    // ✅ expose auth (login + google login)
 
 // Import models so Sequelize can sync tables
-
 require('./models/Attendance');
 require('./models/BiometricDevice');
 require('./models/Bus');
@@ -71,19 +83,21 @@ require('./models/Punch');
 // require('./models/Login');
 require('./models/Religion');
 require('./models/Shift');
-require('./models/User');
+require('./models/User');   // ✅ user model
 
 // Start server
 const startServer = async () => {
   try {
     await seq.authenticate();
-    console.log("DB Connected successfully");
+    console.log("✅ DB Connected successfully");
 
-    await seq.sync({force:true});
-    console.log("Tables created");
+    // ⚠️ safer: alter = keep data, adjust schema if needed
+    await seq.sync({ force:false  });
+    console.log("✅ Tables synced");
+
 
     app.listen(5000, () => {
-      console.log("Listening at http://localhost:5000");
+      console.log("🚀 Listening at http://localhost:5000");
     });
 
     cron.schedule("* * * * *", async () => {
@@ -95,7 +109,7 @@ const startServer = async () => {
       }
     });
   } catch (error) {
-    console.log(error.message);
+    console.log("❌ Error starting server:", error.message);
   }
 };
 

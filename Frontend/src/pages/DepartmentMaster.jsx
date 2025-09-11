@@ -1,73 +1,103 @@
+
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { Building2, Pencil, Trash } from "lucide-react";
+import { Building2, Pencil, Trash, Plus, X } from "lucide-react";
 
+
+// ✅ Modal Form Component
 function AddOrEdit({ onSave, onCancel, editData }) {
-  const [deptName, setDeptName] = useState(editData?.deptName || "");
-  const [deptShort, setDeptShort] = useState(editData?.deptShort || "");
-  const [status, setStatus] = useState(
-    editData?.status?.toLowerCase() || "active"
-  );
+  const [departmentName, setDepartmentName] = useState(editData?.departmentName || "");
+  const [departmentAckr, setDepartmentAckr] = useState(editData?.departmentAckr || "");
+  const [status, setStatus] = useState(editData?.status || "active");
+
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!deptName || !deptShort || !status) return alert("Please fill all fields");
+    if (!departmentName || !departmentAckr) return alert("Please fill all fields");
+
+
+    const adminName = localStorage.getItem("adminName") || "system";
+
 
     const departmentData = {
-      deptName,
-      deptShort,
-      status: status === "active" ? "active" : "inactive",
+      departmentName,
+      departmentAckr,
+      status,
+      createdBy: editData ? editData.createdBy : adminName,
+      updatedBy: adminName,
     };
 
-    onSave(departmentData, editData?.deptId);
+
+    onSave(departmentData, editData?.departmentId);
   };
 
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white-900 via-white-800 to-white-900 flex items-center justify-center">
-      <div className="max-w-2xl w-full bg-purple-500 rounded-2xl shadow-xl p-8">
-        <div className="flex justify-center align-center">
-          <Building2 className="text-black-400 mb-4" size={40} />
+    <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm">
+      <div className="relative max-w-xl w-full bg-white rounded-2xl shadow-xl p-8 border border-gray-200">
+        {/* Close Button */}
+        <button
+          onClick={onCancel}
+          className="absolute top-4 right-4 text-gray-500 hover:text-gray-800"
+        >
+          <X size={22} />
+        </button>
+
+
+        {/* Icon */}
+        <div className="flex justify-center mb-6">
+          <div className="bg-blue-100 p-4 rounded-full">
+            <Building2 className="text-blue-600" size={40} />
+          </div>
         </div>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+
+
+        {/* Title */}
+        <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">
+          {editData ? "Edit Department" : "Add New Department"}
+        </h2>
+
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block font-bold text-black-300 mb-2">
-              Department Name
-            </label>
+            <label className="block font-medium text-gray-700 mb-2">Department Name</label>
             <input
               type="text"
-              value={deptName}
-              onChange={(e) => setDeptName(e.target.value)}
+              value={departmentName}
+              onChange={(e) => setDepartmentName(e.target.value)}
               placeholder="Enter department name"
-              className="border border-gray-300/40 bg-white text-black rounded-lg p-3 w-full outline-none"
+              className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
             />
           </div>
+
 
           <div>
-            <label className="block font-bold text-black-300 mb-2">
-              Short Name
-            </label>
+            <label className="block font-medium text-gray-700 mb-2">Acronym</label>
             <input
               type="text"
-              value={deptShort}
-              onChange={(e) => setDeptShort(e.target.value)}
+              value={departmentAckr}
+              onChange={(e) => setDepartmentAckr(e.target.value)}
               placeholder="Enter short name"
-              className="border border-gray-300/40 bg-white text-black rounded-lg p-3 w-full outline-none"
+              className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
             />
           </div>
 
-          <div className="flex justify-end gap-3">
+
+          {/* Buttons */}
+          <div className="flex justify-end gap-3 pt-4">
             <button
               type="button"
               onClick={onCancel}
-              className="bg-gray-400 text-white px-6 py-3 rounded-lg"
+              className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="bg-sky-500 hover:bg-sky-700 text-white px-6 py-3 rounded-lg"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow-md transition"
             >
-              {editData ? "Update Changes" : "Save Changes"}
+              {editData ? "Update Changes" : "Save"}
             </button>
           </div>
         </form>
@@ -76,13 +106,15 @@ function AddOrEdit({ onSave, onCancel, editData }) {
   );
 }
 
+
+// ✅ Main Component
 function DepartmentMaster() {
   const [departments, setDepartments] = useState([]);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editData, setEditData] = useState(null);
 
-  // Fetch from backend
+
   const fetchDepartments = async () => {
     try {
       const res = await axios.get("http://localhost:5000/api/departments");
@@ -92,21 +124,24 @@ function DepartmentMaster() {
     }
   };
 
+
   useEffect(() => {
     fetchDepartments();
   }, []);
 
+
   const filteredData = departments.filter(
     (d) =>
-      d.deptName?.toLowerCase().includes(search.toLowerCase()) ||
-      d.deptShort?.toLowerCase().includes(search.toLowerCase()) ||
+      d.departmentName?.toLowerCase().includes(search.toLowerCase()) ||
+      d.departmentAckr?.toLowerCase().includes(search.toLowerCase()) ||
       d.status?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleSave = async (departmentData, deptId) => {
+
+  const handleSave = async (departmentData, departmentId) => {
     try {
-      if (deptId) {
-        await axios.put(`http://localhost:5000/api/departments/${deptId}`, departmentData);
+      if (departmentId) {
+        await axios.put(`http://localhost:5000/api/departments/${departmentId}`, departmentData);
       } else {
         await axios.post("http://localhost:5000/api/departments", departmentData);
       }
@@ -118,94 +153,106 @@ function DepartmentMaster() {
     }
   };
 
+
   const handleEdit = (department) => {
     setEditData(department);
     setShowForm(true);
   };
 
-  const handleDelete = async (deptId) => {
+
+  const handleDelete = async (departmentId) => {
+    if (!window.confirm("Are you sure you want to delete this department?")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/departments/${deptId}`);
+      const updatedBy = localStorage.getItem("adminName") || "system";
+      await axios.delete(`http://localhost:5000/api/departments/${departmentId}`, {
+        data: { updatedBy },
+      });
       fetchDepartments();
     } catch (err) {
       console.error("Error deleting department:", err);
     }
   };
 
-  return showForm ? (
-    <AddOrEdit
-      onSave={handleSave}
-      onCancel={() => {
-        setShowForm(false);
-        setEditData(null);
-      }}
-      editData={editData}
-    />
-  ) : (
-    <div className="min-h-screen p-6 flex flex-col justify-center align-center">
-      <div className="flex justify-between items-center mb-4">
+
+  return (
+    <div className="min-h-screen p-6 flex flex-col">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-6">
         <input
           type="text"
           placeholder="Search department..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="border border-gray-300/40 bg-white text-black rounded-lg p-3 w-1/3 outline-none"
+          className="border border-gray-300 bg-white text-black rounded-lg px-4 py-2 w-1/3 outline-none"
         />
         <button
-          className="bg-green-500 hover:bg-green-600 text-white px-5 py-2 rounded-lg shadow-md"
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md"
           onClick={() => {
             setShowForm(true);
             setEditData(null);
           }}
         >
-          + Add
+          <Plus size={18} /> Add Department
         </button>
       </div>
 
-      <div className="overflow-y-auto" style={{ maxHeight: "260px" }}>
-        <table className="w-full text-left border border-gray-300">
-          <thead>
-            <tr className="bg-gray-100 sticky top-0">
-              <th className="py-2 px-4">ID</th>
-              <th className="py-2 px-4">Name</th>
-              <th className="py-2 px-4">Short Name</th>
-              <th className="py-2 px-4">Status</th>
-              <th className="py-2 px-4">Actions</th>
+
+      {/* Table */}
+      <div className="overflow-y-auto border border-gray-200 rounded-lg shadow-sm" style={{ maxHeight: "320px" }}>
+        <table className="w-full text-left text-sm">
+          <thead className="sticky top-0">
+            <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+              <th className="py-3 px-4">ID</th>
+              <th className="py-3 px-4">Name</th>
+              <th className="py-3 px-4">Acronym</th>
+              <th className="py-3 px-4">Actions</th>
             </tr>
           </thead>
           <tbody>
             {filteredData.map((d) => (
-              <tr key={d.deptId} className="border-t">
-                <td className="py-2 px-4">{d.deptId}</td>
-                <td className="py-2 px-4">{d.deptName}</td>
-                <td className="py-2 px-4">{d.deptShort}</td>
-                <td className="py-2 px-4">{d.status}</td>
+              <tr key={d.departmentId} className="border-t hover:bg-gray-50">
+                <td className="py-2 px-4">{d.departmentId}</td>
+                <td className="py-2 px-4">{d.departmentName}</td>
+                <td className="py-2 px-4">{d.departmentAckr}</td>
                 <td className="py-2 px-4 flex gap-2">
                   <button
-                    className="bg-blue-500 text-white px-1 py-1 rounded-md"
+                    className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-md"
                     onClick={() => handleEdit(d)}
                   >
-                    <Pencil />
+                    <Pencil size={16} />
                   </button>
                   <button
-                    className="bg-red-400 text-white px-1 py-1 rounded-md"
-                    onClick={() => handleDelete(d.deptId)}
+                    className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md"
+                    onClick={() => handleDelete(d.departmentId)}
                   >
-                    <Trash />
+                    <Trash size={16} />
                   </button>
                 </td>
               </tr>
             ))}
             {filteredData.length === 0 && (
               <tr>
-                <td colSpan="5" className="text-center py-4">
-                  No data found
+                <td colSpan="5" className="text-center py-4 text-gray-500">
+                  No departments found
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
+
+
+      {/* Show Modal */}
+      {showForm && (
+        <AddOrEdit
+          onSave={handleSave}
+          onCancel={() => {
+            setShowForm(false);
+            setEditData(null);
+          }}
+          editData={editData}
+        />
+      )}
     </div>
   );
 }
