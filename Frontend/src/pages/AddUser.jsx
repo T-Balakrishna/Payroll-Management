@@ -3,7 +3,6 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { User, Search, Plus, X, Trash, Pencil } from "lucide-react";
 
-
 // ✅ Modal Component
 function AddOrEditUser({
   formData,
@@ -15,15 +14,28 @@ function AddOrEditUser({
   handleAutoGenerate,
 }) {
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const { name, value } = e.target;
+
+  if (name === "role" && value === "Admin") {
+    // find the Admin department
+    const adminDept = departments.find(
+      (d) => d.departmentName.toLowerCase() === "admin"
+    );
+    setFormData({
+      ...formData,
+      role: value,
+      departmentId: adminDept ? adminDept.departmentId : "",
+    });
+  } else {
+    setFormData({ ...formData, [name]: value });
+  }
+};
 
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSave(e);
+    await onSave(e);
   };
-
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm">
@@ -36,12 +48,10 @@ function AddOrEditUser({
           <X size={20} />
         </button>
 
-
         {/* Heading */}
         <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">
           {formData.userId ? "Edit User" : "Add New User"}
         </h2>
-
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -55,7 +65,6 @@ function AddOrEditUser({
             required
           />
 
-
           <input
             type="password"
             name="password"
@@ -65,7 +74,6 @@ function AddOrEditUser({
             className="w-full p-3 border rounded-lg"
             required={!formData.userId} // not required on edit
           />
-
 
           <select
             name="role"
@@ -80,24 +88,28 @@ function AddOrEditUser({
             <option value="Department Admin">Department Admin</option>
           </select>
 
-
-        {(autoGenerate || formData.role==='Department Admin') && (
-        <select
-          name="departmentId"
-          value={formData.departmentId}
-          onChange={handleChange}
-          className="w-full p-3 border rounded-lg"
-          required
-        >
-          <option value="">Select Department</option>
-          {departments.map((d) => (
-            <option key={d.departmentId} value={d.departmentId}>
-              {d.departmentAckr}
-            </option>
-          ))}
-        </select>
-      )}
-
+          
+            <select
+              name="departmentId"
+              value={formData.departmentId ?? ""}
+              onChange={(e) => {
+                setFormData({ ...formData, departmentId: e.target.value });
+                if (autoGenerate) {
+                  handleAutoGenerate(true, e.target.value);
+                }
+              }}
+              className="w-full p-3 border rounded-lg"
+              required
+              disabled={formData.role === "Admin"}
+            >
+              <option value="">Select Department</option>
+              {departments.map((d) => (
+                <option key={d.departmentId} value={d.departmentId}>
+                  {d.departmentAckr}
+                </option>
+              ))}
+            </select>
+          
 
           <div className="flex items-center gap-2">
             <input
@@ -119,7 +131,6 @@ function AddOrEditUser({
               Auto Generate
             </label>
           </div>
-
 
           {/* Footer */}
           <div className="flex justify-end gap-3 pt-4">
@@ -143,10 +154,9 @@ function AddOrEditUser({
   );
 }
 
-
 // ✅ Main Page
 export default function AddUser() {
-  const userNumber=localStorage.getItem("userNumber");
+  const userNumber = localStorage.getItem("userNumber");
   const [departments, setDepartments] = useState([]);
   const [users, setUsers] = useState([]);
   const [formData, setFormData] = useState({
@@ -154,23 +164,21 @@ export default function AddUser() {
     userMail: "",
     userNumber: "",
     role: "",
-    departmentId: null,
+    departmentId: "",
     password: "",
   });
   const [autoGenerate, setAutoGenerate] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState("");
 
-
   useEffect(() => {
-    axios.get("http://localhost:5000/api/departments")
+    axios
+      .get("http://localhost:5000/api/departments")
       .then((res) => setDepartments(res.data))
       .catch(console.error);
 
-
     fetchUsers();
   }, []);
-
 
   const fetchUsers = async () => {
     try {
@@ -181,36 +189,52 @@ export default function AddUser() {
     }
   };
 
-
-  const handleAutoGenerate = async (checked) => {
+  
+  // ✅ Fixed auto-generate
+  const handleAutoGenerate = async (checked, deptId = formData.departmentId) => {
     setAutoGenerate(checked);
-    if (checked && formData.departmentId) {
+
+    if (!checked) {
+      setFormData((prev) => ({ ...prev, userNumber: "" }));
+      return;
+    }
+
+    if (checked && deptId) {
       try {
         const res = await axios.get(
-          `http://localhost:5000/api/users/lastEmpNumber/${formData.departmentId}`
+          `http://localhost:5000/api/users/lastEmpNumber/${deptId}`,{role:formData.role}
         );
-        const lastEmp = res.data?.userNumber || null;
-        const department = departments.find(
-          (d) => d.departmentId === parseInt(formData.departmentId)
-        );
-        let newEmpNum = lastEmp
-          ? `${department.departmentAckr.toLowerCase()}${parseInt(
-              lastEmp.replace(/\D/g, "")
-            ) + 1}`
-          : `${department.departmentAckr.toLowerCase()}1`;
+        // console.log(res);
+        
+        const lastEmp = res.data?.lastEmpNumber || null;
+        
+        // let newEmpNum = lastEmp
+        //   ? `${department.departmentAckr.toLowerCase()}${
+        //       parseInt(lastEmp.replace(/\D/g, "")) + 1
+        //     }`
+        //   : `${department.departmentAckr.toLowerCase()}1`;
+        const prefix = lastEmp.match(/^[A-Za-z]+/)[0];   // "CS"
+        const number = parseInt(lastEmp.match(/\d+$/)[0]); // 101
+        let newEmpNum = `${prefix}${number}`; // "CS102"
+        if(formData.role==='Department Admin'){
+          newEmpNum = `AD${prefix}${number}`
+        }
         setFormData((prev) => ({ ...prev, userNumber: newEmpNum }));
+        return newEmpNum;
       } catch (err) {
         console.error("Error generating userNumber:", err);
       }
-    } else {
-      setFormData((prev) => ({ ...prev, userNumber: "" }));
     }
   };
 
-
   const handleSave = async (e) => {
     e.preventDefault();
+
     try {
+      if (autoGenerate && !formData.userNumber && formData.departmentId) {
+        await handleAutoGenerate(true); // ✅ ensure userNumber before saving
+      }
+
       if (formData.userId) {
         await axios.put(`http://localhost:5000/api/users/${formData.userId}`, {
           ...formData,
@@ -218,20 +242,21 @@ export default function AddUser() {
         });
         alert("User updated!");
       } else {
-
         await axios.post("http://localhost:5000/api/users", {
           ...formData,
           createdBy: userNumber,
         });
         alert("User added!");
       }
+
       resetForm();
       fetchUsers();
     } catch (err) {
+      alert(err.response.data.error);
       console.error(err);
+      resetForm()
     }
   };
-
 
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this user?")) return;
@@ -246,7 +271,6 @@ export default function AddUser() {
     }
   };
 
-
   const resetForm = () => {
     setFormData({
       userId: null,
@@ -260,14 +284,12 @@ export default function AddUser() {
     setShowForm(false);
   };
 
-
   const filteredUsers = users.filter(
     (u) =>
       u.userMail?.toLowerCase().includes(search.toLowerCase()) ||
       u.userNumber?.toLowerCase().includes(search.toLowerCase()) ||
       u.role?.toLowerCase().includes(search.toLowerCase())
   );
-
 
   return (
     <div className="h-screen bg-gray-50 p-6 relative">
@@ -283,11 +305,13 @@ export default function AddUser() {
         />
       )}
 
-
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
         <div className="relative w-full sm:w-80 mb-4 sm:mb-0">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+          <Search
+            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+            size={18}
+          />
           <input
             type="text"
             placeholder="Search users..."
@@ -303,7 +327,6 @@ export default function AddUser() {
           <Plus size={18} /> Add User
         </button>
       </div>
-
 
       {/* Table */}
       <div className="bg-white rounded-xl shadow-md overflow-hidden border">

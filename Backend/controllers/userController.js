@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const Department = require('../models/Department')
 const bcrypt = require('bcryptjs');
 
 // Create a new user
@@ -34,7 +35,7 @@ exports.createUser = async (req, res) => {
 // Get all users
 exports.getAllUsers = async (req, res) => {
   try {
-    const users = await User.findAll();
+    const users = await User.findAll({where:{status:'active'}});
     res.json(users);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -79,10 +80,54 @@ exports.deleteUser = async (req, res) => {
     const user = await User.findByPk(req.params.id);
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    await user.destroy();
+    await user.update({ status: 'inactive', updatedBy: req.body.updatedBy });
     res.json({ message: "User deleted" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
+exports.getLastEmpNumber = async (req, res) => {
+  try {
+    const { departmentId } = req.params;
+    const {role} = req;
+
+    // Find the department to get its acronym/prefix
+    const dept = await Department.findByPk(departmentId);
+    if (!dept) return res.status(404).json({ message: "Department not found" });
+
+    const deptPrefix = dept.departmentAckr
+    var lastEmp=''
+    // Find the latest employee in this department by empNumber
+    if(role==='Department Admin'){
+       lastEmp = await User.findOne({
+        where: { departmentId ,userNumber: {
+        [Op.like]: "AD%",   // ✅ only numbers starting with AD
+      },/*check if this starts with AD*/},
+        order: [["createdAt", "DESC"]],
+      });
+    }
+    else{
+       lastEmp = await User.findOne({
+        where: { departmentId },
+        order: [["createdAt", "DESC"]],
+      });
+    }
+
+    let nextNumber;
+    console.log(lastEmp);    
+    if (lastEmp && (lastEmp.userNumber.startsWith(deptPrefix) || lastEmp.userNumber.startsWith(`AD${deptPrefix}`))) {
+      // Extract the numeric part
+      const lastNum = parseInt(lastEmp.userNumber.replace(/\D/g, ""), 10);
+      nextNumber = `${deptPrefix}${lastNum + 1}`;
+    } else {
+      // First employee in this department
+      nextNumber = `${deptPrefix}100`;
+    }
+
+    res.json({ lastEmpNumber: nextNumber });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};

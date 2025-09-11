@@ -6,8 +6,8 @@ const BiometricDevice = require('./BiometricDevice');
 const Punch = seq.define('Punch', {
   punchId: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   biometricNumber: { type: DataTypes.STRING, allowNull: false },
-  employeeNumber: { type: DataTypes.INTEGER, allowNull: true,  },
-  deviceIp: { type: DataTypes.INTEGER, allowNull: true,},
+  employeeNumber: { type: DataTypes.STRING, allowNull: true,  },
+  deviceIp: { type: DataTypes.STRING, allowNull: true,},
   punchTimestamp: { type: DataTypes.DATE, allowNull: false },
   createdBy: { type: DataTypes.STRING, allowNull: true },
   updatedBy: { type: DataTypes.STRING, allowNull: true }
