@@ -1,6 +1,7 @@
 const Attendance = require('../models/Attendance'); // Sequelize model
 const Employee = require('../models/Employee');
 
+
 // Create
 exports.createAttendance = async (req, res) => {
   try {
