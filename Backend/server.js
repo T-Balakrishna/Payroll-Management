@@ -95,6 +95,7 @@ const startServer = async () => {
     await seq.sync({ force:false  });
     console.log("✅ Tables synced");
 
+
     app.listen(5000, () => {
       console.log("🚀 Listening at http://localhost:5000");
     });
