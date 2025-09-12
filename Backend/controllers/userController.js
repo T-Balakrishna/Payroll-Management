@@ -119,10 +119,11 @@ exports.getLastEmpNumber = async (req, res) => {
     if (lastEmp && (lastEmp.userNumber.startsWith(deptPrefix) || lastEmp.userNumber.startsWith(`AD${deptPrefix}`))) {
       // Extract the numeric part
       const lastNum = parseInt(lastEmp.userNumber.replace(/\D/g, ""), 10);
+      if(role=="Staff")
       nextNumber = `${deptPrefix}${lastNum + 1}`;
     } else {
       // First employee in this department
-      nextNumber = `${deptPrefix}100`;
+      nextNumber = `${deptPrefix}1`;
     }
 
     res.json({ lastEmpNumber: nextNumber });

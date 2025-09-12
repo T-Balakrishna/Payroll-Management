@@ -35,7 +35,7 @@ const employeeRoute = require('./routes/employeeRoute');
 const employeeTypeRoute = require('./routes/employeeTypeRoute');
 const holidayRoute = require('./routes/holidayRoute');
 const holidayPlanRoute = require('./routes/holidayPlanRoute');
-// const leaveRoute = require('./routes/leaveRoute');
+const leaveTypeRoute = require('./routes/leaveTypeRoute');
 // const loginRoute = require('./routes/loginRoute');
 const punchRoute = require('./routes/punchRoute');
 const religionRoute = require('./routes/religionRoute');
@@ -55,7 +55,7 @@ app.use('/api/employeeGrades', employeeGradeRoute);
 app.use('/api/employeeTypes', employeeTypeRoute);
 app.use('/api/holidays', holidayRoute);
 app.use('/api/holidayPlans', holidayPlanRoute);
-// app.use('/api/leaves', leaveRoute);
+app.use('/api/leaveTypes', leaveTypeRoute);
 // app.use('/api/logins', loginRoute);
 app.use('/api/punches', punchRoute);
 app.use('/api/religions', religionRoute);
@@ -92,7 +92,7 @@ const startServer = async () => {
     console.log("✅ DB Connected successfully");
 
     // ⚠️ safer: alter = keep data, adjust schema if needed
-    await seq.sync({ force:false  });
+    await seq.sync({ alter:true  });
     console.log("✅ Tables synced");
 
 

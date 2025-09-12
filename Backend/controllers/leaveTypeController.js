@@ -5,7 +5,7 @@ exports.createLeaveType = async (req, res) => {
   try {
     const {
       leaveTypeName,
-      maxAllocationPerPeriod,
+      maxAllocationPertype,
       allowApplicationAfterDays,
       minWorkingDaysForLeave,
       maxConsecutiveLeaves,
@@ -24,7 +24,7 @@ exports.createLeaveType = async (req, res) => {
 
     const newLeaveType = await LeaveType.create({
       leaveTypeName,
-      maxAllocationPerPeriod,
+      maxAllocationPertype,
       allowApplicationAfterDays,
       minWorkingDaysForLeave,
       maxConsecutiveLeaves,

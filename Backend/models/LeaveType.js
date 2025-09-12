@@ -4,7 +4,7 @@ const sequelize = require("../config/db");
 const LeaveType = sequelize.define("LeaveType", {
   leaveTypeId: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   leaveTypeName: { type: DataTypes.STRING, allowNull: false, unique: true },
-  maxAllocationPerPeriod: { type: DataTypes.INTEGER, allowNull: true }, // Maximum Leave Allocation Allowed per Leave Period
+  maxAllocationPertype: { type: DataTypes.INTEGER, allowNull: true }, // Maximum Leave Allocation Allowed per Leave Period
   allowApplicationAfterDays: { type: DataTypes.INTEGER, allowNull: true }, // Allow Leave Application After (Working Days)
   minWorkingDaysForLeave: { type: DataTypes.INTEGER, allowNull: true }, // Minimum working days since joining
   maxConsecutiveLeaves: { type: DataTypes.INTEGER, allowNull: true }, // Maximum consecutive leaves
