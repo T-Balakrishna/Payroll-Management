@@ -37,6 +37,7 @@ const holidayRoute = require('./routes/holidayRoute');
 const holidayPlanRoute = require('./routes/holidayPlanRoute');
 // const leaveRoute = require('./routes/leaveRoute');
 // const loginRoute = require('./routes/loginRoute');
+const leaveTypeRoute = require('./routes/leaveTypeRoute');
 const punchRoute = require('./routes/punchRoute');
 const religionRoute = require('./routes/religionRoute');
 const shiftRoute = require('./routes/shiftRoute');
@@ -62,6 +63,7 @@ app.use('/api/religions', religionRoute);
 app.use('/api/shifts', shiftRoute);
 app.use('/api/users', userRoute);   // ✅ expose users
 app.use('/api/auth', authRoute);    // ✅ expose auth (login + google login)
+app.use('/api/leaveTypes',leaveTypeRoute)
 
 // Import models so Sequelize can sync tables
 require('./models/Attendance');
@@ -84,6 +86,7 @@ require('./models/Punch');
 require('./models/Religion');
 require('./models/Shift');
 require('./models/User');   // ✅ user model
+require('./models/LeaveType')
 
 // Start server
 const startServer = async () => {
