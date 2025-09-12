@@ -84,15 +84,16 @@ const Employee = sequelize.define('Employee', {
   passportNumber: { type: DataTypes.STRING },
 
   // Salary
-  costToCompany: { type: DataTypes.FLOAT },
-  salaryCurrency: { type: DataTypes.STRING },
-  salaryMode: { type: DataTypes.STRING },
-  payrollCostCenter: { type: DataTypes.STRING },
-  panNumber: { type: DataTypes.STRING },
-  providentFundAccount: { type: DataTypes.STRING },
-  pfNominee: { type: DataTypes.STRING },
-  asiNumber: { type: DataTypes.STRING },
-  uanNumber: { type: DataTypes.STRING },
+  // I have made it to alooNUll for temporary usage
+  costToCompany: { type: DataTypes.FLOAT ,allowNull:true},
+  salaryCurrency: { type: DataTypes.STRING,allowNull:true },
+  salaryMode: { type: DataTypes.STRING ,allowNull:true},
+  payrollCostCenter: { type: DataTypes.STRING ,allowNull:true},
+  panNumber: { type: DataTypes.STRING,allowNull:true , },
+  pfNumber: { type: DataTypes.STRING ,allowNull:true},
+  pfNominee: { type: DataTypes.STRING ,allowNull:true},
+  esiNumber: { type: DataTypes.STRING ,allowNull:true},
+  uanNumber: { type: DataTypes.STRING ,allowNull:true},
 
   // Photo
   photo: { type: DataTypes.BLOB('long') },
