@@ -75,7 +75,7 @@ require('./models/EmployeeGrade');
 require('./models/EmployeeType');
 require('./models/Holiday');
 require('./models/HolidayPlan');
-require('./models/LeavePolicy');
+require('./models/LeaveAllocation');
 require('./models/LeavePolicyDetails');
 require('./models/LeaveRequest');
 require('./models/LeaveType');
@@ -92,7 +92,7 @@ const startServer = async () => {
     console.log("✅ DB Connected successfully");
 
     // ⚠️ safer: alter = keep data, adjust schema if needed
-    await seq.sync({ alter:true  });
+    await seq.sync({ alter:false  });
     console.log("✅ Tables synced");
 
 

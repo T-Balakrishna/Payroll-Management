@@ -6,9 +6,10 @@ import DesignationMaster from './DesignationMaster.jsx';
 import ShiftMaster from './ShiftMaster.jsx';
 import EmployeeTypeMaster from './EmployeeTypeMaster.jsx';
 import HolidayMaster from './HolidayMaster.jsx';
-import LeaveTypeMaster from './LeaveTypeMaster.jsx';
+import LeaveAllocation from './LeaveAllocation.jsx';
 import ReligionMaster from './ReligionMaster.jsx';
 import AddUser from './AddUser.jsx';
+import LeaveTypeMaster from './LeaveTypeMaster.jsx';
 
 import { 
   Users, 
@@ -45,6 +46,7 @@ const Admin = () => {
     { id: 'employeeType', label: 'Employee Type Master', icon: Users, color: 'text-cyan-600' },
     { id: 'holiday', label: 'Holiday Master', icon: Calendar, color: 'text-yellow-600' },
     { id: 'leaveType', label: 'Leave Type Master', icon: Clock, color: 'text-lime-600' },
+    { id: 'leaveAllocation', label: 'Leave Allocation ', icon: Clock, color: 'text-lime-600' },
     { id: 'religion', label: 'Religion Master', icon: Building, color: 'text-amber-600' },
     { id: 'shift', label: 'Shift Master', icon: Activity, color: 'text-emerald-600' },
   ];
@@ -71,6 +73,7 @@ const Admin = () => {
     employeeType: "Employee Type Master",
     holiday: "Holiday Master",
     leaveType: "Leave Type Master",
+    leaveAllocation: "Leave Allocation",
     religion: "Religion Master",
     shift: "Shift Master",
     login: "Login",
@@ -122,6 +125,7 @@ const Admin = () => {
       case "employeeType": return <EmployeeTypeMaster />;
       case "holiday": return <HolidayMaster />;
       case "leaveType": return <LeaveTypeMaster />;
+      case "leaveAllocation": return <LeaveAllocation />;
       case "religion": return <ReligionMaster />;
       case "shift": return <ShiftMaster />;
       case "users": return <AddUser />;

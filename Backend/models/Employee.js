@@ -6,9 +6,9 @@ const Designation = require('./Designation');
 const EmployeeGrade = require('./EmployeeGrade');
 const EmployeeType = require('./EmployeeType');
 const Shift = require('./Shift');
-const LeavePolicy = require('./LeavePolicy');
 const Religion = require('./Religion');
 const Caste = require('./Caste');
+const Bus = require('./Bus');  // ✅ Added missing Bus import
 
 const Employee = sequelize.define('Employee', {
   employeeId: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
@@ -20,7 +20,7 @@ const Employee = sequelize.define('Employee', {
   lastName: { type: DataTypes.STRING, allowNull: false },
   employeeName: { 
     type: DataTypes.VIRTUAL, 
-    get() { return `${this.firstName} ${this.lastName}`; } 
+    get() { return `${this.firstName} ${this.lastName}`; }   // ✅ backticks fixed
   },
   gender: { type: DataTypes.ENUM('Male','Female','Other'), allowNull: true },
   DOB: { type: DataTypes.DATEONLY, allowNull: true },
@@ -58,12 +58,8 @@ const Employee = sequelize.define('Employee', {
   employeeNumber: { type: DataTypes.STRING, allowNull: false, unique: true },
 
   // Attendance & Leaves
-  // biometricId: { type: DataTypes.STRING },
   holidayListPolicyId: { type: DataTypes.INTEGER },
-  leavePolicyId: { 
-    type: DataTypes.INTEGER, 
-    references: { model: LeavePolicy, key: 'leavePolicyId' } 
-  },
+  
   shiftId: { 
     type: DataTypes.INTEGER, 
     references: { model: Shift, key: 'shiftId' } 
@@ -84,12 +80,11 @@ const Employee = sequelize.define('Employee', {
   passportNumber: { type: DataTypes.STRING },
 
   // Salary
-  // I have made it to alooNUll for temporary usage
   costToCompany: { type: DataTypes.FLOAT ,allowNull:true},
   salaryCurrency: { type: DataTypes.STRING,allowNull:true },
   salaryMode: { type: DataTypes.STRING ,allowNull:true},
   payrollCostCenter: { type: DataTypes.STRING ,allowNull:true},
-  panNumber: { type: DataTypes.STRING,allowNull:true , },
+  panNumber: { type: DataTypes.STRING,allowNull:true },
   pfNumber: { type: DataTypes.STRING ,allowNull:true},
   pfNominee: { type: DataTypes.STRING ,allowNull:true},
   esiNumber: { type: DataTypes.STRING ,allowNull:true},
@@ -105,6 +100,26 @@ const Employee = sequelize.define('Employee', {
 
   createdBy: { type: DataTypes.STRING },
   updatedBy: { type: DataTypes.STRING },
+
+  // Extra Fields
+  employeeMail: { type: DataTypes.STRING },
+  personalMail: { type: DataTypes.STRING },
+  salaryId: { type: DataTypes.INTEGER },
+  acctNumber: { type: DataTypes.STRING },
+  password: { type: DataTypes.STRING },
+  qualification: { type: DataTypes.STRING },
+  experience: { type: DataTypes.STRING },
+
+  // 🔹 Changed fields
+  referencePerson: { 
+    type: DataTypes.INTEGER,
+    references: { model: 'Employee', key: 'employeeId' }
+  },
+  busId: {
+    type: DataTypes.INTEGER,
+    references: { model: 'Bus', key: 'busId' }
+  },
+
 }, {
   tableName: 'Employee',
   timestamps: true
@@ -124,9 +139,6 @@ Employee.belongsTo(EmployeeGrade, { foreignKey: 'employeeGradeId', as: 'grade' }
 // Employee belongsTo Shift
 Employee.belongsTo(Shift, { foreignKey: 'shiftId', as: 'shift' });
 
-// Employee belongsTo LeavePolicy
-Employee.belongsTo(LeavePolicy, { foreignKey: 'leavePolicyId', as: 'leavePolicy' });
-
 // Employee belongsTo Religion
 Employee.belongsTo(Religion, { foreignKey: 'religionId', as: 'religion' });
 
@@ -135,5 +147,11 @@ Employee.belongsTo(Caste, { foreignKey: 'casteId', as: 'caste' });
 
 // Employee reports to another Employee (self-reference)
 Employee.belongsTo(Employee, { foreignKey: 'reportsTo', as: 'manager' });
+
+// Employee has reference person (self-reference)
+Employee.belongsTo(Employee, { foreignKey: 'referencePerson', as: 'referencePersonDetails' });
+
+// Employee belongsTo Bus
+Employee.belongsTo(Bus, { foreignKey: 'busId', as: 'bus' });
 
 module.exports = Employee;

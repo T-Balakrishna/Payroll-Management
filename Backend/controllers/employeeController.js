@@ -4,7 +4,6 @@ const Designation = require('../models/Designation');
 const EmployeeGrade = require('../models/EmployeeGrade');
 const EmployeeType = require('../models/EmployeeType');
 const Shift = require('../models/Shift');
-const LeavePolicy = require('../models/LeavePolicy');
 const Religion = require('../models/Religion');
 const Caste = require('../models/Caste');
 
