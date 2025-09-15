@@ -12,7 +12,7 @@ function AddOrEditGrade({ onSave, onCancel, editData }) {
     e.preventDefault();
     if (!employeeGradeName || !employeeGradeAckr) return alert("Please fill all fields");
 
-    const adminName = localStorage.getItem("adminName") || "system";
+    const adminName = sessionStorage.getItem("userNumber");
 
     const gradeData = {
       employeeGradeName,
@@ -143,7 +143,7 @@ function EmployeeGradeMaster() {
   const handleDelete = async (gradeId) => {
     if (!window.confirm("Are you sure you want to delete this grade?")) return;
     try {
-      const updatedBy = localStorage.getItem("adminName") || "system";
+      const updatedBy = sessionStorage.getItem("userNumber");
       await axios.delete(`http://localhost:5000/api/employeeGrades/${gradeId}`, {
         data: { updatedBy },
       });

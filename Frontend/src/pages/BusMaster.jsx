@@ -132,7 +132,7 @@ function BusMaster() {
 
   const handleSave = async (busData, busId) => {
     try {
-      const adminName = localStorage.getItem("adminName");
+      const adminName = sessionStorage.getItem("userNumber");
       if (busId) {
         await axios.put(`http://localhost:5000/api/buses/${busId}`, {
           ...busData,
@@ -154,7 +154,7 @@ function BusMaster() {
 
   const handleDelete = async (busId) => {
     try {
-      const adminName = localStorage.getItem("adminName");
+      const adminName = sessionStorage.getItem("userNumber");
       if (!busId) return;
       await axios.delete(`http://localhost:5000/api/buses/${busId}`, {
         data: { updatedBy: adminName },

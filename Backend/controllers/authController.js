@@ -10,7 +10,7 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 // 🔹 Create new user with hashed password
 exports.createUser = async (req, res) => {
   try {
-    const { userMail, userNumber, userName, password, role, departmentId, createdBy } = req.body;
+    const { userMail, userNumber, userName, password, role, departmentId, createdBy, status } = req.body;
 
     if (!userMail || !userNumber || !password)
       return res.status(400).json({ msg: "userMail, userNumber & password are required" });
@@ -24,8 +24,8 @@ exports.createUser = async (req, res) => {
       userMail,
       userNumber,
       userName,
-      role: role || "Staff",
-      departmentId: departmentId || 0,
+      role: role,
+      departmentId: departmentId,
       password: hashedPassword,
       createdBy,
       status: "active",
@@ -69,7 +69,7 @@ exports.loginUser = async (req, res) => {
         userNumber: user.userNumber,
         role: user.role,
       },
-      process.env.JWT_SECRET || "secretkey",
+      process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
 
@@ -114,7 +114,7 @@ exports.googleLogin = async (req, res) => {
 
     const ourToken = jwt.sign(
       { id: user.userId, email: user.userMail, userNumber: user.userNumber, role: user.role },
-      process.env.JWT_SECRET || "secretkey",
+      process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
 

@@ -15,7 +15,7 @@ function AddOrEdit({ onSave, onCancel, editData }) {
     if (!designationName || !designationAckr) return alert("Please fill all fields");
 
 
-    const adminName = localStorage.getItem("adminName") || "system";
+    const adminName = sessionStorage.getItem("userNumber");
 
 
     const designationData = {
@@ -163,7 +163,7 @@ function DesignationMaster() {
   const handleDelete = async (designationId) => {
     if (!window.confirm("Are you sure you want to delete this designation?")) return;
     try {
-      const updatedBy = localStorage.getItem("adminName") || "system";
+      const updatedBy = sessionStorage.getItem("userNumber");
       await axios.delete(`http://localhost:5000/api/designations/${designationId}`, {
         data: { updatedBy },
       });

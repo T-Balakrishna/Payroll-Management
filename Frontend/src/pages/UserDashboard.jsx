@@ -174,7 +174,11 @@ export default function DashboardPage() {
                 <User className="w-6 h-6 text-gray-600" />
               </button>
               <button
-                onClick={() => window.location.href = "/"}
+                onClick={() => {
+                  sessionStorage.removeItem("token");
+                  sessionStorage.removeItem("userNumber");
+                  window.location.href = "/";
+                }}
                 className="w-12 h-12 bg-red-100 hover:bg-red-200 rounded-xl flex items-center justify-center transition-all duration-200"
               >
                 <LogOut className="w-6 h-6 text-red-600" />

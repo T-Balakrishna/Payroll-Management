@@ -29,7 +29,7 @@ function AddOrEditShift({ onSave, onCancel, editData }) {
       return alert(`Minimum hours cannot exceed shift duration (${durationHours.toFixed(2)} hours)`);
     }
 
-    const currentUser = localStorage.getItem("username") || "system";
+    const currentUser = sessionStorage.getItem("userNumber");
 
     const shiftData = {
       shiftName,
@@ -193,7 +193,7 @@ export default function ShiftMaster() {
   const handleDelete = async (shiftId) => {
     if (!window.confirm("Are you sure you want to delete this shift?")) return;
     try {
-      const currentUser = localStorage.getItem("username") || "system";
+      const currentUser = sessionStorage.getItem("userNumber");
       await axios.delete(`http://localhost:5000/api/shifts/${shiftId}`, {
         data: { updatedBy: currentUser },
       });

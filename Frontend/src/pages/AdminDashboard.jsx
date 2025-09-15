@@ -53,7 +53,6 @@ const Admin = () => {
 
   const authItems = [
     { id: 'login', label: 'Logout', icon: LogOut, color: 'text-gray-600' },
-    { id: 'register', label: 'Register', icon: Users, color: 'text-gray-600' },
   ];
 
   const stats = [
@@ -76,8 +75,6 @@ const Admin = () => {
     leave: "Leave Type Master",
     religion: "Religion Master",
     shift: "Shift Master",
-    login: "Login",
-    register: "Register",
   };
 
   const renderDashboard = () => (
@@ -129,8 +126,6 @@ const Admin = () => {
       case "religion": return <ReligionMaster />;
       case "shift": return <ShiftMaster />;
       case "users": return <AddUser />;
-      case "login": return <Login />;
-      case "register": return <Register />;
       default: return renderDashboard();
     }
   };
@@ -213,8 +208,9 @@ const Admin = () => {
               <button
                 key={item.id}
                 onClick={() => {
-                  setActivePage(item.id);
-                  setMobileMenuOpen(false);
+                  sessionStorage.removeItem("token");
+                  sessionStorage.removeItem("userNumber");
+                  window.location.href = "/";
                 }}
                 className={`relative w-full flex items-center px-2 py-2.5 text-sm font-medium rounded-lg transition-colors
                   ${activePage === item.id 

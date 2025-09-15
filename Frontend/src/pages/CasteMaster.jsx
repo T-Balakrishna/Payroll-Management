@@ -86,7 +86,7 @@ function CasteMaster() {
 
   const handleSave = async (casteData, casteId) => {
     try {
-      const adminName = localStorage.getItem("adminName") || "system";
+      const adminName = sessionStorage.getItem("userNumber");
       if (casteId) {
         await axios.put(`http://localhost:5000/api/castes/${casteId}`, {
           ...casteData,
@@ -113,7 +113,7 @@ function CasteMaster() {
 
   const handleDelete = async (casteId) => {
     try {
-      const adminName = localStorage.getItem("adminName") || "system";
+      const adminName = sessionStorage.getItem("userNumber");
       await axios.delete(`http://localhost:5000/api/castes/${casteId}`, {
         data: { updatedBy: adminName },
       });

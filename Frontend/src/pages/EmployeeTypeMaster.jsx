@@ -112,7 +112,7 @@ export default function EmployeeTypeMaster() {
 
   const handleSave = async (data, employeeTypeId) => {
     try {
-      const adminName = localStorage.getItem("adminName") || "system";
+      const adminName = sessionStorage.getItem("userNumber");
 
 
       if (employeeTypeId) {
@@ -144,7 +144,7 @@ export default function EmployeeTypeMaster() {
 
 
   const handleDelete = async (id) => {
-    const updatedBy=localStorage.getItem("adminName");
+    const updatedBy=sessionStorage.getItem("userNumber");
     try {
       await axios.delete(`http://localhost:5000/api/employeeTypes/${id}`, {
         data: { updatedBy},

@@ -156,7 +156,7 @@ function AddOrEditUser({
 
 // ✅ Main Page
 export default function AddUser() {
-  const userNumber = localStorage.getItem("userNumber");
+  const userNumber = sessionStorage.getItem("userNumber");
   const [departments, setDepartments] = useState([]);
   const [users, setUsers] = useState([]);
   const [formData, setFormData] = useState({
