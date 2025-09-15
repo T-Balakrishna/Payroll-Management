@@ -42,4 +42,4 @@
 // LeaveType.hasMany(LeaveRequest, { foreignKey: 'leaveTypeId' });
 // LeaveRequest.belongsTo(LeaveType, { foreignKey: 'leaveTypeId' });
 
-// module.exports = LeaveRequest;
+// module.exports = LeaveRequest; 

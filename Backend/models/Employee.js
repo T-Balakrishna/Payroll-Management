@@ -15,12 +15,13 @@ const Employee = sequelize.define('Employee', {
 
   // Overview
   salutation: { type: DataTypes.STRING, allowNull: true },
-  firstName: { type: DataTypes.STRING, allowNull: false },
+  firstName: { type: DataTypes.STRING, allowNull: true },
   middleName: { type: DataTypes.STRING, allowNull: true },
-  lastName: { type: DataTypes.STRING, allowNull: false },
+  lastName: { type: DataTypes.STRING, allowNull: true },
   employeeName: { 
     type: DataTypes.VIRTUAL, 
-    get() { return `${this.firstName} ${this.lastName}`; }   // ✅ backticks fixed
+    get() { return `${this.firstName} ${this.lastName}`; } ,  // ✅ backticks fixed
+    allowNull:true
   },
   gender: { type: DataTypes.ENUM('Male','Female','Other'), allowNull: true },
   DOB: { type: DataTypes.DATEONLY, allowNull: true },
@@ -37,23 +38,23 @@ const Employee = sequelize.define('Employee', {
   // Job Details (foreign keys)
   designationId: { 
     type: DataTypes.INTEGER, 
-    references: { model: Designation, key: 'designationId' } 
+    // references: { model: Designation, key: 'designationId' } 
   },
   employeeGradeId: { 
     type: DataTypes.INTEGER, 
-    references: { model: EmployeeGrade, key: 'employeeGradeId' } 
+    // references: { model: EmployeeGrade, key: 'employeeGradeId' } 
   },
   reportsTo: { 
     type: DataTypes.INTEGER, 
-    references: { model: 'Employee', key: 'employeeId' } 
+    // references: { model: 'Employee', key: 'employeeId' } 
   },
   departmentId: { 
     type: DataTypes.INTEGER, 
-    references: { model: Department, key: 'departmentId' } 
+    // references: { model: Department, key: 'departmentId' } 
   },
   employeeTypeId: { 
     type: DataTypes.INTEGER,
-    references: { model: EmployeeType, key: 'employeeTypeId' } 
+    // references: { model: EmployeeType, key: 'employeeTypeId' } 
   }, 
   employeeNumber: { type: DataTypes.STRING, allowNull: false, unique: true },
 
@@ -62,7 +63,7 @@ const Employee = sequelize.define('Employee', {
   
   shiftId: { 
     type: DataTypes.INTEGER, 
-    references: { model: Shift, key: 'shiftId' } 
+    // references: { model: Shift, key: 'shiftId' } 
   },
 
   // Personal
@@ -70,11 +71,11 @@ const Employee = sequelize.define('Employee', {
   bloodGroup: { type: DataTypes.STRING },
   religionId: { 
     type: DataTypes.INTEGER, 
-    references: { model: Religion, key: 'religionId' } 
+    // references: { model: Religion, key: 'religionId' } 
   },
   casteId: { 
     type: DataTypes.INTEGER, 
-    references: { model: Caste, key: 'casteId' } 
+    // references: { model: Caste, key: 'casteId' } 
   },
   aadharNumber: { type: DataTypes.STRING },
   passportNumber: { type: DataTypes.STRING },
@@ -113,11 +114,11 @@ const Employee = sequelize.define('Employee', {
   // 🔹 Changed fields
   referencePerson: { 
     type: DataTypes.INTEGER,
-    references: { model: 'Employee', key: 'employeeId' }
+    // references: { model: 'Employee', key: 'employeeId' }
   },
   busId: {
     type: DataTypes.INTEGER,
-    references: { model: 'Bus', key: 'busId' }
+    // references: { model: 'Bus', key: 'busId' }
   },
 
 }, {
@@ -127,31 +128,31 @@ const Employee = sequelize.define('Employee', {
 
 // ===================== ASSOCIATIONS =====================
 
-// Employee belongsTo Department
-Employee.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
+// // Employee belongsTo Department
+// Employee.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
 
-// Employee belongsTo Designation
-Employee.belongsTo(Designation, { foreignKey: 'designationId', as: 'designation' });
+// // Employee belongsTo Designation
+// Employee.belongsTo(Designation, { foreignKey: 'designationId', as: 'designation' });
 
-// Employee belongsTo Grade
-Employee.belongsTo(EmployeeGrade, { foreignKey: 'employeeGradeId', as: 'grade' });
+// // Employee belongsTo Grade
+// Employee.belongsTo(EmployeeGrade, { foreignKey: 'employeeGradeId', as: 'grade' });
 
-// Employee belongsTo Shift
-Employee.belongsTo(Shift, { foreignKey: 'shiftId', as: 'shift' });
+// // Employee belongsTo Shift
+// Employee.belongsTo(Shift, { foreignKey: 'shiftId', as: 'shift' });
 
-// Employee belongsTo Religion
-Employee.belongsTo(Religion, { foreignKey: 'religionId', as: 'religion' });
+// // Employee belongsTo Religion
+// Employee.belongsTo(Religion, { foreignKey: 'religionId', as: 'religion' });
 
-// Employee belongsTo Caste
-Employee.belongsTo(Caste, { foreignKey: 'casteId', as: 'caste' });
+// // Employee belongsTo Caste
+// Employee.belongsTo(Caste, { foreignKey: 'casteId', as: 'caste' });
 
-// Employee reports to another Employee (self-reference)
-Employee.belongsTo(Employee, { foreignKey: 'reportsTo', as: 'manager' });
+// // Employee reports to another Employee (self-reference)
+// Employee.belongsTo(Employee, { foreignKey: 'reportsTo', as: 'manager' });
 
-// Employee has reference person (self-reference)
-Employee.belongsTo(Employee, { foreignKey: 'referencePerson', as: 'referencePersonDetails' });
+// // Employee has reference person (self-reference)
+// Employee.belongsTo(Employee, { foreignKey: 'referencePerson', as: 'referencePersonDetails' });
 
-// Employee belongsTo Bus
-Employee.belongsTo(Bus, { foreignKey: 'busId', as: 'bus' });
+// // Employee belongsTo Bus
+// Employee.belongsTo(Bus, { foreignKey: 'busId', as: 'bus' });
 
 module.exports = Employee;

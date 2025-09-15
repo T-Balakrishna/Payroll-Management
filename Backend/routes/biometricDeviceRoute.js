@@ -1,19 +1,12 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
+const biometricDeviceController = require("../controllers/biometricDeviceController");
 
-const {
-    createDevice,
-    getAllDevices,
-    getDeviceById,
-    updateDevice,
-    deleteDevice
-} = require('../controllers/biometricDeviceController');
-
-// CRUD Routes
-router.post('/', createDevice);        // Create
-router.get('/', getAllDevices);        // Read All
-router.get('/:id', getDeviceById);     // Read One
-router.put('/:id', updateDevice);      // Update
-router.delete('/:id', deleteDevice);   // Soft Delete
+// CRUD Routes (deviceId used instead of id)
+router.post("/", biometricDeviceController.createBiometricDevice);
+router.get("/", biometricDeviceController.getAllBiometricDevices);
+router.get("/:deviceId", biometricDeviceController.getBiometricDeviceById);
+router.put("/:deviceId", biometricDeviceController.updateBiometricDevice);
+router.delete("/:deviceId", biometricDeviceController.deleteBiometricDevice);
 
 module.exports = router;

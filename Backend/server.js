@@ -25,6 +25,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Import routes
 const attendanceRoute = require('./routes/attendanceRoute');
+const biometricRoute = require('./routes/biometricRoute');
 const biometricDeviceRoute = require('./routes/biometricDeviceRoute');
 const busRoute = require('./routes/busRoute');
 const casteRoute = require('./routes/casteRoute');
@@ -42,10 +43,11 @@ const religionRoute = require('./routes/religionRoute');
 const shiftRoute = require('./routes/shiftRoute');
 const userRoute = require('./routes/userRoute');  
 const authRoute = require('./routes/authRoute');  
-
+ 
 // Map routes
 app.use('/api/attendance', attendanceRoute);
-app.use('/api/biometric', biometricDeviceRoute);
+app.use('/api/biometrics', biometricRoute);
+app.use('/api/biometricDevices', biometricDeviceRoute);
 app.use('/api/buses', busRoute);
 app.use('/api/castes', casteRoute);
 app.use('/api/departments', departmentRoute);
@@ -67,6 +69,8 @@ app.use('/api/auth', authRoute);    // ✅ expose auth (login + google login)
 require('./models/Attendance');
 require('./models/BiometricDevice');
 require('./models/Bus');
+require('./models/Biometric');
+require('./models/BiometricDevice');
 require('./models/Caste');
 require('./models/Department');
 require('./models/Designation');
@@ -76,7 +80,6 @@ require('./models/EmployeeType');
 require('./models/Holiday');
 require('./models/HolidayPlan');
 require('./models/LeaveAllocation');
-require('./models/LeavePolicyDetails');
 require('./models/LeaveRequest');
 require('./models/LeaveType');
 require('./models/Punch');
@@ -92,7 +95,7 @@ const startServer = async () => {
     console.log("✅ DB Connected successfully");
 
     // ⚠️ safer: alter = keep data, adjust schema if needed
-    await seq.sync({ alter:false  });
+    await seq.sync({ force:false });
     console.log("✅ Tables synced");
 
 
