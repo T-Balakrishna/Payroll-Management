@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { Building2, Pencil, Trash, Plus, X } from "lucide-react";
@@ -10,14 +9,11 @@ function AddOrEdit({ onSave, onCancel, editData }) {
   const [departmentAckr, setDepartmentAckr] = useState(editData?.departmentAckr || "");
   const [status, setStatus] = useState(editData?.status || "active");
 
-
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!departmentName || !departmentAckr) return alert("Please fill all fields");
 
-
-    const adminName = localStorage.getItem("adminName") || "system";
-
+    const adminName = localStorage.getItem("adminName");
 
     const departmentData = {
       departmentName,
@@ -27,14 +23,12 @@ function AddOrEdit({ onSave, onCancel, editData }) {
       updatedBy: adminName,
     };
 
-
     onSave(departmentData, editData?.departmentId);
   };
 
-
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm">
-      <div className="relative max-w-xl w-full bg-white rounded-2xl shadow-xl p-8 border border-gray-200">
+      <div className="relative max-w-xl w-full bg-white rounded-2xl shadow-xl px-8 border border-gray-200">
         {/* Close Button */}
         <button
           onClick={onCancel}
@@ -43,7 +37,6 @@ function AddOrEdit({ onSave, onCancel, editData }) {
           <X size={22} />
         </button>
 
-
         {/* Icon */}
         <div className="flex justify-center mb-6">
           <div className="bg-blue-100 p-4 rounded-full">
@@ -51,12 +44,10 @@ function AddOrEdit({ onSave, onCancel, editData }) {
           </div>
         </div>
 
-
         {/* Title */}
         <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">
           {editData ? "Edit Department" : "Add New Department"}
         </h2>
-
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -71,7 +62,6 @@ function AddOrEdit({ onSave, onCancel, editData }) {
             />
           </div>
 
-
           <div>
             <label className="block font-medium text-gray-700 mb-2">Acronym</label>
             <input
@@ -82,7 +72,6 @@ function AddOrEdit({ onSave, onCancel, editData }) {
               className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
             />
           </div>
-
 
           {/* Buttons */}
           <div className="flex justify-end gap-3 pt-4">
@@ -114,7 +103,6 @@ function DepartmentMaster() {
   const [showForm, setShowForm] = useState(false);
   const [editData, setEditData] = useState(null);
 
-
   const fetchDepartments = async () => {
     try {
       const res = await axios.get("http://localhost:5000/api/departments");
@@ -124,11 +112,9 @@ function DepartmentMaster() {
     }
   };
 
-
   useEffect(() => {
     fetchDepartments();
   }, []);
-
 
   const filteredData = departments.filter(
     (d) =>
@@ -136,7 +122,6 @@ function DepartmentMaster() {
       d.departmentAckr?.toLowerCase().includes(search.toLowerCase()) ||
       d.status?.toLowerCase().includes(search.toLowerCase())
   );
-
 
   const handleSave = async (departmentData, departmentId) => {
     try {
@@ -153,12 +138,10 @@ function DepartmentMaster() {
     }
   };
 
-
   const handleEdit = (department) => {
     setEditData(department);
     setShowForm(true);
   };
-
 
   const handleDelete = async (departmentId) => {
     if (!window.confirm("Are you sure you want to delete this department?")) return;
@@ -173,11 +156,10 @@ function DepartmentMaster() {
     }
   };
 
-
   return (
-    <div className="min-h-screen p-6 flex flex-col">
+    <div className="h-full flex flex-col px-6">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-4">
         <input
           type="text"
           placeholder="Search department..."
@@ -196,9 +178,8 @@ function DepartmentMaster() {
         </button>
       </div>
 
-
       {/* Table */}
-      <div className="overflow-y-auto border border-gray-200 rounded-lg shadow-sm" style={{ maxHeight: "320px" }}>
+      <div className="overflow-y-auto border border-gray-200 rounded-lg shadow-sm flex-1" style={{ maxHeight: "320px" }}>
         <table className="w-full text-left text-sm">
           <thead className="sticky top-0">
             <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
@@ -240,7 +221,6 @@ function DepartmentMaster() {
           </tbody>
         </table>
       </div>
-
 
       {/* Show Modal */}
       {showForm && (

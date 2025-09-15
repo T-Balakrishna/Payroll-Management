@@ -20,6 +20,18 @@ export default function DashboardPage() {
     { time_stamp: "2025-01-10 17:45", location: "Main Gate" },
     { time_stamp: "2025-01-09 09:15", location: "Main Gate" },
     { time_stamp: "2025-01-09 18:02", location: "Main Gate" },
+    { time_stamp: "2025-01-10 09:01", location: "Main Gate" },
+    { time_stamp: "2025-01-10 17:45", location: "Main Gate" },
+    { time_stamp: "2025-01-09 09:15", location: "Main Gate" },
+    { time_stamp: "2025-01-09 18:02", location: "Main Gate" },
+    { time_stamp: "2025-01-10 09:01", location: "Main Gate" },
+    { time_stamp: "2025-01-10 17:45", location: "Main Gate" },
+    { time_stamp: "2025-01-09 09:15", location: "Main Gate" },
+    { time_stamp: "2025-01-09 18:02", location: "Main Gate" },
+    { time_stamp: "2025-01-10 09:01", location: "Main Gate" },
+    { time_stamp: "2025-01-10 17:45", location: "Main Gate" },
+    { time_stamp: "2025-01-09 09:15", location: "Main Gate" },
+    { time_stamp: "2025-01-09 18:02", location: "Main Gate" },
   ];
 
   const leaveHistoryData = [
@@ -64,7 +76,7 @@ export default function DashboardPage() {
               Leave History
             </h3>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto  max-h-110 overflow-y-auto">
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
@@ -107,7 +119,7 @@ export default function DashboardPage() {
               Biometric History
             </h3>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto  max-h-110 overflow-y-auto">
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
@@ -142,9 +154,9 @@ export default function DashboardPage() {
             {/* Calendar Icon */}
             <button
               onClick={openCalendarModal}
-              className="w-12 h-12 bg-blue-600 hover:bg-blue-700 rounded-xl flex items-center justify-center transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                className="w-12 h-12 bg-gray-100 hover:bg-gray-200 rounded-xl flex items-center justify-center transition-all duration-200"
             >
-              <Calendar className="w-6 h-6 text-white" />
+              <Calendar className="w-6 h-6 text-gray-600" />
             </button>
 
             {/* Welcome Text */}
