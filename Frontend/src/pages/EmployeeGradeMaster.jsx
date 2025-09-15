@@ -1,35 +1,29 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { GraduationCap, Pencil, Trash, Plus, X } from "lucide-react";
+import { Award, Pencil, Trash, Plus, X } from "lucide-react";
 
-
-// ✅ Modal Component
-function AddOrEdit({ onSave, onCancel, editData }) {
-  const [designationName, setDesignationName] = useState(editData?.designationName || "");
-  const [designationAckr, setDesignationAckr] = useState(editData?.designationAckr || "");
+// ✅ Modal Form Component
+function AddOrEditGrade({ onSave, onCancel, editData }) {
+  const [employeeGradeName, setEmployeeGradeName] = useState(editData?.employeeGradeName || "");
+  const [employeeGradeAckr, setEmployeeGradeAckr] = useState(editData?.employeeGradeAckr || "");
   const [status, setStatus] = useState(editData?.status || "active");
-
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!designationName || !designationAckr) return alert("Please fill all fields");
-
+    if (!employeeGradeName || !employeeGradeAckr) return alert("Please fill all fields");
 
     const adminName = sessionStorage.getItem("userNumber");
 
-
-    const designationData = {
-      designationName,
-      designationAckr,
+    const gradeData = {
+      employeeGradeName,
+      employeeGradeAckr,
       status,
       createdBy: editData ? editData.createdBy : adminName,
       updatedBy: adminName,
     };
 
-
-    onSave(designationData, editData?.designationId);
+    onSave(gradeData, editData?.employeeGradeId);
   };
-
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm">
@@ -42,42 +36,38 @@ function AddOrEdit({ onSave, onCancel, editData }) {
           <X size={22} />
         </button>
 
-
         {/* Icon */}
         <div className="flex justify-center mb-6">
           <div className="bg-blue-100 p-4 rounded-full">
-            <GraduationCap className="text-blue-600" size={40} />
+            <Award className="text-blue-600" size={40} />
           </div>
         </div>
 
-
         {/* Title */}
         <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">
-          {editData ? "Edit Designation" : "Add New Designation"}
+          {editData ? "Edit Employee Grade" : "Add New Employee Grade"}
         </h2>
-
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block font-medium text-gray-700 mb-2">Designation Name</label>
+            <label className="block font-medium text-gray-700 mb-2">Grade Name</label>
             <input
               type="text"
-              value={designationName}
-              onChange={(e) => setDesignationName(e.target.value)}
-              placeholder="Enter designation name"
+              value={employeeGradeName}
+              onChange={(e) => setEmployeeGradeName(e.target.value)}
+              placeholder="Enter grade name"
               className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
             />
           </div>
-
 
           <div>
             <label className="block font-medium text-gray-700 mb-2">Acronym</label>
             <input
               type="text"
-              value={designationAckr}
-              onChange={(e) => setDesignationAckr(e.target.value)}
-              placeholder="Enter acronym"
+              value={employeeGradeAckr}
+              onChange={(e) => setEmployeeGradeAckr(e.target.value)}
+              placeholder="Enter short name"
               className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
             />
           </div>
@@ -103,84 +93,73 @@ function AddOrEdit({ onSave, onCancel, editData }) {
   );
 }
 
-
 // ✅ Main Component
-function DesignationMaster() {
-  const [designations, setDesignations] = useState([]);
+function EmployeeGradeMaster() {
+  const [grades, setGrades] = useState([]);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editData, setEditData] = useState(null);
 
-
-  const fetchDesignations = async () => {
+  const fetchGrades = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/designations");
-      setDesignations(res.data);
+      const res = await axios.get("http://localhost:5000/api/employeeGrades");
+      setGrades(res.data);
     } catch (err) {
-      console.error("Error fetching designations:", err);
+      console.error("Error fetching grades:", err);
     }
   };
 
-
   useEffect(() => {
-    fetchDesignations();
+    fetchGrades();
   }, []);
 
-
-  const filteredData = designations.filter(
-    (d) =>
-      d.designationName?.toLowerCase().includes(search.toLowerCase()) ||
-      d.designationAckr?.toLowerCase().includes(search.toLowerCase()) ||
-      d.status?.toLowerCase().includes(search.toLowerCase())
+  const filteredData = grades.filter(
+    (g) =>
+      g.employeeGradeName?.toLowerCase().includes(search.toLowerCase()) ||
+      g.employeeGradeAckr?.toLowerCase().includes(search.toLowerCase()) ||
+      g.status?.toLowerCase().includes(search.toLowerCase())
   );
 
-
-  const handleSave = async (designationData, designationId) => {
+  const handleSave = async (gradeData, gradeId) => {
     try {
-      if (designationId) {
-        await axios.put(
-          `http://localhost:5000/api/designations/${designationId}`,
-          designationData
-        );
+      if (gradeId) {
+        await axios.put(`http://localhost:5000/api/employeeGrades/${gradeId}`, gradeData);
       } else {
-        await axios.post("http://localhost:5000/api/designations", designationData);
+        await axios.post("http://localhost:5000/api/employeeGrades", gradeData);
       }
-      fetchDesignations();
+      fetchGrades();
       setShowForm(false);
       setEditData(null);
     } catch (err) {
-      console.error("Error saving designation:", err);
+      console.error("Error saving grade:", err);
     }
   };
 
-
-  const handleEdit = (designation) => {
-    setEditData(designation);
+  const handleEdit = (grade) => {
+    setEditData(grade);
     setShowForm(true);
   };
 
-
-  const handleDelete = async (designationId) => {
-    if (!window.confirm("Are you sure you want to delete this designation?")) return;
+  const handleDelete = async (gradeId) => {
+    if (!window.confirm("Are you sure you want to delete this grade?")) return;
     try {
       const updatedBy = sessionStorage.getItem("userNumber");
-      await axios.delete(`http://localhost:5000/api/designations/${designationId}`, {
+      await axios.delete(`http://localhost:5000/api/employeeGrades/${gradeId}`, {
         data: { updatedBy },
       });
-      fetchDesignations();
+      fetchGrades();
     } catch (err) {
-      console.error("Error deleting designation:", err);
+      console.error("Error deleting grade:", err);
     }
   };
 
-
   return (
-    <div className="min-h-screen p-6 flex flex-col">
+    <div className="h-full flex-1 p-6 flex flex-col">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <input
           type="text"
-          placeholder="Search designation..."
+          placeholder="Search grade..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="border border-gray-300 bg-white text-black rounded-lg px-4 py-2 w-1/3 outline-none"
@@ -192,10 +171,9 @@ function DesignationMaster() {
             setEditData(null);
           }}
         >
-          <Plus size={18} /> Add Designation
+          <Plus size={18} /> Add Grade
         </button>
       </div>
-
 
       {/* Table */}
       <div className="overflow-y-auto border border-gray-200 rounded-lg shadow-sm" style={{ maxHeight: "320px" }}>
@@ -209,21 +187,21 @@ function DesignationMaster() {
             </tr>
           </thead>
           <tbody>
-            {filteredData.map((d) => (
-              <tr key={d.designationId} className="border-t hover:bg-gray-50">
-                <td className="py-2 px-4">{d.designationId}</td>
-                <td className="py-2 px-4">{d.designationName}</td>
-                <td className="py-2 px-4">{d.designationAckr}</td>
+            {filteredData.map((g) => (
+              <tr key={g.employeeGradeId} className="border-t hover:bg-gray-50">
+                <td className="py-2 px-4">{g.employeeGradeId}</td>
+                <td className="py-2 px-4">{g.employeeGradeName}</td>
+                <td className="py-2 px-4">{g.employeeGradeAckr}</td>
                 <td className="py-2 px-4 flex gap-2">
                   <button
                     className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-md"
-                    onClick={() => handleEdit(d)}
+                    onClick={() => handleEdit(g)}
                   >
                     <Pencil size={16} />
                   </button>
                   <button
                     className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md"
-                    onClick={() => handleDelete(d.designationId)}
+                    onClick={() => handleDelete(g.employeeGradeId)}
                   >
                     <Trash size={16} />
                   </button>
@@ -233,7 +211,7 @@ function DesignationMaster() {
             {filteredData.length === 0 && (
               <tr>
                 <td colSpan="5" className="text-center py-4 text-gray-500">
-                  No designations found
+                  No grades found
                 </td>
               </tr>
             )}
@@ -241,10 +219,9 @@ function DesignationMaster() {
         </table>
       </div>
 
-
-      {/* Modal */}
+      {/* Show Modal */}
       {showForm && (
-        <AddOrEdit
+        <AddOrEditGrade
           onSave={handleSave}
           onCancel={() => {
             setShowForm(false);
@@ -257,4 +234,4 @@ function DesignationMaster() {
   );
 }
 
-export default DesignationMaster;
+export default EmployeeGradeMaster;

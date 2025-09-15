@@ -117,7 +117,7 @@ function BiometricDeviceMaster() {
 
   const handleSave = async (deviceData, deviceId) => {
     try {
-      const adminName = localStorage.getItem("adminName");
+      const adminName = sessionStorage.getItem("userNumber");
       if (deviceId) {
         await axios.put(`http://localhost:5000/api/biometricDevices/${deviceId}`, {
           ...deviceData,
@@ -140,7 +140,7 @@ function BiometricDeviceMaster() {
 
   const handleDelete = async (deviceId) => {
     try {
-      const adminName = localStorage.getItem("adminName");
+      const adminName = sessionStorage.getItem("userNumber");
       if (!deviceId) return;
       await axios.delete(`http://localhost:5000/api/biometricDevices/${deviceId}`, {
         data: { updatedBy: adminName },

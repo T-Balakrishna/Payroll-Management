@@ -9,7 +9,7 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ||
 
 // 🔹 Private route wrapper
 function PrivateRoute({ children }) {
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token");
   return token ? children : <Navigate to="/" />;
 }
 

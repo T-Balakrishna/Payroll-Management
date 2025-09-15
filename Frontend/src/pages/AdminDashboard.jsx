@@ -6,6 +6,7 @@ import CasteMaster from './CasteMaster.jsx';
 import DepartmentMaster from './DepartmentMaster.jsx';
 import DesignationMaster from './DesignationMaster.jsx';
 import ShiftMaster from './ShiftMaster.jsx';
+import EmployeeGradeMaster from './EmployeeGradeMaster.jsx';
 import EmployeeTypeMaster from './EmployeeTypeMaster.jsx';
 import HolidayMaster from './HolidayMaster.jsx';
 import LeaveAllocation from './LeaveAllocation.jsx';
@@ -50,6 +51,7 @@ const Admin = () => {
     { id: 'caste', label: 'Caste Master', icon: Building, color: 'text-orange-600' },
     { id: 'department', label: 'Department Master', icon: Building2, color: 'text-indigo-600' },
     { id: 'designation', label: 'Designation Master', icon: Award, color: 'text-pink-600' },
+    { id: 'employeeGrade', label: 'Employee Grade Master', icon: Users, color: 'text-amber-600' },
     { id: 'employeeType', label: 'Employee Type Master', icon: Users, color: 'text-cyan-600' },
     { id: 'holiday', label: 'Holiday Master', icon: Calendar, color: 'text-yellow-600' },
     { id: 'leaveType', label: 'Leave Type Master', icon: Clock, color: 'text-lime-600' },
@@ -61,7 +63,6 @@ const Admin = () => {
 
   const authItems = [
     { id: 'login', label: 'Logout', icon: LogOut, color: 'text-gray-600' },
-    { id: 'register', label: 'Register', icon: Users, color: 'text-gray-600' },
   ];
 
   const stats = [
@@ -80,6 +81,7 @@ const Admin = () => {
     caste: "Caste Master",
     department: "Department Master",
     designation: "Designation Master",
+    employeeGrade: "Employee Grade Master",
     employeeType: "Employee Type Master",
     holiday: "Holiday Master",
     leaveType: "Leave Type Master",
@@ -87,8 +89,6 @@ const Admin = () => {
     punches: "Punch Details",
     religion: "Religion Master",
     shift: "Shift Master",
-    login: "Login",
-    register: "Register",
   };
 
   const renderDashboard = () => (
@@ -135,6 +135,7 @@ const Admin = () => {
       case "caste": return <CasteMaster />;
       case "department": return <DepartmentMaster />;
       case "designation": return <DesignationMaster />;
+      case "employeeGrade": return <EmployeeGradeMaster/>;
       case "employeeType": return <EmployeeTypeMaster />;
       case "holiday": return <HolidayMaster />;
       case "leaveType": return <LeaveTypeMaster />;
@@ -143,8 +144,6 @@ const Admin = () => {
       case "religion": return <ReligionMaster />;
       case "shift": return <ShiftMaster />;
       case "users": return <AddUser />;
-      case "login": return <Login />;
-      case "register": return <Register />;
       default: return renderDashboard();
     }
   };
@@ -227,8 +226,9 @@ const Admin = () => {
               <button
                 key={item.id}
                 onClick={() => {
-                  setActivePage(item.id);
-                  setMobileMenuOpen(false);
+                  sessionStorage.removeItem("token");
+                  sessionStorage.removeItem("userNumber");
+                  window.location.href = "/";
                 }}
                 className={`relative w-full flex items-center px-2 py-2.5 text-sm font-medium rounded-lg transition-colors
                   ${activePage === item.id 

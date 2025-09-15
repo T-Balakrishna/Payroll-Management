@@ -35,7 +35,7 @@ function AddOrEdit({ onSave, onCancel, editData }) {
     e.preventDefault();
     if (!form.leaveTypeName) return alert("Please enter leave type name");
 
-    const adminName = localStorage.getItem("adminName") || "system";
+    const adminName = sessionStorage.getItem("userNumber");
     if(form.maxAllocationPertype<0 || form.allowApplicationAfterDays<0 || form.minWorkingDaysForLeave<0 || form.maxConsecutiveLeaves<0) return alert("Please Enter the valid allocations");
     const data = {
       ...form,
@@ -239,7 +239,7 @@ function LeaveTypeMaster() {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this leave type?")) return;
     try {
-      const updatedBy = localStorage.getItem("adminName") || "system";
+      const updatedBy = sessionStorage.getItem("userNumber");
       await axios.delete(`http://localhost:5000/api/leaveTypes/${id}`, {
         data: { updatedBy },
       });

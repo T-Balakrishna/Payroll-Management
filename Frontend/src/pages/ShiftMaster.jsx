@@ -19,7 +19,7 @@ function AddOrEditShift({ onSave, onCancel, editData }) {
 
     // --- Calculate duration (In Time only for validation) ---
     const [fromH, fromM] = shiftInStartTime.split(":").map(Number);
-    const [toH, toM] = shiftInEndTime.split(":").map(Number);
+    const [toH, toM] = shiftOutEndTime.split(":").map(Number);
 
     let durationMinutes = (toH * 60 + toM) - (fromH * 60 + fromM);
     if (shiftNextDay) durationMinutes += 24 * 60;
@@ -29,7 +29,7 @@ function AddOrEditShift({ onSave, onCancel, editData }) {
       return alert(`Minimum hours cannot exceed shift duration (${durationHours.toFixed(2)} hours)`);
     }
 
-    const currentUser = localStorage.getItem("username") || "system";
+    const currentUser = sessionStorage.getItem("userNumber");;
 
     const shiftData = {
       shiftName,

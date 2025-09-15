@@ -6,10 +6,14 @@ const employeeController = require('../controllers/employeeController');
 router.post('/', employeeController.createEmployee);
 router.get('/', employeeController.getEmployees);
 router.get('/:id', employeeController.getEmployeeById);
-router.put('/:id', employeeController.updateEmployee);
+router.get('/getName/:userNumber', employeeController.getEmployeeName);
+router.get('/fromUser/:userNumber', employeeController.getEmployeeFromUser);
+router.put('/:employeeNumber', employeeController.updateEmployee);
 router.delete('/:id', employeeController.deleteEmployee);
 
+router.get("/full/:employeeNumber", employeeController.getEmployeeFullByNumber);
+
 // Extra Route → Employees by Department
-router.get('/byDepartments', employeeController.getEmployeesByDepartment);
+router.post('/byDepartments', employeeController.getEmployeesByDepartment);
 
 module.exports = router;

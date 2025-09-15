@@ -112,7 +112,7 @@ export default function EmployeeTypeMaster() {
 
   const handleSave = async (data, employeeTypeId) => {
     try {
-      const adminName = localStorage.getItem("adminName") || "system";
+      const adminName = sessionStorage.getItem("userNumber");
 
 
       if (employeeTypeId) {

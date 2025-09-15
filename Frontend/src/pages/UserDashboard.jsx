@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState , useEffect } from "react";
+import axios from "axios";
 import { 
   User, Calendar, LogOut, Clock, FileText, UserCheck, 
   Plus, XCircle, CheckCircle, AlertCircle
@@ -14,8 +15,35 @@ export default function DashboardPage() {
   const openProfileModal = () => setModalContent("profile");
   const openCalendarModal = () => setModalContent("calendar");
   const closeModal = () => setModalContent(null);
-
+  const userNumber = sessionStorage.getItem("userNumber");
+  const[userName,setUserName]=useState("New User") 
+  useEffect(() => {
+    console.log(userNumber);
+    
+      const getName = async () => {
+        try {
+          const res = await axios.get(`http://localhost:5000/api/employees/getName/${userNumber}`);
+          console.log(res);          
+          setUserName(res.data.employeeName); 
+        } catch (err) {
+          console.error("❌ Error fetching Name:", err);
+        }
+      };
+      getName();
+    }, []);
   const biometricData = [
+    { time_stamp: "2025-01-10 09:01", location: "Main Gate" },
+    { time_stamp: "2025-01-10 17:45", location: "Main Gate" },
+    { time_stamp: "2025-01-09 09:15", location: "Main Gate" },
+    { time_stamp: "2025-01-09 18:02", location: "Main Gate" },
+    { time_stamp: "2025-01-10 09:01", location: "Main Gate" },
+    { time_stamp: "2025-01-10 17:45", location: "Main Gate" },
+    { time_stamp: "2025-01-09 09:15", location: "Main Gate" },
+    { time_stamp: "2025-01-09 18:02", location: "Main Gate" },
+    { time_stamp: "2025-01-10 09:01", location: "Main Gate" },
+    { time_stamp: "2025-01-10 17:45", location: "Main Gate" },
+    { time_stamp: "2025-01-09 09:15", location: "Main Gate" },
+    { time_stamp: "2025-01-09 18:02", location: "Main Gate" },
     { time_stamp: "2025-01-10 09:01", location: "Main Gate" },
     { time_stamp: "2025-01-10 17:45", location: "Main Gate" },
     { time_stamp: "2025-01-09 09:15", location: "Main Gate" },
@@ -64,7 +92,7 @@ export default function DashboardPage() {
               Leave History
             </h3>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto  max-h-110 overflow-y-auto">
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
@@ -107,7 +135,7 @@ export default function DashboardPage() {
               Biometric History
             </h3>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto  max-h-110 overflow-y-auto">
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
@@ -142,14 +170,14 @@ export default function DashboardPage() {
             {/* Calendar Icon */}
             <button
               onClick={openCalendarModal}
-              className="w-12 h-12 bg-blue-600 hover:bg-blue-700 rounded-xl flex items-center justify-center transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                className="w-12 h-12 bg-gray-100 hover:bg-gray-200 rounded-xl flex items-center justify-center transition-all duration-200"
             >
-              <Calendar className="w-6 h-6 text-white" />
+              <Calendar className="w-6 h-6 text-gray-600" />
             </button>
 
             {/* Welcome Text */}
             <div className="text-center">
-              <h1 className="text-2xl font-bold text-gray-900">Welcome back, John!</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Welcome back, {userName}</h1>
               <p className="text-gray-600">Have a great day at work</p>
             </div>
 
@@ -162,7 +190,11 @@ export default function DashboardPage() {
                 <User className="w-6 h-6 text-gray-600" />
               </button>
               <button
-                onClick={() => window.location.href = "/"}
+                onClick={() => {
+                  sessionStorage.removeItem("token");
+                  sessionStorage.removeItem("userNumber");
+                  window.location.href = "/";
+                }}
                 className="w-12 h-12 bg-red-100 hover:bg-red-200 rounded-xl flex items-center justify-center transition-all duration-200"
               >
                 <LogOut className="w-6 h-6 text-red-600" />

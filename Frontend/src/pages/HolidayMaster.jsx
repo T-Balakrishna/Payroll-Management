@@ -11,7 +11,7 @@ function HolidayPlans() {
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [holidayModalOpen, setHolidayModalOpen] = useState(false);
 
-  const user = localStorage.getItem("adminName") || "system";
+  const user = sessionStorage.getItem("userNumber");
   const [planForm, setPlanForm] = useState({
     startYear: "",
     endYear: "",

@@ -26,8 +26,14 @@ const LeaveAllocation = () => {
   // Fetch employees based on selected departments
   useEffect(() => {
     if (selectedDepts.length > 0) {
-      axios.get("http://localhost:5000/api/employees/byDepartments", { departments: selectedDepts })
-        .then(res => setEmployees(res.data));
+      console.log(selectedDepts);      
+      axios.post("http://localhost:5000/api/employees/byDepartments", { departments: selectedDepts })
+        .then(res => {
+          console.log(res.data);
+          setEmployees(res.data)
+        });
+        
+        
     } else { 
       setEmployees([]);
     }
