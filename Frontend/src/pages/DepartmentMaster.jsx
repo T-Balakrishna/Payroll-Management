@@ -13,7 +13,9 @@ function AddOrEdit({ onSave, onCancel, editData }) {
     e.preventDefault();
     if (!departmentName || !departmentAckr) return alert("Please fill all fields");
 
+
     const adminName = sessionStorage.getItem("userNumber");
+
 
     const departmentData = {
       departmentName,
@@ -146,7 +148,7 @@ function DepartmentMaster() {
   const handleDelete = async (departmentId) => {
     if (!window.confirm("Are you sure you want to delete this department?")) return;
     try {
-      const updatedBy = sessionStorage.getItem("userNumber");;
+      const updatedBy = sessionStorage.getItem("userNumber");
       await axios.delete(`http://localhost:5000/api/departments/${departmentId}`, {
         data: { updatedBy },
       });

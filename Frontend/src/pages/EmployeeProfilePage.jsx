@@ -1,363 +1,939 @@
-import React, { useState } from "react";
-import { 
-  User, Calendar, Phone, Mail, MapPin, CreditCard, Building, Award,
-  Heart, Users, DollarSign, FileX, Eye, FileText, Clock
-} from "lucide-react";
+import React, { useState, useEffect } from "react";
+import axios from "axios";
 
-const EmployeeProfile = () => {
-  const [activeTab, setActiveTab] = useState("viewOnly");
+const EmployeeProfilePage = () => {
+  const [activeTab, setActiveTab] = useState("overview");
 
-  const [formData, setFormData] = useState({
-    // View-only data
-    empId: "EMP001",
-    collegeMail: "john@college.com",
-    doj: "2023-06-01",
-    weeklyOff: "Sunday",
-    deptId: "IT",
-    desgId: "Developer",
-    empType: "Full-Time",
-    shiftTypeId: "Morning",
-    salaryTypeId: "Monthly",
-
-    // Mandatory
-    phone: "+91 9876543210",
-    aadharNo: "1234 5678 9012",
-    personalMail: "john.doe@gmail.com",
-    accountNo: "123456789012",
-    bloodGrp: "O+",
-    empName: "John Doe",
-    dob: "1995-05-15",
-    address: "123 Main Street, City",
-    photo: null,
-    password: "",
-    role: "Developer",
-
-    // Company
-    departmentOrderNumber: "IT001",
-    shiftRequestApprover: "Manager A",
-    expenseApprover: "Finance Head",
-    leaveApprover: "HR Manager",
-
-    // Personal
-    maritalStatus: "Single",
-    gender: "Male",
-    religion: "Hindu",
-    caste: "General",
-    qualification: "B.Tech",
-    experience: "3 years",
-    pfNumber: "PF123456",
-    pfNominee: "Jane Doe",
-    busNumber: "B101",
-    refPersonId: "REF001",
-    esiNumber: "ESI123456",
-
-    // Salary
-    costToCompany: "₹8,00,000",
-    salaryCurrency: "INR",
-    salaryMode: "Bank Transfer",
-    payrollCostCenter: "CC001",
-    panNumber: "ABCDE1234F",
-    providentFundAccount: "PF789012",
-    asiNumber: "ASI123",
-    uanNumber: "UAN456789",
-    salaryRegisterFormat: "Standard",
-
-    // Exit
-    resignationLetterDate: "",
-    relievingDate: "",
-    exitInterviewDate: "",
-    newWorkplace: "",
-    leaveEncashed: "",
-    reasonForLeaving: "",
-    feedback: "",
+  const [options, setOptions] = useState({
+    designations: [],
+    grades: [],
+    types: [],
+    departments: [],
+    holidayPlans: [],
+    religions: [],
+    castes: [],
+    buses: [],
+    employees: [],
+    shifts: [],
   });
 
+  const [formData, setFormData] = useState({
+    salutation: "",
+    firstName: "",
+    middleName: "",
+    lastName: "",
+    gender: "",
+    DOB: "",
+    DOJ: "",
+    doorNumber: "",
+    streetName: "",
+    city: "",
+    district: "",
+    state: "",
+    pincode: "",
+    designationId: "",
+    employeeGradeId: "",
+    reportsTo: "",
+    departmentId: "",
+    employeeTypeId: "",
+    employeeNumber: "",
+    holidayPlanId: "",
+    shiftId: "",
+    maritalStatus: "",
+    bloodGroup: "",
+    religionId: "",
+    casteId: "",
+    aadharNumber: "",
+    passportNumber: "",
+    costToCompany: "",
+    salaryCurrency: "",
+    salaryMode: "",
+    payrollCostCenter: "",
+    panNumber: "",
+    pfNumber: "",
+    pfNominee: "",
+    esiNumber: "",
+    uanNumber: "",
+    resignationLetterDate: "",
+    relievingDate: "",
+    exitInterviewHeldOn: "",
+    employeeMail: "",
+    personalMail: "",
+    salaryId: "",
+    acctNumber: "",
+    password: "",
+    qualification: "",
+    experience: "",
+    referencePerson: "",
+    busId: "",
+  });
+
+  const [departments, setDepartments] = useState([]);
+
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        const res = await axios.get("http://localhost:5000/api/departments");
+        setDepartments(res.data); // [{departmentId: 1, departmentName: "HR"}, ...]
+      } catch (err) {
+        console.error("❌ Error fetching departments:", err);
+      }
+    };
+    fetchDepartments();
+  }, []);
+
+    const getDepartmentName = (id) => {
+    const dept = departments.find((d) => d.departmentId === id);
+    return dept ? dept.departmentName : id;
+  };
+
+
+
+
+    // Fetch user-mapped data using session userNumber
+  useEffect(() => {
+    const fetchUserMappedData = async () => {
+      try {
+        const userNumber = sessionStorage.getItem("userNumber"); // stored at login
+        if (!userNumber) return;
+
+        const res = await axios.get(`http://localhost:5000/api/employees/fromUser/${userNumber}`);
+
+        setFormData((prev) => ({
+          ...prev,
+          employeeMail: res.data.employeeMail ,
+          employeeNumber: res.data.employeeNumber,
+          password: res.data.password,
+          departmentId: res.data.departmentId,
+        }));
+      } catch (err) {
+        console.error("❌ Error fetching user-mapped employee data:", err);
+      }
+    };
+
+    fetchUserMappedData();
+  }, []);
+
+  useEffect(() => {
+    const fetchExistingEmployeeData = async () => {
+      try {
+        const employeeNumber = sessionStorage.getItem("userNumber"); // stored at login
+        if (!employeeNumber) return;
+
+        const res = await axios.get(
+          `http://localhost:5000/api/employees/full/${employeeNumber}`
+        );
+
+        if (res.data) {
+          // Only fill fields that are empty in formData (skip employeeNumber, employeeMail, departmentId, DOJ)
+          const filteredData = Object.fromEntries(
+            Object.entries(res.data).filter(
+              ([key, value]) =>
+                value !== null &&
+                value !== undefined &&
+                !["employeeNumber", "employeeMail", "departmentId", "DOJ"].includes(key)
+            )
+          );
+
+          setFormData((prev) => ({
+            ...prev,
+            ...filteredData,
+          }));
+        }
+      } catch (err) {
+        console.error("❌ Error fetching existing employee data:", err);
+      }
+    };
+
+    fetchExistingEmployeeData();
+  }, []);
+
+
+  // Fetch dropdown options on mount
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        const [
+          designations,
+          grades,
+          types,
+          departments,
+          holidayPlans,
+          religions,
+          castes,
+          buses,
+          employees,
+          shifts,
+        ] = await Promise.all([
+          axios.get("http://localhost:5000/api/designations"),
+          axios.get("http://localhost:5000/api/employeeGrades"),
+          axios.get("http://localhost:5000/api/employeeTypes"),
+          axios.get("http://localhost:5000/api/departments"),
+          axios.get("http://localhost:5000/api/holidayPlans"),
+          axios.get("http://localhost:5000/api/religions"),
+          axios.get("http://localhost:5000/api/castes"),
+          axios.get("http://localhost:5000/api/buses"),
+          axios.get("http://localhost:5000/api/employees"),
+          axios.get("http://localhost:5000/api/shifts"),
+        ]);
+
+        setOptions({
+          designations: designations.data || [],
+          grades: grades.data || [],
+          types: types.data || [],
+          departments: departments.data || [],
+          holidayPlans: holidayPlans.data || [],
+          religions: religions.data || [],
+          castes: castes.data || [],
+          buses: buses.data || [],
+          employees: employees.data || [],
+          shifts: shifts.data || [],
+        });
+      } catch (error) {
+        console.error("❌ Failed to load options:", error);
+      }
+    };
+
+    fetchOptions();
+  }, []);
+
   const handleChange = (e) => {
-    const { name, value, files } = e.target;
+    const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: files ? files[0] : value,
+      [name]: value,
     }));
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log("Updated Employee Data:", formData);
-    alert("Changes Saved Successfully!");
-  };
+  // const handleSave = async () => {
+  //   try {
+  //     await axios.post("http://localhost:5000/api/employees", formData);
+  //     alert("✅ Employee saved successfully!");
+  //   } catch (error) {
+  //     console.error("❌ Error saving employee:", error);
+  //     alert("❌ Failed to save employee");
+  //   }
+  // };
 
-  const tabs = [
-    { key: "viewOnly", label: "Overview", icon: Eye },
-    { key: "mandatoryInfo", label: "Personal", icon: User },
-    { key: "companyInfo", label: "Company", icon: Building },
-    { key: "personalInfo", label: "Details", icon: FileText },
-    { key: "salaryInfo", label: "Salary", icon: DollarSign },
-    { key: "exitInfo", label: "Exit", icon: FileX },
-  ];
+  const handleSave = async () => {
+  // Define which fields are required
+  const requiredFields = ["firstName", "lastName", "departmentId","DOB","employeeNumber"];
 
-  const ViewOnly = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {[
-        { label: "Employee ID", value: formData.empId, icon: <User className="w-5 h-5" /> },
-        { label: "College Mail", value: formData.collegeMail, icon: <Mail className="w-5 h-5" /> },
-        { label: "Date of Joining", value: formData.doj, icon: <Calendar className="w-5 h-5" /> },
-        { label: "Weekly Off", value: formData.weeklyOff, icon: <Clock className="w-5 h-5" /> },
-        { label: "Department", value: formData.deptId, icon: <Building className="w-5 h-5" /> },
-        { label: "Designation", value: formData.desgId, icon: <Award className="w-5 h-5" /> },
-        { label: "Employee Type", value: formData.empType, icon: <Users className="w-5 h-5" /> },
-        { label: "Shift Type", value: formData.shiftTypeId, icon: <Clock className="w-5 h-5" /> },
-        { label: "Salary Type", value: formData.salaryTypeId, icon: <DollarSign className="w-5 h-5" /> },
-      ].map((f, i) => (
-        <div key={i} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="text-blue-600">{f.icon}</div>
-            <span className="text-sm font-medium text-gray-600">{f.label}</span>
-          </div>
-          <div className="text-gray-900 font-semibold">{f.value}</div>
-        </div>
-      ))}
-    </div>
-  );
-
-  const MandatoryInfo = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {[
-        { name: "empName", label: "Full Name", icon: <User className="w-5 h-5" /> },
-        { name: "phone", label: "Phone Number", icon: <Phone className="w-5 h-5" /> },
-        { name: "personalMail", label: "Personal Email", icon: <Mail className="w-5 h-5" /> },
-        { name: "dob", label: "Date of Birth", type: "date", icon: <Calendar className="w-5 h-5" /> },
-        { name: "aadharNo", label: "Aadhar Number", icon: <CreditCard className="w-5 h-5" /> },
-        { name: "accountNo", label: "Bank Account", icon: <CreditCard className="w-5 h-5" /> },
-        { name: "bloodGrp", label: "Blood Group", icon: <Heart className="w-5 h-5" /> },
-        { name: "address", label: "Address", icon: <MapPin className="w-5 h-5" /> },
-        { name: "password", label: "Password", type: "password", icon: <User className="w-5 h-5" /> },
-        { name: "role", label: "Role", icon: <Award className="w-5 h-5" /> },
-      ].map((f, i) => (
-        <div key={i} className="space-y-2">
-          <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-            <div className="text-blue-600">{f.icon}</div>
-            {f.label}
-          </label>
-          <input
-            type={f.type || "text"}
-            name={f.name}
-            value={formData[f.name]}
-            onChange={handleChange}
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200 bg-white"
-            required
-          />
-        </div>
-      ))}
-    </div>
-  );
-
-  const CompanyInfo = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {[
-        { name: "departmentOrderNumber", label: "Department Order Number", icon: <Building className="w-5 h-5" /> },
-        { name: "shiftRequestApprover", label: "Shift Request Approver", icon: <User className="w-5 h-5" /> },
-        { name: "expenseApprover", label: "Expense Approver", icon: <DollarSign className="w-5 h-5" /> },
-        { name: "leaveApprover", label: "Leave Approver", icon: <FileText className="w-5 h-5" /> },
-      ].map((f, i) => (
-        <div key={i} className="space-y-2">
-          <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-            <div className="text-blue-600">{f.icon}</div>
-            {f.label}
-          </label>
-          <input
-            type="text"
-            name={f.name}
-            value={formData[f.name]}
-            onChange={handleChange}
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200 bg-white"
-          />
-        </div>
-      ))}
-    </div>
-  );
-
-  const PersonalInfo = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {[
-        { name: "maritalStatus", label: "Marital Status", icon: <Heart className="w-5 h-5" /> },
-        { name: "gender", label: "Gender", icon: <User className="w-5 h-5" /> },
-        { name: "religion", label: "Religion", icon: <User className="w-5 h-5" /> },
-        { name: "caste", label: "Caste", icon: <User className="w-5 h-5" /> },
-        { name: "qualification", label: "Qualification", icon: <Award className="w-5 h-5" /> },
-        { name: "experience", label: "Experience", icon: <Briefcase className="w-5 h-5" /> },
-        { name: "pfNumber", label: "PF Number", icon: <CreditCard className="w-5 h-5" /> },
-        { name: "pfNominee", label: "PF Nominee", icon: <User className="w-5 h-5" /> },
-        { name: "busNumber", label: "Bus Number", icon: <Building className="w-5 h-5" /> },
-        { name: "refPersonId", label: "Reference Person ID", icon: <User className="w-5 h-5" /> },
-        { name: "esiNumber", label: "ESI Number", icon: <CreditCard className="w-5 h-5" /> },
-      ].map((f, i) => (
-        <div key={i} className="space-y-2">
-          <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-            <div className="text-blue-600">{f.icon}</div>
-            {f.label}
-          </label>
-          <input
-            type="text"
-            name={f.name}
-            value={formData[f.name]}
-            onChange={handleChange}
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200 bg-white"
-          />
-        </div>
-      ))}
-    </div>
-  );
-
-  const SalaryInfo = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {[
-        { name: "costToCompany", label: "Cost to Company", icon: <DollarSign className="w-5 h-5" /> },
-        { name: "salaryCurrency", label: "Salary Currency", icon: <DollarSign className="w-5 h-5" /> },
-        { name: "salaryMode", label: "Salary Mode", icon: <CreditCard className="w-5 h-5" /> },
-        { name: "payrollCostCenter", label: "Payroll Cost Center", icon: <Building className="w-5 h-5" /> },
-        { name: "panNumber", label: "PAN Number", icon: <CreditCard className="w-5 h-5" /> },
-        { name: "providentFundAccount", label: "Provident Fund Account", icon: <CreditCard className="w-5 h-5" /> },
-        { name: "asiNumber", label: "ASI Number", icon: <CreditCard className="w-5 h-5" /> },
-        { name: "uanNumber", label: "UAN Number", icon: <CreditCard className="w-5 h-5" /> },
-        { name: "salaryRegisterFormat", label: "Salary Register Format", icon: <FileText className="w-5 h-5" /> },
-      ].map((f, i) => (
-        <div key={i} className="space-y-2">
-          <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-            <div className="text-blue-600">{f.icon}</div>
-            {f.label}
-          </label>
-          <input
-            type="text"
-            name={f.name}
-            value={formData[f.name]}
-            onChange={handleChange}
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200 bg-white"
-          />
-        </div>
-      ))}
-    </div>
-  );
-
-  const ExitInfo = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {[
-        { name: "resignationLetterDate", label: "Resignation Letter Date", type: "date", icon: <Calendar className="w-5 h-5" /> },
-        { name: "relievingDate", label: "Relieving Date", type: "date", icon: <Calendar className="w-5 h-5" /> },
-        { name: "exitInterviewDate", label: "Exit Interview Date", type: "date", icon: <Calendar className="w-5 h-5" /> },
-        { name: "newWorkplace", label: "New Workplace", icon: <Building className="w-5 h-5" /> },
-        { name: "leaveEncashed", label: "Leave Encashed", icon: <DollarSign className="w-5 h-5" /> },
-        { name: "reasonForLeaving", label: "Reason for Leaving", icon: <FileText className="w-5 h-5" /> },
-      ].map((f, i) => (
-        <div key={i} className="space-y-2">
-          <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-            <div className="text-blue-600">{f.icon}</div>
-            {f.label}
-          </label>
-          <input
-            type={f.type || "text"}
-            name={f.name}
-            value={formData[f.name]}
-            onChange={handleChange}
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200 bg-white"
-          />
-        </div>
-      ))}
-      <div className="md:col-span-2 space-y-2">
-        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-          <div className="text-blue-600"><FileText className="w-5 h-5" /></div>
-          Feedback
-        </label>
-        <textarea
-          name="feedback"
-          value={formData.feedback}
-          onChange={handleChange}
-          rows="4"
-          className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200 bg-white"
-          placeholder="Enter your feedback..."
-        />
-      </div>
-    </div>
-  );
-
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case "viewOnly":
-        return <ViewOnly />;
-      case "mandatoryInfo":
-        return <MandatoryInfo />;
-      case "companyInfo":
-        return <CompanyInfo />;
-      case "personalInfo":
-        return <PersonalInfo />;
-      case "salaryInfo":
-        return <SalaryInfo />;
-      case "exitInfo":
-        return <ExitInfo />;
-      default:
-        return <div className="text-center py-12 text-gray-500">Content not found</div>;
+  // Validate required fields
+  for (let field of requiredFields) {
+    if (!formData[field] || formData[field].toString().trim() === "") {
+      alert(`❌ ${field} is required`);
+      return;
     }
-  };
+  }
+
+  // Remove empty optional fields
+  const filteredData = Object.fromEntries(
+    Object.entries(formData).filter(([_, value]) => value !== "")
+  );
+
+  try {
+    const employeeNumber = sessionStorage.getItem("userNumber"); // stored at login
+    console.log(employeeNumber);
+    
+    await axios.put(`http://localhost:5000/api/employees/${employeeNumber}`, filteredData);
+    alert("✅ Employee saved successfully!");
+  } catch (error) {
+    console.error("❌ Error saving employee:", error);
+    alert("❌ Failed to save employee");
+  }
+};
+
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-7xl mx-auto p-6">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
-              <User className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Employee Profile</h1>
-              <p className="text-gray-600">Manage your personal information</p>
-            </div>
-          </div>
+    <div className="max-w-6xl mx-auto p-6">
+      {/* Tabs */}
+      <div className="flex border-b mb-6 flex-wrap">
+        {[
+          "overview",
+          "basic",
+          "address",
+          "job",
+          "attendance",
+          "personal",
+          "salary",
+          "exit",
+          "extra",
+        ].map((tab) => (
+          <button
+            key={tab}
+            className={`px-4 py-2 capitalize ${
+              activeTab === tab ? "border-b-2 border-blue-600 font-semibold" : ""
+            }`}
+            onClick={() => setActiveTab(tab)}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
+        {/* Overview */}
+      {activeTab === "overview" && (
+        <div className="grid grid-cols-2 gap-4">
+            <label className="block">
+              Employee Mail:
+              <input
+                type="email"
+                name="employeeMail"
+                value={formData.employeeMail}
+                disabled
+                className="border p-2 rounded w-full mt-1 bg-gray-100 cursor-not-allowed"
+              />
+            </label>
+
+            <label className="block">
+              Employee Number:
+              <input
+                type="text"
+                name="employeeNumber"
+                value={formData.employeeNumber}
+                disabled
+                className="border p-2 rounded w-full mt-1 bg-gray-100 cursor-not-allowed"
+              />
+            </label>
+
+            <label className="block">
+              Department:
+              <input
+                type="text"
+                name="departmentId"
+                value={getDepartmentName(formData.departmentId)}
+                disabled
+                className="border p-2 rounded w-full mt-1 bg-gray-100 cursor-not-allowed"
+              />
+            </label>
+
+            <label className="block">
+              DOJ:
+              <input
+                type="date"
+                name="DOJ"
+                value={formData.DOJ || new Date().toISOString().split("T")[0]} 
+                disabled
+                className="border p-2 rounded w-full mt-1 bg-gray-100 cursor-not-allowed"
+              />
+            </label>
+
         </div>
+      )}
 
-        {/* Navigation Tabs */}
-        <div className="bg-gray-50 rounded-xl p-2 mb-8">
-          <div className="flex flex-wrap gap-2">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
-                    activeTab === tab.key
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-white/50"
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
+      {/* Basic */}
+      {activeTab === "basic" && (
+        <div className="grid grid-cols-2 gap-4">
+          <label className="block">
+            Salutation:
+            <select
+              name="salutation"
+              value={formData.salutation}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            >
+              <option value="">Select Salutation</option>
+              <option value="Mr">Mr</option>
+              <option value="Ms">Ms</option>
+              <option value="Mrs">Mrs</option>
+            </select>
+          </label>
+
+          <label className="block">
+            First Name:
+            <input
+              type="text"
+              name="firstName"
+              value={formData.firstName}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+
+          <label className="block">
+            Middle Name:
+            <input
+              type="text"
+              name="middleName"
+              value={formData.middleName}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+
+          <label className="block">
+            Last Name:
+            <input
+              type="text"
+              name="lastName"
+              value={formData.lastName}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+
+          <label className="block">
+            Gender:
+            <select
+              name="gender"
+              value={formData.gender}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            >
+              <option value="">Select Gender</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </label>
+
+          <label className="block">
+            DOB:
+            <input
+              type="date"
+              name="DOB"
+              value={formData.DOB}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+
+          
         </div>
+      )}
 
-        {/* Content */}
-        <form onSubmit={handleSubmit} className="space-y-8">
-          <div className="bg-white border border-gray-100 rounded-2xl p-8">
-            {renderTabContent()}
-          </div>
+      {/* Address */}
+      {activeTab === "address" && (
+        <div className="grid grid-cols-2 gap-4">
+          <label className="block">
+            Door Number:
+            <input
+              type="text"
+              name="doorNumber"
+              value={formData.doorNumber}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
 
-          {/* Save Button */}
-          {activeTab !== "viewOnly" && (
-            <div className="flex justify-center">
-              <button
-                type="submit"
-                className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-              >
-                Save Changes
-              </button>
-            </div>
-          )}
-        </form>
+          <label className="block">
+            Street Name:
+            <input
+              type="text"
+              name="streetName"
+              value={formData.streetName}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+
+          <label className="block">
+            City:
+            <input
+              type="text"
+              name="city"
+              value={formData.city}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+
+          <label className="block">
+            District:
+            <input
+              type="text"
+              name="district"
+              value={formData.district}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+
+          <label className="block">
+            State:
+            <input
+              type="text"
+              name="state"
+              value={formData.state}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+
+          <label className="block">
+            Pincode:
+            <input
+              type="text"
+              name="pincode"
+              value={formData.pincode}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+        </div>
+      )}
+
+      {/* Job */}
+      {activeTab === "job" && (
+        <div className="grid grid-cols-2 gap-4">
+          <label className="block">
+            Designation:
+            <select
+              name="designationId"
+              value={formData.designationId}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            >
+              <option value="">Select Designation</option>
+              {options.designations.map((d) => (
+                <option key={d.designationId} value={d.designationId}>
+                  {d.designationName}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            Grade:
+            <select
+              name="employeeGradeId"
+              value={formData.employeeGradeId}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            >
+              <option value="">Select Grade</option>
+              {options.grades.map((g) => (
+                <option key={g.employeeGradeId} value={g.employeeGradeId}>
+                  {g.employeeGradeName}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            Reports To:
+            <select
+              name="reportsTo"
+              value={formData.reportsTo}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            >
+              <option value="">Select Manager</option>
+              {options.employees.map((emp) => (
+                <option key={emp.employeeId} value={emp.employeeId}>
+                  {emp.firstName} {emp.lastName}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            Employee Type:
+            <select
+              name="employeeTypeId"
+              value={formData.employeeTypeId}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            >
+              <option value="">Select Employee Type</option>
+              {options.types.map((t) => (
+                <option key={t.employeeTypeId} value={t.employeeTypeId}>
+                  {t.employeeTypeName}
+                </option>
+              ))}
+            </select>
+          </label>
+        
+        </div>
+      )}
+
+      {/* Attendance */}
+      {activeTab === "attendance" && (
+        <div className="grid grid-cols-2 gap-4">
+          <label className="block">
+            Holiday Plan:
+            <select
+              name="holidayPlanId"
+              value={formData.holidayPlanId}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            >
+              <option value="">Select Holiday Plan</option>
+              {options.holidayPlans.map((h) => (
+                <option key={h.holidayPlanId} value={h.holidayPlanId}>
+                  {h.holidayPlanName}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            Shift:
+            <select
+              name="shiftId"
+              value={formData.shiftId}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            >
+              <option value="">Select Shift</option>
+              {options.shifts.map((s) => (
+                <option key={s.shiftId} value={s.shiftId}>
+                  {s.shiftName}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
+
+      {/* Personal */}
+      {activeTab === "personal" && (
+        <div className="grid grid-cols-2 gap-4">
+          <label className="block">
+            Religion:
+            <select
+              name="religionId"
+              value={formData.religionId}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            >
+              <option value="">Select Religion</option>
+              {options.religions.map((r) => (
+                <option key={r.religionId} value={r.religionId}>
+                  {r.religionName}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            Caste:
+            <select
+              name="casteId"
+              value={formData.casteId}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            >
+              <option value="">Select Caste</option>
+              {options.castes.map((c) => (
+                <option key={c.casteId} value={c.casteId}>
+                  {c.casteName}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            Marital Status:
+            <input
+              type="text"
+              name="maritalStatus"
+              value={formData.maritalStatus}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+
+          <label className="block">
+            Blood Group:
+            <input
+              type="text"
+              name="bloodGroup"
+              value={formData.bloodGroup}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+
+          <label className="block">
+            Aadhar Number:
+            <input
+              type="text"
+              name="aadharNumber"
+              value={formData.aadharNumber}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+
+          <label className="block">
+            Passport Number:
+            <input
+              type="text"
+              name="passportNumber"
+              value={formData.passportNumber}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+        </div>
+      )}
+
+      {/* Salary */}
+      {activeTab === "salary" && (
+        <div className="grid grid-cols-2 gap-4">
+          <label className="block">
+            CTC:
+            <input
+              type="number"
+              name="costToCompany"
+              value={formData.costToCompany}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+
+          <label className="block">
+            Salary ID:
+            <input
+              type="number"
+              name="salaryId"
+              value={formData.salaryId}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+
+          <label className="block">
+            Salary Currency:
+            <input
+              type="text"
+              name="salaryCurrency"
+              value={formData.salaryCurrency}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+
+          <label className="block">
+            Salary Mode:
+            <input
+              type="text"
+              name="salaryMode"
+              value={formData.salaryMode}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+
+          <label className="block">
+            Payroll Cost Center:
+            <input
+              type="text"
+              name="payrollCostCenter"
+              value={formData.payrollCostCenter}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+
+          <label className="block">
+            Account Number:
+            <input
+              type="text"
+              name="acctNumber"
+              value={formData.acctNumber}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+
+          <label className="block">
+            PAN:
+            <input
+              type="text"
+              name="panNumber"
+              value={formData.panNumber}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+
+          <label className="block">
+            PF Number:
+            <input
+              type="text"
+              name="pfNumber"
+              value={formData.pfNumber}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+
+          <label className="block">
+            PF Nominee:
+            <input
+              type="text"
+              name="pfNominee"
+              value={formData.pfNominee}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+
+          <label className="block">
+            ESI Number:
+            <input
+              type="text"
+              name="esiNumber"
+              value={formData.esiNumber}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+
+          <label className="block">
+            UAN Number:
+            <input
+              type="text"
+              name="uanNumber"
+              value={formData.uanNumber}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+        </div>
+      )}
+
+      {/* Exit */}
+      {activeTab === "exit" && (
+        <div className="grid grid-cols-2 gap-4">
+          <label className="block">
+            Resignation Letter Date:
+            <input
+              type="date"
+              name="resignationLetterDate"
+              value={formData.resignationLetterDate}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+
+          <label className="block">
+            Relieving Date:
+            <input
+              type="date"
+              name="relievingDate"
+              value={formData.relievingDate}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+
+          <label className="block">
+            Exit Interview Held On:
+            <input
+              type="date"
+              name="exitInterviewHeldOn"
+              value={formData.exitInterviewHeldOn}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+        </div>
+      )}
+
+      {/* Extra */}
+      {activeTab === "extra" && (
+        <div className="grid grid-cols-2 gap-4">
+          <label className="block">
+            Bus:
+            <select
+              name="busId"
+              value={formData.busId}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            >
+              <option value="">Select Bus</option>
+              {options.buses.map((b) => (
+                <option key={b.busId} value={b.busId}>
+                  {b.busNumber}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            Reference Person (ID):
+            <input
+              type="text"
+              name="referencePerson"
+              value={formData.referencePerson}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+
+          <label className="block">
+            Qualification:
+            <input
+              type="text"
+              name="qualification"
+              value={formData.qualification}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+
+          <label className="block">
+            Experience:
+            <input
+              type="text"
+              name="experience"
+              value={formData.experience}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+
+          <label className="block">
+            Employee Mail:
+            <input
+              type="email"
+              name="employeeMail"
+              value={formData.employeeMail}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+              disabled
+            />
+          </label>
+
+          <label className="block">
+            Personal Mail:
+            <input
+              type="email"
+              name="personalMail"
+              value={formData.personalMail}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+
+          <label className="block">
+            Password:
+            <input
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              className="border p-2 rounded w-full mt-1"
+            />
+          </label>
+        </div>
+      )}
+
+      {/* Save Button */}
+      <div className="mt-6">
+        <button
+          onClick={handleSave}
+          className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
+        >
+          Save
+        </button>
       </div>
     </div>
   );
 };
 
-export default EmployeeProfile;
+export default EmployeeProfilePage;

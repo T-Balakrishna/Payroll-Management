@@ -5,7 +5,7 @@ exports.createLeaveType = async (req, res) => {
   try {
     const {
       leaveTypeName,
-      maxAllocationPerPeriod,
+      maxAllocationPertype,
       allowApplicationAfterDays,
       minWorkingDaysForLeave,
       maxConsecutiveLeaves,
@@ -24,7 +24,7 @@ exports.createLeaveType = async (req, res) => {
 
     const newLeaveType = await LeaveType.create({
       leaveTypeName,
-      maxAllocationPerPeriod,
+      maxAllocationPertype,
       allowApplicationAfterDays,
       minWorkingDaysForLeave,
       maxConsecutiveLeaves,
@@ -52,6 +52,7 @@ exports.createLeaveType = async (req, res) => {
 exports.getAllLeaveTypes = async (req, res) => {
   try {
     const leaveTypes = await LeaveType.findAll({ where: { status: 'active' } });
+    console.log(leaveTypes);
     res.json(leaveTypes);
   } catch (error) {
     res.status(500).send("Error fetching leave types: " + error.message);

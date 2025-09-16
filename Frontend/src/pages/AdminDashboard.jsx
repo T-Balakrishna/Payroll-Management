@@ -1,11 +1,17 @@
 import React, { useState } from 'react';
 import BusMaster from './BusMaster.jsx';
+import BiometricMaster from './BiometricMaster.jsx';
+import BiometricDeviceMaster from './BiometricDeviceMaster.jsx';
 import CasteMaster from './CasteMaster.jsx';
 import DepartmentMaster from './DepartmentMaster.jsx';
 import DesignationMaster from './DesignationMaster.jsx';
 import ShiftMaster from './ShiftMaster.jsx';
+import EmployeeGradeMaster from './EmployeeGradeMaster.jsx';
 import EmployeeTypeMaster from './EmployeeTypeMaster.jsx';
 import HolidayMaster from './HolidayMaster.jsx';
+import LeaveAllocation from './LeaveAllocation.jsx';
+import LeaveTypeMaster from './LeaveTypeMaster.jsx';
+import Punches from './Punches.jsx';
 import ReligionMaster from './ReligionMaster.jsx';
 import AddUser from './AddUser.jsx';
 import LeaveTypeMaster from './LeaveTypeMaster.jsx';
@@ -28,7 +34,9 @@ import {
   Settings,
   Plus,
   Activity,
-  Menu
+  Menu,
+  ComputerIcon,
+  LucideComputer
 } from 'lucide-react';
 
 const Admin = () => {
@@ -40,13 +48,18 @@ const Admin = () => {
     { id: 'dashboard', label: 'Dashboard', icon: Home, color: 'text-blue-600' },
     { id: 'users', label: 'Add User', icon: Users, color: 'text-green-600' },
     { id: 'bus', label: 'Bus Master', icon: Bus, color: 'text-purple-600' },
+    { id: 'biometric', label: 'Biometric Master', icon: ComputerIcon, color: 'text-green-600' },
+    { id: 'biometricDevice', label: 'Biometric Device Master', icon: ComputerIcon, color: 'text-purple-600' },
     { id: 'caste', label: 'Caste Master', icon: Building, color: 'text-orange-600' },
     { id: 'department', label: 'Department Master', icon: Building2, color: 'text-indigo-600' },
     { id: 'designation', label: 'Designation Master', icon: Award, color: 'text-pink-600' },
+    { id: 'employeeGrade', label: 'Employee Grade Master', icon: Users, color: 'text-amber-600' },
     { id: 'employeeType', label: 'Employee Type Master', icon: Users, color: 'text-cyan-600' },
     { id: 'employeeGrade', label: 'Employee Grade Master', icon: Award, color: 'text-cyan-600'},
     { id: 'holiday', label: 'Holiday Master', icon: Calendar, color: 'text-yellow-600' },
-    { id: 'leave', label: 'Leave Type Master', icon: Clock, color: 'text-lime-600' },
+    { id: 'leaveType', label: 'Leave Type Master', icon: Clock, color: 'text-lime-600' },
+    { id: 'leaveAllocation', label: 'Leave Allocation ', icon: Clock, color: 'text-lime-600' },
+    { id: 'punches', label: 'Punch Details ', icon: LucideComputer, color: 'text-indigo-600' },
     { id: 'religion', label: 'Religion Master', icon: Building, color: 'text-amber-600' },
     { id: 'shift', label: 'Shift Master', icon: Activity, color: 'text-emerald-600' },
   ];
@@ -66,13 +79,18 @@ const Admin = () => {
     dashboard: "Dashboard Overview",
     users: "Add User",
     bus: "Bus Master",
+    biometric: "Biometric Master",
+    biometricDevice: "Biometric Device Master",
     caste: "Caste Master",
     department: "Department Master",
     designation: "Designation Master",
+    employeeGrade: "Employee Grade Master",
     employeeType: "Employee Type Master",
     employeeGrade: "Employee Grade Master",
     holiday: "Holiday Master",
-    leave: "Leave Type Master",
+    leaveType: "Leave Type Master",
+    leaveAllocation: "Leave Allocation",
+    punches: "Punch Details",
     religion: "Religion Master",
     shift: "Shift Master",
   };
@@ -116,13 +134,18 @@ const Admin = () => {
     switch (activePage) {
       case "dashboard": return renderDashboard();
       case "bus": return <BusMaster />;
+      case "biometric": return <BiometricMaster />;
+      case "biometricDevice": return <BiometricDeviceMaster />;
       case "caste": return <CasteMaster />;
       case "department": return <DepartmentMaster />;
       case "designation": return <DesignationMaster />;
+      case "employeeGrade": return <EmployeeGradeMaster/>;
       case "employeeType": return <EmployeeTypeMaster />;
       case "employeeGrade": return <EmployeeGradeMaster />;
       case "holiday": return <HolidayMaster />;
-      case "leave": return <LeaveTypeMaster />;
+      case "leaveType": return <LeaveTypeMaster />;
+      case "leaveAllocation": return <LeaveAllocation />;
+      case "punches": return <Punches />;
       case "religion": return <ReligionMaster />;
       case "shift": return <ShiftMaster />;
       case "users": return <AddUser />;

@@ -25,6 +25,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Import routes
 const attendanceRoute = require('./routes/attendanceRoute');
+const biometricRoute = require('./routes/biometricRoute');
 const biometricDeviceRoute = require('./routes/biometricDeviceRoute');
 const busRoute = require('./routes/busRoute');
 const casteRoute = require('./routes/casteRoute');
@@ -35,7 +36,7 @@ const employeeRoute = require('./routes/employeeRoute');
 const employeeTypeRoute = require('./routes/employeeTypeRoute');
 const holidayRoute = require('./routes/holidayRoute');
 const holidayPlanRoute = require('./routes/holidayPlanRoute');
-// const leaveRoute = require('./routes/leaveRoute');
+const leaveTypeRoute = require('./routes/leaveTypeRoute');
 // const loginRoute = require('./routes/loginRoute');
 const leaveTypeRoute = require('./routes/leaveTypeRoute');
 const punchRoute = require('./routes/punchRoute');
@@ -43,10 +44,11 @@ const religionRoute = require('./routes/religionRoute');
 const shiftRoute = require('./routes/shiftRoute');
 const userRoute = require('./routes/userRoute');  
 const authRoute = require('./routes/authRoute');  
-
+ 
 // Map routes
 app.use('/api/attendance', attendanceRoute);
-app.use('/api/biometric', biometricDeviceRoute);
+app.use('/api/biometrics', biometricRoute);
+app.use('/api/biometricDevices', biometricDeviceRoute);
 app.use('/api/buses', busRoute);
 app.use('/api/castes', casteRoute);
 app.use('/api/departments', departmentRoute);
@@ -56,7 +58,7 @@ app.use('/api/employeeGrades', employeeGradeRoute);
 app.use('/api/employeeTypes', employeeTypeRoute);
 app.use('/api/holidays', holidayRoute);
 app.use('/api/holidayPlans', holidayPlanRoute);
-// app.use('/api/leaves', leaveRoute);
+app.use('/api/leaveTypes', leaveTypeRoute);
 // app.use('/api/logins', loginRoute);
 app.use('/api/punches', punchRoute);
 app.use('/api/religions', religionRoute);
@@ -69,6 +71,8 @@ app.use('/api/leaveTypes',leaveTypeRoute)
 require('./models/Attendance');
 require('./models/BiometricDevice');
 require('./models/Bus');
+require('./models/Biometric');
+require('./models/BiometricDevice');
 require('./models/Caste');
 require('./models/Department');
 require('./models/Designation');
@@ -77,8 +81,7 @@ require('./models/EmployeeGrade');
 require('./models/EmployeeType');
 require('./models/Holiday');
 require('./models/HolidayPlan');
-require('./models/LeavePolicy');
-require('./models/LeavePolicyDetails');
+require('./models/LeaveAllocation');
 require('./models/LeaveRequest');
 require('./models/LeaveType');
 require('./models/Punch');
@@ -95,8 +98,9 @@ const startServer = async () => {
     console.log("✅ DB Connected successfully");
 
     // ⚠️ safer: alter = keep data, adjust schema if needed
-    await seq.sync({ force:false  });
+    await seq.sync({ force:false });
     console.log("✅ Tables synced");
+
 
     app.listen(5000, () => {
       console.log("🚀 Listening at http://localhost:5000");

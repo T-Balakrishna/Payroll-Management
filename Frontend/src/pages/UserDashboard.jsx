@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState , useEffect } from "react";
+import axios from "axios";
 import { 
   User, Calendar, LogOut, Clock, FileText, UserCheck, 
   Plus, XCircle, CheckCircle, AlertCircle
@@ -14,7 +15,22 @@ export default function DashboardPage() {
   const openProfileModal = () => setModalContent("profile");
   const openCalendarModal = () => setModalContent("calendar");
   const closeModal = () => setModalContent(null);
-
+  const userNumber = sessionStorage.getItem("userNumber");
+  const[userName,setUserName]=useState("New User") 
+  useEffect(() => {
+    console.log(userNumber);
+    
+      const getName = async () => {
+        try {
+          const res = await axios.get(`http://localhost:5000/api/employees/getName/${userNumber}`);
+          console.log(res);          
+          setUserName(res.data.employeeName); 
+        } catch (err) {
+          console.error("❌ Error fetching Name:", err);
+        }
+      };
+      getName();
+    }, []);
   const biometricData = [
     { time_stamp: "2025-01-10 09:01", location: "Main Gate" },
     { time_stamp: "2025-01-10 17:45", location: "Main Gate" },
@@ -161,7 +177,7 @@ export default function DashboardPage() {
 
             {/* Welcome Text */}
             <div className="text-center">
-              <h1 className="text-2xl font-bold text-gray-900">Welcome back, John!</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Welcome back, {userName}</h1>
               <p className="text-gray-600">Have a great day at work</p>
             </div>
 

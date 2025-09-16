@@ -18,7 +18,7 @@ exports.createBiometric = async (req, res) => {
 exports.getAllBiometrics = async (req, res) => {
   try {
     const biometrics = await Biometric.findAll({
-      include: [{ model: Employee, attributes: ["employeeName", "department"] }]
+      include: [{ model: Employee, attributes: ["employeeName", "departmentId"] }]
     });
     res.json(biometrics);
   } catch (err) {

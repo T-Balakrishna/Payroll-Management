@@ -6,7 +6,6 @@ const Designation = require('./Designation');
 const EmployeeGrade = require('./EmployeeGrade');
 const EmployeeType = require('./EmployeeType');
 const Shift = require('./Shift');
-const LeavePolicy = require('./LeavePolicy');
 const Religion = require('./Religion');
 const Caste = require('./Caste');
 const Bus = require('./Bus');  // ✅ Added missing Bus import
@@ -16,12 +15,13 @@ const Employee = sequelize.define('Employee', {
 
   // Overview
   salutation: { type: DataTypes.STRING, allowNull: true },
-  firstName: { type: DataTypes.STRING, allowNull: false },
+  firstName: { type: DataTypes.STRING, allowNull: true },
   middleName: { type: DataTypes.STRING, allowNull: true },
-  lastName: { type: DataTypes.STRING, allowNull: false },
+  lastName: { type: DataTypes.STRING, allowNull: true },
   employeeName: { 
     type: DataTypes.VIRTUAL, 
-    get() { return `${this.firstName} ${this.lastName}`; }   // ✅ backticks fixed
+    get() { return `${this.firstName} ${this.lastName}`; } ,  // ✅ backticks fixed
+    allowNull:true
   },
   gender: { type: DataTypes.ENUM('Male','Female','Other'), allowNull: true },
   DOB: { type: DataTypes.DATEONLY, allowNull: true },
@@ -60,10 +60,7 @@ const Employee = sequelize.define('Employee', {
 
   // Attendance & Leaves
   holidayListPolicyId: { type: DataTypes.INTEGER },
-  leavePolicyId: { 
-    type: DataTypes.INTEGER, 
-    references: { model: LeavePolicy, key: 'leavePolicyId' } 
-  },
+  
   shiftId: { 
     type: DataTypes.INTEGER, 
     references: { model: Shift, key: 'shiftId' } 
@@ -142,9 +139,6 @@ Employee.belongsTo(EmployeeGrade, { foreignKey: 'employeeGradeId', as: 'grade' }
 
 // Employee belongsTo Shift
 Employee.belongsTo(Shift, { foreignKey: 'shiftId', as: 'shift' });
-
-// Employee belongsTo LeavePolicy
-Employee.belongsTo(LeavePolicy, { foreignKey: 'leavePolicyId', as: 'leavePolicy' });
 
 // Employee belongsTo Religion
 Employee.belongsTo(Religion, { foreignKey: 'religionId', as: 'religion' });

@@ -6,7 +6,7 @@ import { ClipboardList, Pencil, Trash, Plus, X } from "lucide-react";
 function AddOrEdit({ onSave, onCancel, editData }) {
   const [form, setForm] = useState({
     leaveTypeName: editData?.leaveTypeName || "",
-    maxAllocationPerPeriod: editData?.maxAllocationPerPeriod || "",
+    maxAllocationPertype: editData?.maxAllocationPertype || "",
     allowApplicationAfterDays: editData?.allowApplicationAfterDays || "",
     minWorkingDaysForLeave: editData?.minWorkingDaysForLeave || "",
     maxConsecutiveLeaves: editData?.maxConsecutiveLeaves || "",
@@ -36,10 +36,10 @@ function AddOrEdit({ onSave, onCancel, editData }) {
     if (!form.leaveTypeName) return alert("Please enter leave type name");
 
     const adminName = sessionStorage.getItem("userNumber");
-
+    if(form.maxAllocationPertype<0 || form.allowApplicationAfterDays<0 || form.minWorkingDaysForLeave<0 || form.maxConsecutiveLeaves<0) return alert("Please Enter the valid allocations");
     const data = {
       ...form,
-      maxAllocationPerPeriod: form.maxAllocationPerPeriod || null,
+      maxAllocationPertype: form.maxAllocationPertype || null,
       allowApplicationAfterDays: form.allowApplicationAfterDays || null,
       minWorkingDaysForLeave: form.minWorkingDaysForLeave || null,
       maxConsecutiveLeaves: form.maxConsecutiveLeaves || null,
@@ -98,10 +98,10 @@ function AddOrEdit({ onSave, onCancel, editData }) {
               </label>
               <input
                 type="number"
-                name="maxAllocationPerPeriod"
-                value={form.maxAllocationPerPeriod}
+                name="maxAllocationPertype"
+                value={form.maxAllocationPertype}
                 onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg p-2"
+                className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               />
             </div>
             <div>
@@ -113,7 +113,7 @@ function AddOrEdit({ onSave, onCancel, editData }) {
                 name="allowApplicationAfterDays"
                 value={form.allowApplicationAfterDays}
                 onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg p-2"
+                className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               />
             </div>
             <div>
@@ -125,7 +125,7 @@ function AddOrEdit({ onSave, onCancel, editData }) {
                 name="minWorkingDaysForLeave"
                 value={form.minWorkingDaysForLeave}
                 onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg p-2"
+                className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               />
             </div>
             <div>
@@ -137,7 +137,7 @@ function AddOrEdit({ onSave, onCancel, editData }) {
                 name="maxConsecutiveLeaves"
                 value={form.maxConsecutiveLeaves}
                 onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg p-2"
+                className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               />
             </div>
           </div>
@@ -272,7 +272,6 @@ function LeaveTypeMaster() {
       </div>
 
       {/* Table */}
-      
       <div className="overflow-y-auto border border-gray-200 rounded-lg shadow-sm" style={{ maxHeight: "320px" }}>
         <table className="w-full text-left text-sm ">
           <thead className="sticky top-0">
@@ -288,7 +287,7 @@ function LeaveTypeMaster() {
               <tr key={l.leaveTypeId} className="border-t hover:bg-gray-50">
                 <td className="py-2 px-4">{l.leaveTypeId}</td>
                 <td className="py-2 px-4">{l.leaveTypeName}</td>
-                <td className="py-2 px-4">{l.maxAllocationPerPeriod ?? "-"}</td>
+                <td className="py-2 px-4">{l.maxAllocationPertype ?? "-"}</td>
                 <td className="py-2 px-4 flex gap-2">
                   <button
                     className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-md"

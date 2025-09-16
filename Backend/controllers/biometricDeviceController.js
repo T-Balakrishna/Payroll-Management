@@ -1,59 +1,75 @@
-const BiometricDevice = require('../models/BiometricDevice');
+const BiometricDevice = require("../models/BiometricDevice");
 
-// Create a new device
-exports.createDevice = async (req, res) => {
+// Create Biometric Device
+exports.createBiometricDevice = async (req, res) => {
   try {
-    const { deviceName, ipAddress, location, deviceType, createdBy } = req.body;
-    const newDevice = await BiometricDevice.create({ deviceName, ipAddress, location, deviceType, createdBy });
-    res.status(201).json(newDevice);
-  } catch (error) {
-    res.status(500).send("Error creating device: " + error.message);
+    const { deviceIp, location, status, createdBy } = req.body;
+
+    const device = await BiometricDevice.create({
+      deviceIp,
+      location,
+      status,
+      createdBy,
+      updatedBy: createdBy
+    });
+
+    res.status(201).json(device);
+  } catch (err) {
+    console.error("❌ Error creating biometric device:", err);
+    res.status(500).json({ error: err.message });
   }
 };
 
-// Get all active devices
-exports.getAllDevices = async (req, res) => {
+// Get all devices
+exports.getAllBiometricDevices = async (req, res) => {
   try {
-    const devices = await BiometricDevice.findAll({ where: { status: 'active' } });
+    const devices = await BiometricDevice.findAll({where: {status:'active'}});
     res.json(devices);
-  } catch (error) {
-    res.status(500).send("Error fetching devices: " + error.message);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
-// Get device by ID
-exports.getDeviceById = async (req, res) => {
+// Get device by deviceId
+exports.getBiometricDeviceById = async (req, res) => {
   try {
-    const device = await BiometricDevice.findOne({ where: { deviceId: req.params.id, status: 'active' } });
-    if (!device) return res.status(404).send("Device not found or inactive");
+    const { deviceId } = req.params;
+    const device = await BiometricDevice.findByPk(deviceId);
+
+    if (!device) return res.status(404).json({ error: "Device not found" });
+
     res.json(device);
-  } catch (error) {
-    res.status(500).send("Error fetching device: " + error.message);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
 // Update device
-exports.updateDevice = async (req, res) => {
+exports.updateBiometricDevice = async (req, res) => {
   try {
-    const device = await BiometricDevice.findOne({ where: { deviceId: req.params.id, status: 'active' } });
-    if (!device) return res.status(404).send("Device not found or inactive");
+    const { deviceId } = req.params;
+    const { deviceIp, location, status, updatedBy } = req.body;
 
-    await device.update(req.body);
+    const device = await BiometricDevice.findByPk(deviceId);
+    if (!device) return res.status(404).json({ error: "Device not found" });
+
+    await device.update({ deviceIp, location, status, updatedBy });
     res.json(device);
-  } catch (error) {
-    res.status(500).send("Error updating device: " + error.message);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
-// Soft delete
-exports.deleteDevice = async (req, res) => {
+// Delete device
+exports.deleteBiometricDevice = async (req, res) => {
   try {
-    const device = await BiometricDevice.findOne({ where: { deviceId: req.params.id, status: 'active' } });
-    if (!device) return res.status(404).send("Device not found or already inactive");
+    const { deviceId } = req.params;
+    const device = await BiometricDevice.findByPk(deviceId);
+    if (!device) return res.status(404).json({ error: "Device not found" });
 
-    await device.update({ status: 'inactive', updatedBy: req.body.updatedBy });
-    res.json({ message: "Device deactivated successfully" });
-  } catch (error) {
-    res.status(500).send("Error deleting device: " + error.message);
+    await device.update({status:'inactive'});
+    res.json({ message: "Device deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };

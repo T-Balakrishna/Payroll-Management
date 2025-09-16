@@ -1,18 +1,19 @@
 const express = require('express');
 const router = express.Router();
-const {
-  createEmployee,
-  getAllEmployees,
-  getEmployeeById,
-  updateEmployee,
-  deleteEmployee,
-  getLastEmpNumber
-} = require('../controllers/employeeController');
+const employeeController = require('../controllers/employeeController');
 
-router.post('/', createEmployee);
-router.get('/', getAllEmployees);
-router.get('/:id', getEmployeeById);
-router.put('/:id', updateEmployee);
-router.delete('/:id', deleteEmployee);
+// CRUD Routes
+router.post('/', employeeController.createEmployee);
+router.get('/', employeeController.getEmployees);
+router.get('/:id', employeeController.getEmployeeById);
+router.get('/getName/:userNumber', employeeController.getEmployeeName);
+router.get('/fromUser/:userNumber', employeeController.getEmployeeFromUser);
+router.put('/:employeeNumber', employeeController.updateEmployee);
+router.delete('/:id', employeeController.deleteEmployee);
+
+router.get("/full/:employeeNumber", employeeController.getEmployeeFullByNumber);
+
+// Extra Route → Employees by Department
+router.post('/byDepartments', employeeController.getEmployeesByDepartment);
 
 module.exports = router;
