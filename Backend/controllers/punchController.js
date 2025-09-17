@@ -1,6 +1,7 @@
 const { Op } = require("sequelize");
 const Punch = require("../models/Punch");
 const ZKLib = require("node-zklib");
+const Biometric = require("../models/Biometric"); // import your model
 
 // Fetch from biometric & save
 exports.fetchPunches = async (req, res) => {
@@ -9,6 +10,7 @@ exports.fetchPunches = async (req, res) => {
     await zk.createSocket();
 
     const logs = await zk.getAttendances();
+    // const logs=[{deviceUserId:"111",recordTime:"2025-09-15 16:52:00",ip:"172.17.1.5"},{deviceUserId:"222",recordTime:"2025-09-15 16:52:00",ip:"172.17.1.6"}]
     const newLogs = [];
 
     for (const log of logs.data) {
@@ -21,13 +23,21 @@ exports.fetchPunches = async (req, res) => {
         }
       });
 
-      if (!exists) {
+      if (!exists){
+        // find employeeNumber from Biometric table using biometricNumber
+        const bioRecord = await Biometric.findOne({
+          where: { biometricNumber: log.deviceUserId }
+        });
+
+        const employeeNum = bioRecord ? bioRecord.employeeNumber : null; // or handle missing
+
         const saved = await Punch.create({
           biometricNumber: log.deviceUserId,
-          employeeNumber: "dummy",
+          employeeNumber: employeeNum,   // use fetched value
           punchTimestamp: recordTime,
           deviceIp: log.ip
         });
+
         newLogs.push(saved);
       }
     }

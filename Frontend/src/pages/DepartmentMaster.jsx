@@ -19,7 +19,7 @@ function AddOrEdit({ onSave, onCancel, editData }) {
 
     const departmentData = {
       departmentName,
-      departmentAckr,
+      departmentAckr: departmentAckr ? departmentAckr.toUpperCase() : "",
       status,
       createdBy: editData ? editData.createdBy : adminName,
       updatedBy: adminName,

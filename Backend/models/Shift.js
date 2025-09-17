@@ -17,4 +17,5 @@ const Shift = seq.define('Shift', {
     timestamps: true
 });
 
+
 module.exports = Shift;

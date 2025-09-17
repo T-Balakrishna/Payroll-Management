@@ -8,6 +8,7 @@ const {
   deleteShift
 } = require('../controllers/shiftController');
 
+
 router.post('/', createShift);
 router.get('/', getAllShifts);
 router.get('/:id', getShiftById);
