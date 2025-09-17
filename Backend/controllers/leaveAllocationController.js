@@ -1,40 +1,49 @@
 const LeaveAllocation = require("../models/LeaveAllocation");
 
 // ✅ Create
+// Create (single + bulk)
 exports.createLeaveAllocation = async (req, res) => {
   try {
-    const { employeeId, leavePeriod, leaveTypeId, allotedLeave, usedLeave, createdBy } = req.body;
+    const data = req.body; // could be object or array
 
-    const allocation = await LeaveAllocation.create({
-      employeeId,
-      leavePeriod,
-      leaveTypeId,
-      allotedLeave,
-      usedLeave,
-      createdBy,
-      updatedBy: createdBy,
-    });
-
-    res.status(201).json(allocation);
+    if (Array.isArray(data)) {
+      // Bulk insert
+      const allocations = await LeaveAllocation.bulkCreate(data, { returning: true });
+      return res.status(201).json(allocations);
+    } else {
+      // Single insert
+      const allocation = await LeaveAllocation.create(data);
+      return res.status(201).json(allocation);
+    }
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
+
 // ✅ Get all
+// GET /api/leaveAllocations?leaveTypeId=2&period=2025
 exports.getAllLeaveAllocations = async (req, res) => {
   try {
-    const allocations = await LeaveAllocation.findAll();
+    const { leaveTypeId, leavePeriod } = req.query;
+    const where = {};
+    if (leaveTypeId) where.leaveTypeId = leaveTypeId;
+    if (leavePeriod) where.leavePeriod = leavePeriod;
+
+    const allocations = await LeaveAllocation.findAll({ where });
     res.json(allocations);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
+
 // ✅ Get by ID
 exports.getLeaveAllocationById = async (req, res) => {
   try {
-    const allocation = await LeaveAllocation.findByPk(req.params.id);
+    const {leaveTypeId} = req.params;
+    console.log(leaveTypeId);    
+    const allocation = await LeaveAllocation.findAll({where:{leaveTypeId}});
     if (!allocation) return res.status(404).json({ error: "Not found" });
     res.json(allocation);
   } catch (error) {

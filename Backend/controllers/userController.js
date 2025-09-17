@@ -1,6 +1,8 @@
 const User = require('../models/User');
 const Department = require('../models/Department')
 const bcrypt = require('bcryptjs');
+const {Op} = require('sequelize')
+
 
 // Create a new user
 exports.createUser = async (req, res) => {
@@ -90,7 +92,7 @@ exports.deleteUser = async (req, res) => {
 exports.getLastEmpNumber = async (req, res) => {
   try {
     const { departmentId } = req.params;
-    const {role} = req;
+    const {role} = req.body;
 
     // Find the department to get its acronym/prefix
     const dept = await Department.findByPk(departmentId);
@@ -102,7 +104,7 @@ exports.getLastEmpNumber = async (req, res) => {
     if(role==='Department Admin'){
        lastEmp = await User.findOne({
         where: { departmentId ,userNumber: {
-        [Op.like]: "AD%",   // ✅ only numbers starting with AD
+        [Op.like]: `AD%`,   // ✅ only numbers starting with AD
       },/*check if this starts with AD*/},
         order: [["createdAt", "DESC"]],
       });
@@ -113,22 +115,53 @@ exports.getLastEmpNumber = async (req, res) => {
         order: [["createdAt", "DESC"]],
       });
     }
-
+    console.log(lastEmp)
     let nextNumber;
-    console.log(lastEmp);    
-    if (lastEmp && (lastEmp.userNumber.startsWith(deptPrefix) || lastEmp.userNumber.startsWith(`AD${deptPrefix}`))) {
+    // console.log(lastEmp.userNumber.startsWith(`${deptPrefix}`)+" "+lastEmp.userNumber.startsWith(`AD${deptPrefix}`)+" "+lastEmp.userNumber.startsWith(`AD`)+" "+req.body.data);    
+    if (lastEmp && (lastEmp.userNumber.startsWith(`${deptPrefix}`) || lastEmp.userNumber.startsWith(`AD${deptPrefix}`) || lastEmp.userNumber.startsWith(`AD`))) {
       // Extract the numeric part
       const lastNum = parseInt(lastEmp.userNumber.replace(/\D/g, ""), 10);
       if(role=="Staff")
-      nextNumber = `${deptPrefix}${lastNum + 1}`;
+        nextNumber = `${deptPrefix}${lastNum + 1}`;
+      else if(role=="Admin")
+        nextNumber = `AD${lastNum + 1}`;
+      else
+        nextNumber = `AD${deptPrefix}${lastNum + 1}`;
+
+
     } else {
       // First employee in this department
-      nextNumber = `${deptPrefix}1`;
+      if(role=="Staff")
+        nextNumber = `${deptPrefix}1`;
+      else if(role=="Admin")
+        nextNumber = `AD1`;
+      else
+        nextNumber = `AD${deptPrefix}1`;
     }
-
-    res.json({ lastEmpNumber: nextNumber });
+    console.log(nextNumber);  
+    res.json({ lastEmpNumber: nextNumber,message:lastEmp,dept:deptPrefix });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+exports.updatePassword = async (req, res) => {
+  try {
+    const { userNumber } = req.params; // linked to employeeNumber
+    const { password, updatedBy } = req.body;
+
+    if (!password) return res.status(400).json({ error: "Password is required" });
+
+    const user = await User.findOne({ where: { userNumber } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await user.update({ password: hashedPassword, updatedBy });
+
+    res.json({ message: "Password updated successfully" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };

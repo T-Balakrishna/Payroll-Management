@@ -235,6 +235,10 @@ const EmployeeProfilePage = () => {
   try {
     const employeeNumber = sessionStorage.getItem("userNumber"); // stored at login
     console.log(employeeNumber);
+
+    // Add createdBy field
+    filteredData.createdBy = "Admin";
+    filteredData.updatedBy = employeeNumber;
     
     await axios.put(`http://localhost:5000/api/employees/${employeeNumber}`, filteredData);
     alert("✅ Employee saved successfully!");

@@ -25,6 +25,7 @@ function AddOrEditUser({
       ...formData,
       role: value,
       departmentId: adminDept ? adminDept.departmentId : "",
+       [name]: name === "userNumber" ? value.toUpperCase() : value,
     });
   } else {
     setFormData({ ...formData, [name]: value });
@@ -103,12 +104,15 @@ function AddOrEditUser({
               disabled={formData.role === "Admin"}
             >
               <option value="">Select Department</option>
-              {departments.map((d) => (
-                <option key={d.departmentId} value={d.departmentId}>
-                  {d.departmentAckr}
-                </option>
-              ))}
+              {departments
+                .filter((d) => !(formData.role !== "Admin" && d.departmentAckr === "AD")) // hide Admin if role is not Admin
+                .map((d) => (
+                  <option key={d.departmentId} value={d.departmentId}>
+                    {d.departmentAckr}
+                  </option>
+                ))}
             </select>
+
           
 
           <div className="flex items-center gap-2">
@@ -201,10 +205,10 @@ export default function AddUser() {
 
     if (checked && deptId) {
       try {
-        const res = await axios.get(
+        const res = await axios.post(
           `http://localhost:5000/api/users/lastEmpNumber/${deptId}`,{role:formData.role}
         );
-        // console.log(res);
+        console.log(res);
         
         const lastEmp = res.data?.lastEmpNumber || null;
         
@@ -213,12 +217,13 @@ export default function AddUser() {
         //       parseInt(lastEmp.replace(/\D/g, "")) + 1
         //     }`
         //   : `${department.departmentAckr.toLowerCase()}1`;
-        const prefix = lastEmp.match(/^[A-Za-z]+/)[0];   // "CS"
-        const number = parseInt(lastEmp.match(/\d+$/)[0]); // 101
-        let newEmpNum = `${prefix}${number}`; // "CS102"
-        if(formData.role==='Department Admin'){
-          newEmpNum = `AD${prefix}${number}`
-        }
+        console.log(lastEmp);        
+        // const prefix = lastEmp.match(/^[A-Za-z]+/)[0];   // "CS"
+        // const number = parseInt(lastEmp.match(/\d+$/)[0]); // 101
+        let newEmpNum = lastEmp; // "CS102"
+        // if(formData.role==='Department Admin'){
+        //   newEmpNum = `AD${prefix}${number}`
+        // }
         setFormData((prev) => ({ ...prev, userNumber: newEmpNum }));
         return newEmpNum;
       } catch (err) {

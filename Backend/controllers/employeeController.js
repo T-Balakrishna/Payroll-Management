@@ -10,6 +10,9 @@ const Bus = require('../models/Bus');
 const User = require('../models/User')
 const { log } = require('node-zklib/helpers/errorLog');
 const {Op} = require('sequelize')
+const bcrypt = require("bcrypt");
+const UserController = require("./userController");
+
 
 // ================= CRUD =================
 
@@ -72,32 +75,70 @@ exports.getEmployeeById = async (req, res) => {
 };
 
 // ✅ Update Employee
+// exports.updateEmployee = async (req, res) => {
+//   try {
+//     // const oldPassword = Employee.
+//     const { employeeNumber } = req.params; // frontend sends this
+//     const [updated] = await Employee.update(req.body, {
+//       where: { employeeNumber }
+//     });
+
+//     if (!updated) return res.status(404).json({ error: "Employee not found" });
+
+//     const updatedEmployee = await Employee.findOne({where:{employeeNumber}});
+//     res.json(updatedEmployee);
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// };
+
+
 exports.updateEmployee = async (req, res) => {
   try {
-    const { employeeNumber } = req.params; // frontend sends this
-    const [updated] = await Employee.update(req.body, {
-      where: { employeeNumber }
-    });
+    const { employeeNumber } = req.params;
+    const { password, updatedBy } = req.body;
 
+    // Update employee
+    const [updated] = await Employee.update(req.body, { where: { employeeNumber } });
     if (!updated) return res.status(404).json({ error: "Employee not found" });
 
-    const updatedEmployee = await Employee.findOne({where:{employeeNumber}});
+    const updatedEmployee = await Employee.findOne({ where: { employeeNumber } });
+
+    // 🔑 Only check password change
+    if (password) {
+      var isSamePassword;
+      const user = await User.findOne({ where: { userNumber: employeeNumber } });
+      if (user) {
+        isSamePassword = await bcrypt.compare(password, user.password);
+        if (!isSamePassword) {
+          const hashedPassword = await bcrypt.hash(password, 10);
+          await user.update({ password: hashedPassword, updatedBy });
+          await updatedEmployee.update({ password: hashedPassword, updatedBy });
+        }
+      }
+    }
+
     res.json(updatedEmployee);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
+
+
 // ✅ Delete Employee
+// ================= DELETE EMPLOYEE =================
 exports.deleteEmployee = async (req, res) => {
   try {
-    const deleted = await Employee.destroy({ where: { employeeId: req.params.id } });
+    const employee = await Employee.findOne({ where: { employeeId: req.params.id } });
+    if (!employee) return res.status(404).send("Employee not found");
 
-    if (!deleted) return res.status(404).json({ error: "Employee not found" });
-
-    res.json({ message: "Employee deleted successfully" });
+    // Soft delete: set status to 'inactive'
+    await employee.update({ status: 'inactive', updatedBy: req.body.updatedBy });
+    res.json({ message: "Employee deactivated successfully" });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("❌ Error deactivating employee:", error);
+    res.status(500).send("Error deactivating employee: " + error.message);
   }
 };
 

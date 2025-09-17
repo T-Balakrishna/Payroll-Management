@@ -120,6 +120,8 @@ const Employee = sequelize.define('Employee', {
     type: DataTypes.INTEGER,
     references: { model: 'Bus', key: 'busId' }
   },
+  createdBy: { type: DataTypes.STRING, allowNull: true },
+  updatedBy: { type: DataTypes.STRING, allowNull: true },
 
 }, {
   tableName: 'Employee',

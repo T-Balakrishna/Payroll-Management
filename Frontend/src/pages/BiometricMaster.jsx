@@ -54,7 +54,7 @@ function AddOrEdit({ onSave, onCancel, editData }) {
             <input
               type="text"
               value={employeeNumber}
-              onChange={(e) => setEmployeeNumber(e.target.value)}
+              onChange={(e) => setEmployeeNumber(e.target.value.toUpperCase())}
               className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
             />
           </div>

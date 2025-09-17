@@ -12,8 +12,10 @@ const LeaveAllocation = () => {
   const [allocatedLeaves, setAllocatedLeaves] = useState({});
   const [existingLeaves, setExistingLeaves] = useState({});
   const [leaveTypeId, setLeaveTypeId] = useState("");
+  const [leavePeriod, setLeavePeriod] = useState("");
   const [showDeptDropdown, setShowDeptDropdown] = useState(false);
-
+  const [bulkLeaves, setBulkLeaves] = useState(""); // new state for bulk apply
+  const userNumber = sessionStorage.getItem("userNumber");
   const dropdownRef = useRef(null);
 
   // Fetch leave types, holiday plans, departments
@@ -26,35 +28,31 @@ const LeaveAllocation = () => {
   // Fetch employees based on selected departments
   useEffect(() => {
     if (selectedDepts.length > 0) {
-      console.log(selectedDepts);      
       axios.post("http://localhost:5000/api/employees/byDepartments", { departments: selectedDepts })
-        .then(res => {
-          console.log(res.data);
-          setEmployees(res.data)
-        });
-        
-        
+        .then(res => setEmployees(res.data));
     } else { 
       setEmployees([]);
     }
     setSelectedEmps([]);
+    setAllocatedLeaves({});
   }, [selectedDepts]);
 
   // Fetch existing allocated leaves for the selected leave type
   useEffect(() => {
-    if (leaveTypeId) {
-      axios.get(`http://localhost:5000/api/allocatedLeaves?leaveTypeId=${leaveTypeId}`)
+    if (leaveTypeId && leavePeriod) {
+      axios.get(`http://localhost:5000/api/leaveAllocations?leaveTypeId=${leaveTypeId}&leavePeriod=${leavePeriod}`)
         .then(res => {
           const mapping = {};
           res.data.forEach(e => {
-            mapping[e.employeeNumber] = e.allocated;
+            mapping[e.employeeNumber] = e.allotedLeave; // make sure key matches your backend
           });
           setExistingLeaves(mapping);
         });
     } else {
       setExistingLeaves({});
     }
-  }, [leaveTypeId]);
+  }, [leaveTypeId, leavePeriod]);
+
 
   const toggleDept = (deptId) => {
     setSelectedDepts(prev =>
@@ -87,9 +85,42 @@ const LeaveAllocation = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Apply bulk leaves to all selected employees
+  const applyBulkLeaves = () => {
+    if (!bulkLeaves) return;
+    const updated = {};
+    selectedEmps.forEach(empId => {
+      updated[empId] = Number(bulkLeaves);
+    });
+    setAllocatedLeaves(prev => ({ ...prev, ...updated }));
+  };
+
+  // Save allocations
+  const handleSave = async () => {
+    if (!leaveTypeId || !leavePeriod) {
+      alert("Please select Leave Type and Period");
+      return;
+    }
+    const payload = selectedEmps.map(empId => ({
+      employeeNumber: empId,
+      leaveTypeId,
+      leavePeriod,
+      allotedLeave: allocatedLeaves[empId] || 0,
+      createdBy: userNumber,
+    }));
+
+    try {
+      await axios.post("http://localhost:5000/api/leaveAllocations", payload);
+      alert("✅ Leave allocations saved successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("❌ Error saving leave allocations");
+    }
+  };
+
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold">Leave Assignment</h1>
+    <div className="p-6 max-w-5xl mx-auto space-y-6">
+      <h1 className="text-2xl font-bold">Leave Allocation</h1>
 
       {/* Leave Type */}
       <div>
@@ -111,7 +142,11 @@ const LeaveAllocation = () => {
       {/* Holiday Plan */}
       <div>
         <label className="block font-medium mb-2">Leave Period</label>
-        <select className="border rounded-lg p-2 w-full">
+        <select
+          value={leavePeriod}
+          onChange={(e) => setLeavePeriod(e.target.value)}
+          className="border rounded-lg p-2 w-full"
+        >
           <option value="">Select Holiday Plan</option>
           {holidayPlans.map(plan => (
             <option key={plan.holidayPlanId} value={plan.holidayPlanId}>
@@ -165,6 +200,26 @@ const LeaveAllocation = () => {
       {/* Selected Employees Table */}
       <div className="border rounded-lg p-4">
         <h2 className="text-lg font-bold mb-2">Selected Employees</h2>
+
+        {/* Bulk leaves input */}
+        {selectedEmps.length > 0 && (
+          <div className="mb-4 flex gap-2 items-center">
+            <input
+              type="number"
+              value={bulkLeaves}
+              onChange={(e) => setBulkLeaves(e.target.value)}
+              placeholder="Set leaves for all"
+              className="border rounded px-2 py-1 w-40"
+            />
+            <button
+              onClick={applyBulkLeaves}
+              className="bg-green-500 hover:bg-green-600 text-white px-4 py-1 rounded"
+            >
+              Apply to All
+            </button>
+          </div>
+        )}
+
         <div className="max-h-60 overflow-y-auto">
           <table className="w-full border-collapse border">
             <thead>
@@ -212,15 +267,23 @@ const LeaveAllocation = () => {
                   <td className="border p-2">{emp.employeeNumber}</td>
                   <td className="border p-2">
                     <input
-                      type="number"
-                      className="border rounded px-2 py-1 w-20"
-                      value={allocatedLeaves[emp.employeeNumber] || ""}
-                      onChange={(e) =>
-                        setAllocatedLeaves(prev => ({ ...prev, [emp.employeeNumber]: Number(e.target.value) }))
-                      }
-                      disabled={!selectedEmps.includes(emp.employeeNumber)}
-                      placeholder={existingLeaves[emp.employeeNumber] ? `Already ${existingLeaves[emp.employeeNumber]}` : ""}
-                    />
+                        type="number"
+                        className="border rounded px-2 py-1 w-20"
+                        value={allocatedLeaves[emp.employeeNumber] ?? existingLeaves[emp.employeeNumber] ?? ""}
+                        onChange={(e) =>
+                          setAllocatedLeaves((prev) => ({
+                            ...prev,
+                            [emp.employeeNumber]: Number(e.target.value),
+                          }))
+                        }
+                        disabled={!selectedEmps.includes(emp.employeeNumber)}
+                        placeholder={
+                          existingLeaves[emp.employeeNumber]
+                            ? `Already ${existingLeaves[emp.employeeNumber]}`
+                            : ""
+                        }
+                      />
+
                   </td>
                   <td className="border p-2 flex gap-2">
                     <button
@@ -259,6 +322,16 @@ const LeaveAllocation = () => {
           </table>
         </div>
       </div>
+
+      {/* Save Button */}
+      {selectedEmps.length > 0 && (
+        <button
+          onClick={handleSave}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded"
+        >
+          Save Allocations
+        </button>
+      )}
     </div>
   );
 };
