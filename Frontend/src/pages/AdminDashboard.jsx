@@ -5,7 +5,6 @@ import BiometricDeviceMaster from './BiometricDeviceMaster.jsx';
 import CasteMaster from './CasteMaster.jsx';
 import DepartmentMaster from './DepartmentMaster.jsx';
 import DesignationMaster from './DesignationMaster.jsx';
-import ShiftMaster from './ShiftMaster.jsx';
 import EmployeeGradeMaster from './EmployeeGradeMaster.jsx';
 import EmployeeTypeMaster from './EmployeeTypeMaster.jsx';
 import HolidayMaster from './HolidayMaster.jsx';
@@ -13,6 +12,8 @@ import LeaveAllocation from './LeaveAllocation.jsx';
 import LeaveTypeMaster from './LeaveTypeMaster.jsx';
 import Punches from './Punches.jsx';
 import ReligionMaster from './ReligionMaster.jsx';
+import ShiftAllocationMaster from './ShiftAllocationMaster.jsx';
+import ShiftMaster from './ShiftMaster.jsx';
 import AddUser from './AddUser.jsx';
 
 import { 
@@ -59,6 +60,7 @@ const Admin = () => {
     { id: 'punches', label: 'Punch Details ', icon: LucideComputer, color: 'text-indigo-600' },
     { id: 'religion', label: 'Religion Master', icon: Building, color: 'text-amber-600' },
     { id: 'shift', label: 'Shift Master', icon: Activity, color: 'text-emerald-600' },
+    { id: 'shiftAllocation', label: 'Shift Allocation Master', icon: Activity, color: 'text-pink-600' },
   ];
 
   const authItems = [
@@ -89,6 +91,7 @@ const Admin = () => {
     punches: "Punch Details",
     religion: "Religion Master",
     shift: "Shift Master",
+    shiftAllocation: "Shift Allocation Master",
   };
 
   const renderDashboard = () => (
@@ -143,6 +146,7 @@ const Admin = () => {
       case "punches": return <Punches />;
       case "religion": return <ReligionMaster />;
       case "shift": return <ShiftMaster />;
+      case "shiftAllocation": return <ShiftAllocationMaster />;
       case "users": return <AddUser />;
       default: return renderDashboard();
     }

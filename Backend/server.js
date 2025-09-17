@@ -35,6 +35,7 @@ const leaveTypeRoute = require('./routes/leaveTypeRoute');
 const punchRoute = require('./routes/punchRoute');
 const religionRoute = require('./routes/religionRoute');
 const shiftRoute = require('./routes/shiftRoute');
+const shiftAllocationRoute = require('./routes/shiftAllocationRoute');
 const userRoute = require('./routes/userRoute');  
 const authRoute = require('./routes/authRoute');  
 
@@ -60,6 +61,7 @@ app.use('/api/leaveTypes', leaveTypeRoute);
 app.use('/api/punches', punchRoute);
 app.use('/api/religions', religionRoute);
 app.use('/api/shifts', shiftRoute);
+app.use('/api/shiftAllocations', shiftAllocationRoute);
 app.use('/api/users', userRoute);
 app.use('/api/auth', authRoute);
 
@@ -82,6 +84,7 @@ require('./models/LeaveType');
 require('./models/Punch');
 require('./models/Religion');
 require('./models/Shift');
+require('./models/ShiftAllocation');
 require('./models/User');
 
 // ✅ Start server
@@ -91,7 +94,7 @@ const startServer = async () => {
     console.log("✅ DB Connected successfully");
 
     // ⚠️ safer: alter = keep data, adjust schema if needed
-    await seq.sync({ alter:false});+
+    await seq.sync({ alter:true});
     console.log("✅ Tables synced");
 
     app.listen(5000, () => {

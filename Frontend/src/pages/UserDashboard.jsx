@@ -252,7 +252,7 @@ export default function DashboardPage() {
           <div className="bg-white w-full max-w-6xl h-full max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl relative">
             {/* Close Button */}
             <button
-              className="absolute top-4 right-4 z-10 w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition-all duration-200"
+              className="absolute top-4 right-4 z-50 w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition-all duration-200"
               onClick={closeModal}
             >
               <XCircle className="w-6 h-6 text-gray-600" />
