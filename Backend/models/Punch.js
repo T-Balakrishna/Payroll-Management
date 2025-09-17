@@ -17,8 +17,8 @@ const Punch = seq.define('Punch', {
 });
 
 // Associations
-// Employee.hasMany(Punch, { foreignKey: 'employeeNumber' });
-// Punch.belongsTo(Employee, { foreignKey: 'employeeNumber' });
+Employee.hasMany(Punch, { foreignKey: 'employeeNumber' });
+Punch.belongsTo(Employee, { foreignKey: 'employeeNumber' });
 
 BiometricDevice.hasMany(Punch, { foreignKey: 'deviceIp' });
 Punch.belongsTo(BiometricDevice, { foreignKey: 'deviceIp' });

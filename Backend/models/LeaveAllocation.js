@@ -4,6 +4,16 @@ const Employee = require("./Employee");
 const LeaveType = require("./LeaveType");
 
 const LeaveAllocation = sequelize.define("LeaveAllocation", {
+  employeeNumber : {
+    type:DataTypes.STRING,
+    references: { model: Employee, key: 'employeeNumber' },
+    allowNull:false,
+  },
+  leaveTypeId:{
+    type:DataTypes.INTEGER,
+    references: { model: LeaveType, key: 'leaveTypeId' },
+    allowNull:false,
+  },
   leavePeriod: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -27,10 +37,13 @@ const LeaveAllocation = sequelize.define("LeaveAllocation", {
   updatedBy: {
     type: DataTypes.STRING,
   },
+},{
+    tableName: 'LeaveAllocation',
+    timestamps: true
 });
 // Associations
-LeaveAllocation.belongsTo(Employee, { foreignKey: "employeeId" });
-Employee.hasMany(LeaveAllocation, { foreignKey: "employeeId" });
+LeaveAllocation.belongsTo(Employee, { foreignKey: "employeeNumber" });
+Employee.hasMany(LeaveAllocation, { foreignKey: "employeeNumber" });
 
 LeaveAllocation.belongsTo(LeaveType, { foreignKey: "leaveTypeId" });
 LeaveType.hasMany(LeaveAllocation, { foreignKey: "leaveTypeId" });
