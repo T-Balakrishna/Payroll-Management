@@ -17,6 +17,7 @@ export default function LoginPage() {
 
       sessionStorage.setItem("token", token);
       sessionStorage.setItem("userNumber", user.userNumber);
+      // sessionStorage.setItem("role", user.role);
       navigate(user.role === "Admin" ? "/adminDashboard" : "/userDashboard");
     } catch (err) {
       alert(err.response?.data?.msg || "Login failed");
@@ -32,7 +33,7 @@ export default function LoginPage() {
 
       sessionStorage.setItem("token", token);
       sessionStorage.setItem("userNumber", user.userNumber);
-
+      // sessionStorage.setItem("role", user.role);
       navigate(user.role === "Admin" ? "/adminDashboard" : "/userDashboard");
     } catch (err) {
       alert(err.response?.data?.msg || "Google login failed");

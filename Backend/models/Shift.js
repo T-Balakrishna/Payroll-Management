@@ -7,7 +7,6 @@ const Shift = seq.define('Shift', {
     shiftInStartTime: { type: DataTypes.TIME, allowNull: false },
     shiftInEndTime: { type: DataTypes.TIME, allowNull: false },
     shiftOutStartTime: { type: DataTypes.TIME, allowNull: false },
-    shiftOutEndTime: { type: DataTypes.TIME, allowNull: false },
     shiftMinHours: { type: DataTypes.FLOAT, allowNull: false },
     shiftNextDay: { type: DataTypes.BOOLEAN, defaultValue: false },
     status: { type: DataTypes.ENUM('active', 'inactive'), defaultValue: 'active', allowNull: false },

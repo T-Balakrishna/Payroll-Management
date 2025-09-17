@@ -1,29 +1,23 @@
 const express = require('express');
 const cors = require('cors');
-const helmet = require('helmet');   // ✅ add helmet
-const morgan = require('morgan');   // ✅ add morgan
+const helmet = require('helmet');
+const morgan = require('morgan');
 const seq = require('./config/db');
 const cron = require("node-cron");
-const axios = require("axios");
 
 const app = express();
 
-// ✅ Add Helmet for security headers
+// ✅ Middlewares
 app.use(helmet());
-
-// ✅ Add request logging
 app.use(morgan('dev'));
-
-// ✅ Add CORS for frontend and allow credentials
 app.use(cors({
   origin: "http://localhost:5173", // your React frontend
   credentials: true,
 }));
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Import routes
+// ✅ Routes
 const attendanceRoute = require('./routes/attendanceRoute');
 const biometricRoute = require('./routes/biometricRoute');
 const biometricDeviceRoute = require('./routes/biometricDeviceRoute');
@@ -37,14 +31,16 @@ const employeeTypeRoute = require('./routes/employeeTypeRoute');
 const holidayRoute = require('./routes/holidayRoute');
 const holidayPlanRoute = require('./routes/holidayPlanRoute');
 const leaveTypeRoute = require('./routes/leaveTypeRoute');
-// const loginRoute = require('./routes/loginRoute');
-const leaveTypeRoute = require('./routes/leaveTypeRoute');
 const punchRoute = require('./routes/punchRoute');
 const religionRoute = require('./routes/religionRoute');
 const shiftRoute = require('./routes/shiftRoute');
 const userRoute = require('./routes/userRoute');  
 const authRoute = require('./routes/authRoute');  
- 
+
+// Services
+const processAttendance = require("./services/processAttendance");
+const fetchBiometrics = require("./services/fetchBiometrics");
+
 // Map routes
 app.use('/api/attendance', attendanceRoute);
 app.use('/api/biometrics', biometricRoute);
@@ -59,20 +55,17 @@ app.use('/api/employeeTypes', employeeTypeRoute);
 app.use('/api/holidays', holidayRoute);
 app.use('/api/holidayPlans', holidayPlanRoute);
 app.use('/api/leaveTypes', leaveTypeRoute);
-// app.use('/api/logins', loginRoute);
 app.use('/api/punches', punchRoute);
 app.use('/api/religions', religionRoute);
 app.use('/api/shifts', shiftRoute);
-app.use('/api/users', userRoute);   // ✅ expose users
-app.use('/api/auth', authRoute);    // ✅ expose auth (login + google login)
-app.use('/api/leaveTypes',leaveTypeRoute)
+app.use('/api/users', userRoute);
+app.use('/api/auth', authRoute);
 
-// Import models so Sequelize can sync tables
+// Import models for Sequelize
 require('./models/Attendance');
 require('./models/BiometricDevice');
 require('./models/Bus');
 require('./models/Biometric');
-require('./models/BiometricDevice');
 require('./models/Caste');
 require('./models/Department');
 require('./models/Designation');
@@ -85,37 +78,45 @@ require('./models/LeaveAllocation');
 require('./models/LeaveRequest');
 require('./models/LeaveType');
 require('./models/Punch');
-// require('./models/Login');
 require('./models/Religion');
 require('./models/Shift');
-require('./models/User');   // ✅ user model
-require('./models/LeaveType')
+require('./models/User');
 
-// Start server
+// ✅ Start server
 const startServer = async () => {
   try {
     await seq.authenticate();
     console.log("✅ DB Connected successfully");
 
-    // ⚠️ safer: alter = keep data, adjust schema if needed
     await seq.sync({ force:false });
     console.log("✅ Tables synced");
-
 
     app.listen(5000, () => {
       console.log("🚀 Listening at http://localhost:5000");
     });
 
+    // ⏱ Hourly biometric fetch
     cron.schedule("* * * * *", async () => {
       try {
-        await axios.get("http://localhost:5000/api/punches/");
-        console.log("✅ Punches fetched (every 1 hour)");
+        console.log("⏱ Running hourly biometric fetch...");
+        await fetchBiometrics();
       } catch (err) {
-        console.error("❌ Error in cron job:", err.message);
+        console.error("❌ Error fetching biometrics:", err.message);
       }
     });
+
+    // 🕛 Daily attendance processor at 12:00 AM
+    cron.schedule("* * * * *", async () => {
+      try {
+        console.log("🕛 Running daily attendance processor...");
+        await processAttendance();
+      } catch (err) {
+        console.error("❌ Error processing attendance:", err.message);
+      }
+    });
+
   } catch (error) {
-    console.log("❌ Error starting server:", error.message);
+    console.error("❌ Error starting server:", error.message);
   }
 };
 
