@@ -264,7 +264,7 @@ function HolidayPlans() {
                 setSelectedHoliday(null);
                 setHolidayModalOpen(true);
               }}
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg shadow-md"
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md"
             >
               <Plus size={18} /> Add Holiday
             </button>
@@ -273,7 +273,7 @@ function HolidayPlans() {
           <div className="overflow-y-auto border border-gray-200 rounded-lg shadow-sm" style={{ maxHeight: "280px" }}>
             <table className="w-full text-left text-sm">
               <thead className="sticky top-0">
-                <tr className="bg-gradient-to-r from-green-600 to-emerald-600 text-white">
+                <tr className="bg-gradient-to-r from-blue-600 to-emerald-600 text-white">
                   <th className="py-3 px-4">Date</th>
                   <th className="py-3 px-4">Description</th>
                   <th className="py-3 px-4">Actions</th>
@@ -405,8 +405,8 @@ function HolidayPlans() {
             </button>
 
             <div className="flex justify-center mb-6">
-              <div className="bg-green-100 p-4 rounded-full">
-                <Calendar className="text-green-600" size={40} />
+              <div className="bg-blue-100 p-4 rounded-full">
+                <Calendar className="text-blue-600" size={40} />
               </div>
             </div>
 
@@ -418,14 +418,14 @@ function HolidayPlans() {
               type="date"
               value={holidayForm.holidayDate}
               onChange={(e) => setHolidayForm({ ...holidayForm, holidayDate: e.target.value })}
-              className="border border-gray-300 rounded-lg p-3 w-full mb-3 focus:ring-2 focus:ring-green-500 outline-none"
+              className="border border-gray-300 rounded-lg p-3 w-full mb-3 focus:ring-2 focus:ring-blue-500 outline-none"
             />
             <input
               type="text"
               placeholder="Description"
               value={holidayForm.description}
               onChange={(e) => setHolidayForm({ ...holidayForm, description: e.target.value })}
-              className="border border-gray-300 rounded-lg p-3 w-full mb-3 focus:ring-2 focus:ring-green-500 outline-none"
+              className="border border-gray-300 rounded-lg p-3 w-full mb-3 focus:ring-2 focus:ring-blue-500 outline-none"
             />
 
             <div className="flex justify-end gap-3">
@@ -437,7 +437,7 @@ function HolidayPlans() {
               </button>
               <button
                 onClick={handleSaveHoliday}
-                className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg shadow-md"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow-md"
               >
                 {selectedHoliday ? "Update Changes" : "Save"}
               </button>

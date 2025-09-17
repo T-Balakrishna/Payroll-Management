@@ -6,7 +6,7 @@ const Attendance = seq.define('Attendance', {
   attendanceId: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   employeeId: { type: DataTypes.INTEGER, allowNull: false, references: { model: Employee, key: 'employeeId' } },
   attendanceDate: { type: DataTypes.DATEONLY, allowNull: false },
-  attendanceStatus: { type: DataTypes.ENUM('Present', 'Absent', 'Leave'), allowNull: false },
+  attendanceStatus: { type: DataTypes.ENUM('Present', 'Absent', 'Half-Day', 'Leave'), allowNull: false },
 }, {
   tableName: 'Attendance',
   timestamps: true
