@@ -37,6 +37,9 @@ const LeaveAllocation = sequelize.define("LeaveAllocation", {
   updatedBy: {
     type: DataTypes.STRING,
   },
+},{
+    tableName: 'LeaveAllocation',
+    timestamps: true
 });
 // Associations
 LeaveAllocation.belongsTo(Employee, { foreignKey: "employeeNumber" });
