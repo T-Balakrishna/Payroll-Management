@@ -1,318 +1,316 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
-import { CalendarDays, Pencil, Trash, Plus, X } from "lucide-react";
+import { Plus } from "lucide-react";
 
-// Modal Form Component
-function AddOrEdit({ onSave, onCancel, editData, employees, shifts, departments }) {
-  const [employeeNumber, setEmployeeNumber] = useState(editData?.employeeNumber || "");
-  const [departmentId, setDepartmentId] = useState(editData?.departmentId || "");
-  const [shiftId, setShiftId] = useState(editData?.shiftId || "");
-  const [isDefault, setIsDefault] = useState(editData?.isDefault || false);
-  const [status, setStatus] = useState(editData?.status || "active");
-
-  // Filter employees based on selected department
-  const filteredEmployees = employees.filter(emp => emp.departmentId === parseInt(departmentId));
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!employeeNumber || !departmentId || !shiftId) {
-      return alert("Please fill all required fields");
-    }
-
-    const adminName = sessionStorage.getItem("userNumber");
-
-    const data = {
-      employeeNumber,
-      departmentId,
-      shiftId,
-      isDefault,
-      status,
-      createdBy: editData ? editData.createdBy : adminName,
-      updatedBy: adminName,
-    };
-
-    onSave(data, editData?.allocationId);
-  };
-
-  return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm">
-      <div className="relative max-w-xl w-full bg-white rounded-2xl shadow-xl p-8 border border-gray-200">
-        <button
-          onClick={onCancel}
-          className="absolute top-4 right-4 text-gray-500 hover:text-gray-800"
-        >
-          <X size={22} />
-        </button>
-
-        <div className="flex justify-center mb-6">
-          <div className="bg-green-100 p-4 rounded-full">
-            <CalendarDays className="text-green-600" size={40} />
-          </div>
-        </div>
-
-        <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">
-          {editData ? "Edit Shift Allocation" : "Add New Shift Allocation"}
-        </h2>
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Department */}
-          <div>
-            <label className="block font-medium text-gray-700 mb-2">Department</label>
-            <select
-              value={departmentId}
-              onChange={(e) => {
-                setDepartmentId(e.target.value);
-                setEmployeeNumber(""); // reset employee when department changes
-              }}
-              className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-green-500 outline-none"
-            >
-              <option value="">-- Select Department --</option>
-              {departments.map(d => (
-                <option key={d.departmentId} value={d.departmentId}>
-                  {d.departmentName}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Employee */}
-          <div>
-            <label className="block font-medium text-gray-700 mb-2">Employee</label>
-            <select
-              value={employeeNumber}
-              onChange={(e) => setEmployeeNumber(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-green-500 outline-none"
-            >
-              <option value="">-- Select Employee --</option>
-              {filteredEmployees.map(emp => (
-                <option key={emp.employeeNumber} value={emp.employeeNumber}>
-                  {emp.employeeName} ({emp.employeeNumber})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Shift */}
-          <div>
-            <label className="block font-medium text-gray-700 mb-2">Shift</label>
-            <select
-              value={shiftId}
-              onChange={(e) => setShiftId(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-green-500 outline-none"
-            >
-              <option value="">-- Select Shift --</option>
-              {shifts.map(s => (
-                <option key={s.shiftId} value={s.shiftId}>
-                  {s.shiftName}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* General Shift */}
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="isDefault"
-              checked={isDefault}
-              onChange={() => setIsDefault(!isDefault)}
-            />
-            <label htmlFor="isDefault" className="text-gray-700 font-medium">
-              General Shift (8 hrs)?
-            </label>
-          </div>
-
-          {/* Status */}
-          <div>
-            <label className="block font-medium text-gray-700 mb-2">Status</label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-green-500 outline-none"
-            >
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
-
-          {/* Buttons */}
-          <div className="flex justify-end gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg shadow-md transition"
-            >
-              {editData ? "Update Changes" : "Save"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// Main Component
-function ShiftAllocationMaster() {
-  const [allocations, setAllocations] = useState([]);
-  const [employees, setEmployees] = useState([]);
-  const [departments, setDepartments] = useState([]);
+const ShiftAllocationMaster = () => {
   const [shifts, setShifts] = useState([]);
-  const [search, setSearch] = useState("");
-  const [showForm, setShowForm] = useState(false);
-  const [editData, setEditData] = useState(null);
+  const [departments, setDepartments] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [selectedDepts, setSelectedDepts] = useState([]);
+  const [selectedEmps, setSelectedEmps] = useState([]);
+  const [allocatedShifts, setAllocatedShifts] = useState({});
+  const [existingShifts, setExistingShifts] = useState({});
+  const [showDeptDropdown, setShowDeptDropdown] = useState(false);
+  const [bulkShiftId, setBulkShiftId] = useState(""); // for bulk apply
+  const userNumber = sessionStorage.getItem("userNumber");
+  const dropdownRef = useRef(null);
 
-  // Fetch all data from backend
-  const fetchData = async () => {
-    try {
-      const [allocRes, empRes, deptRes, shiftRes] = await Promise.all([
-        axios.get("http://localhost:5000/api/shiftAllocations"),
-        axios.get("http://localhost:5000/api/employees"),
-        axios.get("http://localhost:5000/api/departments"),
-        axios.get("http://localhost:5000/api/shifts"),
-      ]);
-      setAllocations(allocRes.data);
-      setEmployees(empRes.data);
-      setDepartments(deptRes.data);
-      setShifts(shiftRes.data);
-    } catch (err) {
-      console.error("Error fetching data:", err);
-    }
-  };
-
+  // Fetch shifts, departments
   useEffect(() => {
-    fetchData();
+    axios.get("http://localhost:5000/api/shifts").then(res => setShifts(res.data));
+    axios.get("http://localhost:5000/api/departments").then(res => setDepartments(res.data));
   }, []);
 
-  const filteredData = allocations.filter(
-    a =>
-      a.employee?.employeeName?.toLowerCase().includes(search.toLowerCase()) ||
-      a.department?.departmentName?.toLowerCase().includes(search.toLowerCase()) ||
-      a.shift?.shiftName?.toLowerCase().includes(search.toLowerCase()) ||
-      a.status?.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const handleSave = async (data, allocationId) => {
-    try {
-      if (allocationId) {
-        await axios.put(`http://localhost:5000/api/shiftAllocations/${allocationId}`, data);
-      } else {
-        await axios.post("http://localhost:5000/api/shiftAllocations", data);
-      }
-      fetchData();
-      setShowForm(false);
-      setEditData(null);
-    } catch (err) {
-      console.error("Error saving allocation:", err);
+  // Fetch employees based on selected departments
+  useEffect(() => {
+    if (selectedDepts.length > 0) {
+      axios.post("http://localhost:5000/api/employees/byDepartments", { departments: selectedDepts })
+        .then(res => {
+          setEmployees(res.data);
+          // Set existing shifts
+          const mapping = {};
+          res.data.forEach(e => {
+            mapping[e.employeeNumber] = e.shiftId || "";
+          });
+          setExistingShifts(mapping);
+        });
+    } else { 
+      setEmployees([]);
+      setExistingShifts({});
     }
+    setSelectedEmps([]);
+    setAllocatedShifts({});
+  }, [selectedDepts]);
+
+  const toggleDept = (deptId) => {
+    setSelectedDepts(prev =>
+      prev.includes(deptId) ? prev.filter(id => id !== deptId) : [...prev, deptId]
+    );
   };
 
-  const handleEdit = (allocation) => {
-    setEditData(allocation);
-    setShowForm(true);
-  };
-
-  const handleDelete = async (allocationId) => {
-    if (!window.confirm("Are you sure you want to delete this allocation?")) return;
-    try {
-      const updatedBy = sessionStorage.getItem("userNumber");
-      await axios.delete(`http://localhost:5000/api/shiftAllocations/${allocationId}`, {
-        data: { updatedBy },
+  const toggleEmp = (empId) => {
+    if (selectedEmps.includes(empId)) {
+      setSelectedEmps(prev => prev.filter(id => id !== empId));
+      setAllocatedShifts(prev => {
+        const copy = { ...prev };
+        delete copy[empId];
+        return copy;
       });
-      fetchData();
-    } catch (err) {
-      console.error("Error deleting allocation:", err);
+    } else {
+      setSelectedEmps(prev => [...prev, empId]);
+      setAllocatedShifts(prev => ({ ...prev, [empId]: existingShifts[empId] || "" }));
     }
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDeptDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Apply bulk shift to all selected employees
+  const applyBulkShifts = () => {
+    if (!bulkShiftId) return;
+    const updated = {};
+    selectedEmps.forEach(empId => {
+      updated[empId] = bulkShiftId;
+    });
+    setAllocatedShifts(prev => ({ ...prev, ...updated }));
+  };
+
+  // Save allocations
+  const handleSave = async () => {
+    if (selectedEmps.length === 0) {
+      alert("Please select employees");
+      return;
+    }
+    const payload = selectedEmps.map(empId => ({
+      employeeNumber: empId,
+      shiftId: allocatedShifts[empId] || "",
+      updatedBy: userNumber,
+    })).filter(item => item.shiftId); // Only send if shift is allocated
+
+    if (payload.length === 0) {
+      alert("No valid shift allocations to save");
+      return;
+    }
+
+    try {
+      await axios.post("http://localhost:5000/api/shiftAllocation/allocate", { allocations: payload });
+      alert("✅ Shift allocations saved successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("❌ Error saving shift allocations");
+    }
+  };
+
+  const getShiftName = (shiftId) => {
+    const shift = shifts.find(s => s.shiftId === shiftId);
+    return shift ? shift.shiftName : "--No Shift--";
   };
 
   return (
-    <div className="min-h-screen p-6 flex flex-col">
-      <div className="flex justify-between items-center mb-6">
-        <input
-          type="text"
-          placeholder="Search allocations..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="border border-gray-300 bg-white text-black rounded-lg px-4 py-2 w-1/3 outline-none"
-        />
-        <button
-          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg shadow-md"
-          onClick={() => {
-            setShowForm(true);
-            setEditData(null);
-          }}
+    <div className="p-6 max-w-5xl mx-auto space-y-6">
+      <h1 className="text-2xl font-bold">Shift Allocation Master</h1>
+
+      {/* Departments Dropdown */}
+      <div className="relative" ref={dropdownRef}>
+        <label className="block font-medium mb-2">Departments</label>
+        <div
+          className="border rounded-lg p-2 cursor-pointer flex justify-between items-center"
+          onClick={() => setShowDeptDropdown(prev => !prev)}
         >
-          <Plus size={18} /> Add Allocation
-        </button>
-      </div>
+          <span>{selectedDepts.length > 0 ? `${selectedDepts.length} selected` : "Select Departments"}</span>
+          <Plus size={18} />
+        </div>
 
-      <div className="overflow-y-auto border border-gray-200 rounded-lg shadow-sm" style={{ maxHeight: "320px" }}>
-        <table className="w-full text-left text-sm">
-          <thead className="sticky top-0">
-            <tr className="bg-gradient-to-r from-green-600 to-emerald-600 text-white">
-              <th className="py-3 px-4">ID</th>
-              <th className="py-3 px-4">Employee</th>
-              <th className="py-3 px-4">Department</th>
-              <th className="py-3 px-4">Shift</th>
-              <th className="py-3 px-4">General?</th>
-              <th className="py-3 px-4">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredData.map(a => (
-              <tr key={a.allocationId} className="border-t hover:bg-gray-50">
-                <td className="py-2 px-4">{a.allocationId}</td>
-                <td className="py-2 px-4">{a.employee?.employeeName || a.employeeNumber}</td>
-                <td className="py-2 px-4">{a.department?.departmentName||"-"}</td>
-                <td className="py-2 px-4">{a.shift?.shiftName}</td>
-                <td className="py-2 px-4">{a.isDefault ? "Yes" : "No"}</td>
-                <td className="py-2 px-4 flex gap-2">
-                  <button
-                    className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-md"
-                    onClick={() => handleEdit(a)}
-                  >
-                    <Pencil size={16} />
-                  </button>
-                  <button
-                    className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md"
-                    onClick={() => handleDelete(a.allocationId)}
-                  >
-                    <Trash size={16} />
-                  </button>
-                </td>
-              </tr>
+        {showDeptDropdown && (
+          <div className="absolute bg-white border rounded-lg mt-1 w-full max-h-40 overflow-y-auto z-20 shadow-lg">
+            <div className="p-2 border-b">
+              <input
+                type="checkbox"
+                checked={selectedDepts.length === departments.length && departments.length > 0}
+                onChange={() =>
+                  setSelectedDepts(
+                    selectedDepts.length === departments.length
+                      ? []
+                      : departments.map(d => d.departmentId)
+                  )
+                }
+              />
+              <span className="ml-2 font-medium">Select All</span>
+            </div>
+            {departments.map(dept => (
+              <div key={dept.departmentId} className="p-2">
+                <input
+                  type="checkbox"
+                  checked={selectedDepts.includes(dept.departmentId)}
+                  onChange={() => toggleDept(dept.departmentId)}
+                />
+                <span className="ml-2">{dept.departmentName}</span>
+              </div>
             ))}
-            {filteredData.length === 0 && (
-              <tr>
-                <td colSpan="7" className="text-center py-4 text-gray-500">
-                  No allocations found
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+          </div>
+        )}
       </div>
 
-      {showForm && (
-        <AddOrEdit
-          onSave={handleSave}
-          onCancel={() => {
-            setShowForm(false);
-            setEditData(null);
-          }}
-          editData={editData}
-          employees={employees}
-          departments={departments}
-          shifts={shifts}
-        />
+      {/* Selected Employees Table */}
+      <div className="border rounded-lg p-4">
+        <h2 className="text-lg font-bold mb-2">Employees</h2>
+
+        {/* Bulk shift dropdown */}
+        {selectedEmps.length > 0 && (
+          <div className="mb-4 flex gap-2 items-center">
+            <select
+              value={bulkShiftId}
+              onChange={(e) => setBulkShiftId(e.target.value)}
+              className="border rounded px-2 py-1"
+            >
+              <option value="">Select Shift for Bulk</option>
+              {shifts.map(shift => (
+                <option key={shift.shiftId} value={shift.shiftId}>
+                  {shift.shiftName}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={applyBulkShifts}
+              className="bg-green-500 hover:bg-green-600 text-white px-4 py-1 rounded"
+            >
+              Apply to All
+            </button>
+          </div>
+        )}
+
+        <div className="max-h-60 overflow-y-auto">
+          <table className="w-full border-collapse border">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="border p-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedEmps.length === employees.length && employees.length > 0}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedEmps(employees.map(emp => emp.employeeNumber));
+                        const allShifts = {};
+                        employees.forEach(emp => {
+                          allShifts[emp.employeeNumber] = existingShifts[emp.employeeNumber] || "";
+                        });
+                        setAllocatedShifts(allShifts);
+                      } else {
+                        setSelectedEmps([]);
+                        setAllocatedShifts({});
+                      }
+                    }}
+                  />
+                </th>
+                <th className="border p-2">Employee Name</th>
+                <th className="border p-2">Employee Number</th>
+                <th className="border p-2">Allocated Shift</th>
+                <th className="border p-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...employees].sort((a, b) => {
+                const aSel = selectedEmps.includes(a.employeeNumber);
+                const bSel = selectedEmps.includes(b.employeeNumber);
+                return bSel - aSel;
+              }).map(emp => {
+                const isSelected = selectedEmps.includes(emp.employeeNumber);
+                const currentShiftId = allocatedShifts[emp.employeeNumber] || existingShifts[emp.employeeNumber] || "";
+                return (
+                  <tr key={emp.employeeNumber} className="hover:bg-gray-50">
+                    <td className="border p-2">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleEmp(emp.employeeNumber)}
+                      />
+                    </td>
+                    <td className="border p-2">{emp.employeeName}</td>
+                    <td className="border p-2">{emp.employeeNumber}</td>
+                    <td className="border p-2">
+                      <select
+                        value={currentShiftId}
+                        onChange={(e) =>
+                          setAllocatedShifts((prev) => ({
+                            ...prev,
+                            [emp.employeeNumber]: e.target.value,
+                          }))
+                        }
+                        disabled={!isSelected}
+                        className="border rounded px-2 py-1 w-full disabled:bg-gray-100"
+                      >
+                        <option value="">--Select Shift--</option>
+                        {shifts.map((s) => (
+                          <option key={s.shiftId} value={s.shiftId}>
+                            {s.shiftName}
+                          </option>
+                        ))}
+                      </select>
+                      {!isSelected && currentShiftId && (
+                        <span className="text-sm text-gray-500 block mt-1">
+                          Current: {getShiftName(currentShiftId)}
+                        </span>
+                      )}
+                    </td>
+                    <td className="border p-2 flex gap-2">
+                      <button
+                        className="bg-blue-500 hover:bg-blue-600 text-white p-1 rounded"
+                        onClick={() => {
+                          // Optional: toggle edit, but since always editable when selected, maybe remove or repurpose
+                          if (!isSelected) toggleEmp(emp.employeeNumber);
+                        }}
+                        disabled={isSelected}
+                      >
+                        {isSelected ? "Editing" : "Edit"}
+                      </button>
+                      <button
+                        className="bg-red-500 hover:bg-red-600 text-white p-1 rounded"
+                        onClick={() => {
+                          setAllocatedShifts(prev => {
+                            const copy = { ...prev };
+                            delete copy[emp.employeeNumber];
+                            return copy;
+                          });
+                          setSelectedEmps(prev => prev.filter(id => id !== emp.employeeNumber));
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {employees.length === 0 && (
+                <tr>
+                  <td colSpan="5" className="text-center p-2 text-gray-500">
+                    No employees found. Select departments first.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Save Button */}
+      {selectedEmps.length > 0 && (
+        <button
+          onClick={handleSave}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded"
+        >
+          Save Allocations
+        </button>
       )}
     </div>
   );
-}
+};
 
 export default ShiftAllocationMaster;

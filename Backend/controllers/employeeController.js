@@ -97,7 +97,6 @@ exports.updateEmployee = async (req, res) => {
   try {
     const { employeeNumber } = req.params;
     const { password, updatedBy } = req.body;
-
     // Update employee
     const [updated] = await Employee.update(req.body, { where: { employeeNumber } });
     if (!updated) return res.status(404).json({ error: "Employee not found" });
