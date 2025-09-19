@@ -200,9 +200,6 @@ useEffect(() => {
           axios.get("http://localhost:5000/api/shifts"),
         ]);
 
-
-
-
         setOptions({
           designations: designations.data || [],
           grades: grades.data || [],
@@ -732,26 +729,20 @@ useEffect(() => {
                   </select>
                 </div>
 
-
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Shift
                   </label>
-                  <select
-                    name="shiftId"
-                    value={formData.shiftId}
-                    onChange={handleChange}
-                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors bg-white h-12"
-                  >
-                    <option value="">Select Shift</option>
-                    {options.shifts.map((s) => (
-                      <option key={s.shiftId} value={s.shiftId}>
-                        {s.shiftName}
-                      </option>
-                    ))}
-                  </select>
+                 {/* fixed input box that only shows shiftName */}
+                <input
+                  type="text"
+                  name="shiftName"
+                  value={
+                    options.shifts.find(s => s.shiftId === formData.shiftId)?.shiftName || ""
+                  }
+                  disabled
+                  className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors bg-white h-12"
+                />
                 </div>
               </div>
             )}
@@ -1126,7 +1117,7 @@ useEffect(() => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Bus Route
+                    Bus Number
                   </label>
                   <select
                     name="busId"
