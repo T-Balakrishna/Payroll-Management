@@ -30,7 +30,7 @@ function AddOrEdit({ onSave, onCancel, editData }) {
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm">
-      <div className="relative max-w-xl w-full bg-white rounded-2xl shadow-xl px-8 border border-gray-200">
+      <div className="relative max-w-xl w-full bg-white rounded-2xl shadow-xl p-8 border border-gray-200">
         {/* Close Button */}
         <button
           onClick={onCancel}

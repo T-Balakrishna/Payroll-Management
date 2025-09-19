@@ -153,16 +153,16 @@ const EmployeeProfilePage = () => {
           password: res.data.password,
           departmentId: res.data.departmentId,
         }));
-        const res1 = await axios.get(`http://localhost:5000/api/employees/full/${userNumber}`)
-        if(!res1){
-          const res2 = await axios.post(`http://localhost:5000/api/employees`,
-            {
-              employeeMail: res.data.employeeMail,
-              employeeNumber: res.data.employeeNumber,
-              password: res.data.password,
-              departmentId: res.data.departmentId,
-          })
-       }
+      //   const res1 = await axios.get(`http://localhost:5000/api/employees/full/${userNumber}`)
+      //   if(!res1){
+      //     const res2 = await axios.post(`http://localhost:5000/api/employees`,
+      //       {
+      //         employeeMail: res.data.employeeMail,
+      //         employeeNumber: res.data.employeeNumber,
+      //         password: res.data.password,
+      //         departmentId: res.data.departmentId,
+      //     })
+      //  }
       } catch (err) {
         console.error("Error fetching user-mapped employee data:", err);
       }

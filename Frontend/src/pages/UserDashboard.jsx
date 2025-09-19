@@ -177,7 +177,7 @@ export default function DashboardPage() {
 
             {/* Welcome Text */}
             <div className="text-center">
-              <h1 className="text-2xl font-bold text-gray-900">Welcome back, {userName}</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Welcome back, {userName === "null null" ? "New User" : userName}</h1>
               <p className="text-gray-600">Have a great day at work</p>
             </div>
 

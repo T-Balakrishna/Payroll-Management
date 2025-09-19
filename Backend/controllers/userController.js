@@ -29,7 +29,16 @@ exports.createUser = async (req, res) => {
       createdBy
     });
 
-    res.status(201).json({ message: "User created", user: newUser });
+    const newEmployee = await Employee.create({
+      employeeMail :userMail,
+      employeeName:userName,
+      employeeNumber:userNumber,
+      departmentId:departmentId,
+      password: hashedPassword,
+      createdBy
+    });
+
+    res.status(201).json({ message: "User & Employee created", user: newUser , employee : newEmployee});
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
