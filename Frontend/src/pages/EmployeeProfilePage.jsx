@@ -9,9 +9,6 @@ const EmployeeProfilePage = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
 
-
-
-
   const [options, setOptions] = useState({
     designations: [],
     grades: [],
@@ -108,38 +105,38 @@ const EmployeeProfilePage = () => {
   };
 
 
-
-
   useEffect(() => {
     const fetchUserMappedData = async () => {
       try {
         const userNumber = sessionStorage.getItem("userNumber");
         if (!userNumber) return;
-        const res = await axios.get(`http://localhost:5000/api/employees/fromUser/${userNumber}`);
-        setFormData((prev) => ({
-          ...prev,
-          employeeMail: res.data.employeeMail,
-          employeeNumber: res.data.employeeNumber,
-          password: res.data.password,
-          departmentId: res.data.departmentId,
-        }));
-        // const toPostemployeeNumber = res.employeeNumber;
-        const res2 = await axios.post(`http://localhost:5000/api/employees`,
-          {
-            employeeMail: res.data.employeeMail,
-            employeeNumber: res.data.employeeNumber,
-            password: res.data.password,
-            departmentId: res.data.departmentId,
-        }
-        );
-      } catch (err) {
-        console.error("Error fetching user-mapped employee data:", err);
+      // Get mapped employee
+      const res = await axios.get(
+        `http://localhost:5000/api/employees/fromUser/${userNumber}`
+      );
+
+      setFormData((prev) => ({
+        ...prev,
+        employeeMail: res.data.employeeMail,
+        employeeNumber: res.data.employeeNumber,
+        password: res.data.password,
+        departmentId: res.data.departmentId,
+      }));
+      // Check if employee already exists
+      const check = await axios.get(
+        `http://localhost:5000/api/employees/full/${res.data.employeeNumber}`
+      );
+
+      if (!check.data) {
+        // If employee not found → create
+        await axios.post("http://localhost:5000/api/employees", res.data);
       }
-    };
-    fetchUserMappedData();
-  }, []);
-
-
+    } catch (err) {
+      console.error("Error fetching user-mapped employee data:", err);
+    }
+  };
+  fetchUserMappedData();
+}, []);
 
 
   useEffect(() => {
@@ -168,13 +165,8 @@ const EmployeeProfilePage = () => {
         console.error("Error fetching existing employee data:", err);
       }
     };
-
-
-
-
     fetchExistingEmployeeData();
   }, []);
-
 
 
 
@@ -270,7 +262,6 @@ const EmployeeProfilePage = () => {
 
     try {
       const employeeNumber = sessionStorage.getItem("userNumber");
-      console.log(employeeNumber);
       await axios.put(`http://localhost:5000/api/employees/${employeeNumber}`, filteredData);
       alert("Employee saved successfully!");
     } catch (error) {
@@ -313,8 +304,8 @@ const EmployeeProfilePage = () => {
                 <button
                   key={tab.id}
                   className={`flex-shrink-0 px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-1 text-sm ${activeTab === tab.id
-                      ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                    ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                     }`}
                   onClick={() => setActiveTab(tab.id)}
                 >

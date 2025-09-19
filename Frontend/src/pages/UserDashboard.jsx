@@ -247,7 +247,7 @@ export default function DashboardPage() {
 
       {/* Modal */}
       {modalContent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           {/* Modal Container */}
           <div className="bg-white w-full max-w-6xl h-full max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl relative">
             {/* Close Button */}

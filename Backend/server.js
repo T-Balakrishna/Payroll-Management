@@ -35,9 +35,9 @@ const leaveTypeRoute = require('./routes/leaveTypeRoute');
 const punchRoute = require('./routes/punchRoute');
 const religionRoute = require('./routes/religionRoute');
 const shiftRoute = require('./routes/shiftRoute');
-const shiftAllocationRoute = require('./routes/shiftAllocationRoute');
 const userRoute = require('./routes/userRoute');  
 const authRoute = require('./routes/authRoute');  
+const shiftAllocationRoutes = require("./routes/shiftAllocationRoutes");
 
 // Services
 const processAttendance = require("./services/processAttendance");
@@ -61,9 +61,9 @@ app.use('/api/leaveTypes', leaveTypeRoute);
 app.use('/api/punches', punchRoute);
 app.use('/api/religions', religionRoute);
 app.use('/api/shifts', shiftRoute);
-app.use('/api/shiftAllocations', shiftAllocationRoute);
 app.use('/api/users', userRoute);
 app.use('/api/auth', authRoute);
+app.use("/api/shiftAllocation", shiftAllocationRoutes);
 
 // Import models for Sequelize
 require('./models/Attendance');
@@ -84,7 +84,6 @@ require('./models/LeaveType');
 require('./models/Punch');
 require('./models/Religion');
 require('./models/Shift');
-require('./models/ShiftAllocation');
 require('./models/User');
 
 // ✅ Start server
