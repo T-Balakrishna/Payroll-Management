@@ -37,6 +37,7 @@ const religionRoute = require('./routes/religionRoute');
 const shiftRoute = require('./routes/shiftRoute');
 const userRoute = require('./routes/userRoute');  
 const authRoute = require('./routes/authRoute');  
+const shiftAllocationRoutes = require("./routes/shiftAllocationRoutes");
 
 // Services
 const processAttendance = require("./services/processAttendance");
@@ -62,6 +63,7 @@ app.use('/api/religions', religionRoute);
 app.use('/api/shifts', shiftRoute);
 app.use('/api/users', userRoute);
 app.use('/api/auth', authRoute);
+app.use("/api/shiftAllocation", shiftAllocationRoutes);
 
 // Import models for Sequelize
 require('./models/Attendance');
@@ -91,7 +93,7 @@ const startServer = async () => {
     console.log("✅ DB Connected successfully");
 
     // ⚠️ safer: alter = keep data, adjust schema if needed
-    await seq.sync({ alter:false});+
+    await seq.sync({ alter:true});
     console.log("✅ Tables synced");
 
     app.listen(5000, () => {

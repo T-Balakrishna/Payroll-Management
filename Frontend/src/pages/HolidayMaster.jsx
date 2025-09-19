@@ -273,7 +273,7 @@ function HolidayPlans() {
           <div className="overflow-y-auto border border-gray-200 rounded-lg shadow-sm" style={{ maxHeight: "280px" }}>
             <table className="w-full text-left text-sm">
               <thead className="sticky top-0">
-                <tr className="bg-gradient-to-r from-blue-600 to-emerald-600 text-white">
+                <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
                   <th className="py-3 px-4">Date</th>
                   <th className="py-3 px-4">Description</th>
                   <th className="py-3 px-4">Actions</th>
