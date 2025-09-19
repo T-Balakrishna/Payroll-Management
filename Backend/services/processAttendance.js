@@ -59,7 +59,14 @@ async function processAttendance() {
         workedHours >= shift.shiftMinHours
       ) {
         status = "Present";
-      } else if (workedHours >= shift.shiftMinHours * 0.5) {
+      } 
+      else if(workedHours >= shift.shiftMinHours - 1) {
+        status="Present"
+      }
+      else if(workedHours >= shift.shiftMinHours - 2) {
+        status="Present"
+      }
+      else if (workedHours >= shift.shiftMinHours * 0.5) {
         status = "Half-Day";
       }
 
