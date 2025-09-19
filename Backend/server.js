@@ -64,6 +64,8 @@ app.use('/api/shifts', shiftRoute);
 app.use('/api/users', userRoute);
 app.use('/api/auth', authRoute);
 app.use("/api/shiftAllocation", shiftAllocationRoutes);
+app.use("/uploads", express.static("uploads"));
+
 
 // Import models for Sequelize
 require('./models/Attendance');
@@ -93,7 +95,7 @@ const startServer = async () => {
     console.log("✅ DB Connected successfully");
 
     // ⚠️ safer: alter = keep data, adjust schema if needed
-    await seq.sync({ alter:true});
+    await seq.sync({ force:false});
     console.log("✅ Tables synced");
 
     app.listen(5000, () => {

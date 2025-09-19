@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const Department = require('../models/Department')
+const Employee = require('../models/Employee')
 const bcrypt = require('bcryptjs');
 const {Op} = require('sequelize')
 
@@ -56,25 +57,44 @@ exports.getUserById = async (req, res) => {
 };
 
 // Update user
+// userController.js
+const bcrypt = require("bcryptjs");
+const User = require("../models/User");
+const Employee = require("../models/Employee");
+
 exports.updateUser = async (req, res) => {
   try {
-    const { userName, userNumber, role, departmentId, password } = req.body;
+    const { userNumber } = req.params;
+    const { password, updatedBy } = req.body;
 
-    const user = await User.findByPk(req.params.id);
-    if (!user) return res.status(404).json({ error: "User not found" });
+    // Update user first
+    const [updated] = await User.update(req.body, { where: { userNumber } });
+    if (!updated) return res.status(404).json({ error: "User not found" });
 
-    // If password is provided, hash it
-    let updatedData = { userName, userNumber, role, departmentId };
+    const updatedUser = await User.findOne({ where: { userNumber } });
+
+    // 🔑 Only check password change
     if (password) {
-      updatedData.password = await bcrypt.hash(password, 10);
+      const isSamePassword = await bcrypt.compare(password, updatedUser.password);
+
+      if (!isSamePassword) {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        await updatedUser.update({ password: hashedPassword, updatedBy });
+
+        // 🔄 Also update Employee table
+        const employee = await Employee.findOne({ where: { employeeNumber: userNumber } });
+        if (employee) {
+          await employee.update({ password: hashedPassword, updatedBy });
+        }
+      }
     }
 
-    await user.update(updatedData);
-    res.json({ message: "User updated", user });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.json(updatedUser);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
+
 
 // Delete user
 exports.deleteUser = async (req, res) => {
@@ -83,7 +103,11 @@ exports.deleteUser = async (req, res) => {
     if (!user) return res.status(404).json({ error: "User not found" });
 
     await user.update({ status: 'inactive', updatedBy: req.body.updatedBy });
-    res.json({ message: "User deleted" });
+    const employee = await Employee.findOne({where:{employeeNumber : user.userNumber}});
+    if (!employee) return res.status(404).json({ error: "Employee not found" });
+
+    await employee.update({ status: 'inactive', updatedBy: req.body.updatedBy });
+    res.json({ message: "Employee deleted" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
