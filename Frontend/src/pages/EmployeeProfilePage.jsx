@@ -115,15 +115,7 @@ const EmployeeProfilePage = () => {
       try {
         const userNumber = sessionStorage.getItem("userNumber");
         if (!userNumber) return;
-
-
-
-
         const res = await axios.get(`http://localhost:5000/api/employees/fromUser/${userNumber}`);
-
-
-
-
         setFormData((prev) => ({
           ...prev,
           employeeMail: res.data.employeeMail,
@@ -131,14 +123,19 @@ const EmployeeProfilePage = () => {
           password: res.data.password,
           departmentId: res.data.departmentId,
         }));
+        // const toPostemployeeNumber = res.employeeNumber;
+        const res2 = await axios.post(`http://localhost:5000/api/employees`,
+          {
+            employeeMail: res.data.employeeMail,
+            employeeNumber: res.data.employeeNumber,
+            password: res.data.password,
+            departmentId: res.data.departmentId,
+        }
+        );
       } catch (err) {
         console.error("Error fetching user-mapped employee data:", err);
       }
     };
-
-
-
-
     fetchUserMappedData();
   }, []);
 
@@ -150,17 +147,9 @@ const EmployeeProfilePage = () => {
       try {
         const employeeNumber = sessionStorage.getItem("userNumber");
         if (!employeeNumber) return;
-
-
-
-
         const res = await axios.get(
           `http://localhost:5000/api/employees/full/${employeeNumber}`
         );
-
-
-
-
         if (res.data) {
           const filteredData = Object.fromEntries(
             Object.entries(res.data).filter(
@@ -170,10 +159,6 @@ const EmployeeProfilePage = () => {
                 !["employeeNumber", "employeeMail", "departmentId", "DOJ"].includes(key)
             )
           );
-
-
-
-
           setFormData((prev) => ({
             ...prev,
             ...filteredData,
