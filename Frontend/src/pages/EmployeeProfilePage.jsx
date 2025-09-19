@@ -501,10 +501,34 @@ useEffect(() => {
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
                   />
                 </div>
+            <div className="col-span-2 flex justify-center">
+            <div className="w-full max-w-sm">
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                Employee Photo <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="file"
+                name="photo"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    if (file.size > 2 * 1024 * 1024) {
+                      alert("File size must be less than 2MB");
+                      e.target.value = null;
+                      return;
+                    }
+                    setFormData((prev) => ({ ...prev, photo: file }));
+                  }
+                }}
+                className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
+              />
+            </div>
+          </div>
+
+
               </div>
             )}
-
-
 
 
             {/* Address */}

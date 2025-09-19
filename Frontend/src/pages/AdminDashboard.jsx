@@ -179,25 +179,22 @@ const Admin = () => {
       )}
 
       {/* Sidebar */}
-      <div
+        <div
         className={`fixed inset-y-0 left-0 z-50
         ${sidebarCollapsed ? 'w-16' : 'w-64'}
         bg-white shadow-lg transition-all duration-300 transform
         ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-        lg:translate-x-0`}
+        lg:translate-x-0 flex flex-col`}
       >
+        {/* Header (logo + collapse buttons) */}
         <div className="flex items-center justify-between h-14 lg:h-16 px-4 border-b border-gray-200">
           {!sidebarCollapsed && <h1 className="text-lg lg:text-xl font-bold text-gray-900 truncate">Admin Panel</h1>}
-
-          {/* Collapse (Desktop) */}
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             className="hidden lg:block p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
           >
             {sidebarCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
           </button>
-
-          {/* Close (Mobile) */}
           <button
             onClick={() => setMobileMenuOpen(false)}
             className="lg:hidden p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
@@ -206,7 +203,8 @@ const Admin = () => {
           </button>
         </div>
 
-        <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
+        {/* Menu (scrollable) */}
+        <nav className="flex-1 overflow-y-auto px-2 py-4 space-y-1">
           {menuItems.map(item => (
             <button
               key={item.id}
@@ -224,7 +222,7 @@ const Admin = () => {
             </button>
           ))}
 
-          {/* Auth Items */}
+          {/* Auth Items (Logout) */}
           <div className="pt-4 mt-4 border-t border-gray-200">
             {authItems.map(item => (
               <button

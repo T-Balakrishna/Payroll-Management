@@ -245,7 +245,7 @@ function ShiftMaster() {
 
 
   return (
-    <div className="min-h-screen p-6 flex flex-col">
+    <div className="h-full p-6 flex flex-col">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <input
