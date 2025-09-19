@@ -176,13 +176,16 @@ export default function AddUser() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    axios
-      .get("http://localhost:5000/api/departments")
-      .then((res) => setDepartments(res.data))
-      .catch(console.error);
+      axios
+        .get("http://localhost:5000/api/departments")
+        .then((res) => {
+          setDepartments(res.data);
+          
+        })
+        .catch(console.error);
 
-    fetchUsers();
-  }, []);
+      fetchUsers();
+    }, []);
 
   const fetchUsers = async () => {
     try {
@@ -241,7 +244,7 @@ export default function AddUser() {
       }
 
       if (formData.userId) {
-        await axios.put(`http://localhost:5000/api/users/${formData.userId}`, {
+        await axios.put(`http://localhost:5000/api/users/${formData.userNumber}`, {
           ...formData,
           updatedBy: userNumber,
         });

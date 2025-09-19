@@ -18,12 +18,12 @@ export default function DashboardPage() {
   const userNumber = sessionStorage.getItem("userNumber");
   const[userName,setUserName]=useState("New User") 
   useEffect(() => {
-    console.log(userNumber);
+    // console.log(userNumber);
     
       const getName = async () => {
         try {
           const res = await axios.get(`http://localhost:5000/api/employees/getName/${userNumber}`);
-          console.log(res);          
+          // console.log(res);          
           setUserName(res.data.employeeName); 
         } catch (err) {
           console.error("❌ Error fetching Name:", err);

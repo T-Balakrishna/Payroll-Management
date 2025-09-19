@@ -58,14 +58,12 @@ exports.getUserById = async (req, res) => {
 
 // Update user
 // userController.js
-const bcrypt = require("bcryptjs");
-const User = require("../models/User");
-const Employee = require("../models/Employee");
 
 exports.updateUser = async (req, res) => {
   try {
     const { userNumber } = req.params;
     const { password, updatedBy } = req.body;
+  
 
     // Update user first
     const [updated] = await User.update(req.body, { where: { userNumber } });
@@ -82,7 +80,7 @@ exports.updateUser = async (req, res) => {
         await updatedUser.update({ password: hashedPassword, updatedBy });
 
         // 🔄 Also update Employee table
-        const employee = await Employee.findOne({ where: { employeeNumber: userNumber } });
+        const employee = await Employee.findOne({ where: { employeeNumber: updatedUser.userNumber } });
         if (employee) {
           await employee.update({ password: hashedPassword, updatedBy });
         }
