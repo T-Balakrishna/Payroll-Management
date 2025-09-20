@@ -5,9 +5,14 @@ import axios from "axios";
 
 
 
+
+
+
+
 const EmployeeProfilePage = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
+
 
   const [options, setOptions] = useState({
     designations: [],
@@ -21,6 +26,10 @@ const EmployeeProfilePage = () => {
     employees: [],
     shifts: [],
   });
+
+
+
+
 
 
 
@@ -79,7 +88,15 @@ const EmployeeProfilePage = () => {
 
 
 
+
+
+
+
   const [departments, setDepartments] = useState([]);
+
+
+
+
 
 
 
@@ -99,10 +116,54 @@ const EmployeeProfilePage = () => {
 
 
 
+
+
+
+
   const getDepartmentName = (id) => {
     const dept = departments.find((d) => d.departmentId === id);
     return dept ? dept.departmentName : id;
   };
+
+
+
+
+  //   useEffect(() => {
+  //     const fetchUserMappedData = async () => {
+  //       try {
+  //         const userNumber = sessionStorage.getItem("userNumber");
+  //         if (!userNumber) return;
+  //       // Get mapped employee
+  //       const res = await axios.get(
+  //         `http://localhost:5000/api/employees/fromUser/${userNumber}`
+  //       );
+
+  //       console.log("First "+formData.employeeNumber);
+  //       setFormData((prev) => ({
+  //         ...prev,
+  //         employeeMail: res.data.employeeMail,
+  //         employeeNumber: res.data.employeeNumber,
+  //         password: res.data.password,
+  //         departmentId: res.data.departmentId,
+  //       }));
+  //       // Check if employee already exists
+  //       const check = await axios.get(
+  //         `http://localhost:5000/api/employees/full/${res.data.employeeNumber}`
+  //       );
+
+
+
+
+  //       if (!check.data) {
+  //         // If employee not found → create
+  //         await axios.post("http://localhost:5000/api/employees", res.data);
+  //       }
+  //     } catch (err) {
+  //       console.error("Error fetching user-mapped employee data:", err);
+  //     }
+  //   };
+  //   fetchUserMappedData();
+  // }, []);
 
 
   useEffect(() => {
@@ -110,33 +171,32 @@ const EmployeeProfilePage = () => {
       try {
         const userNumber = sessionStorage.getItem("userNumber");
         if (!userNumber) return;
-      // Get mapped employee
-      const res = await axios.get(
-        `http://localhost:5000/api/employees/fromUser/${userNumber}`
-      );
-
-      setFormData((prev) => ({
-        ...prev,
-        employeeMail: res.data.employeeMail,
-        employeeNumber: res.data.employeeNumber,
-        password: res.data.password,
-        departmentId: res.data.departmentId,
-      }));
-      // Check if employee already exists
-      const check = await axios.get(
-        `http://localhost:5000/api/employees/full/${res.data.employeeNumber}`
-      );
-
-      if (!check.data) {
-        // If employee not found → create
-        await axios.post("http://localhost:5000/api/employees", res.data);
+        const res = await axios.get(`http://localhost:5000/api/employees/fromUser/${userNumber}`);
+        setFormData((prev) => ({
+          ...prev,
+          employeeMail: res.data.employeeMail,
+          employeeNumber: res.data.employeeNumber,
+          password: res.data.password,
+          departmentId: res.data.departmentId,
+        }));
+        //   const res1 = await axios.get(`http://localhost:5000/api/employees/full/${userNumber}`)
+        //   if(!res1){
+        //     const res2 = await axios.post(`http://localhost:5000/api/employees`,
+        //       {
+        //         employeeMail: res.data.employeeMail,
+        //         employeeNumber: res.data.employeeNumber,
+        //         password: res.data.password,
+        //         departmentId: res.data.departmentId,
+        //     })
+        //  }
+      } catch (err) {
+        console.error("Error fetching user-mapped employee data:", err);
       }
-    } catch (err) {
-      console.error("Error fetching user-mapped employee data:", err);
-    }
-  };
-  fetchUserMappedData();
-}, []);
+    };
+    fetchUserMappedData();
+  }, []);
+
+
 
 
   useEffect(() => {
@@ -170,6 +230,9 @@ const EmployeeProfilePage = () => {
 
 
 
+
+
+
   useEffect(() => {
     const fetchOptions = async () => {
       try {
@@ -197,6 +260,13 @@ const EmployeeProfilePage = () => {
           axios.get("http://localhost:5000/api/shifts"),
         ]);
 
+
+
+
+
+
+
+
         setOptions({
           designations: designations.data || [],
           grades: grades.data || [],
@@ -217,8 +287,16 @@ const EmployeeProfilePage = () => {
 
 
 
+
+
+
+
     fetchOptions();
   }, []);
+
+
+
+
 
 
 
@@ -234,8 +312,16 @@ const EmployeeProfilePage = () => {
 
 
 
+
+
+
+
   const handleSave = async () => {
     const requiredFields = ["firstName", "lastName", "departmentId", "DOB", "employeeNumber"];
+
+
+
+
 
 
 
@@ -250,9 +336,17 @@ const EmployeeProfilePage = () => {
 
 
 
+
+
+
+
     const filteredData = Object.fromEntries(
       Object.entries(formData).filter(([_, value]) => value !== "")
     );
+
+
+
+
 
 
 
@@ -270,6 +364,10 @@ const EmployeeProfilePage = () => {
 
 
 
+
+
+
+
   const tabs = [
     { id: "overview", label: "Overview", icon: "👤" },
     { id: "basic", label: "Basic", icon: "📝" },
@@ -281,6 +379,10 @@ const EmployeeProfilePage = () => {
     { id: "exit", label: "Exit", icon: "🚪" },
     { id: "extra", label: "Additional", icon: "📋" },
   ];
+
+
+
+
 
 
 
@@ -318,6 +420,10 @@ const EmployeeProfilePage = () => {
 
 
 
+
+
+
+
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-2xl shadow-xl border border-slate-200 flex flex-col">
@@ -343,6 +449,10 @@ const EmployeeProfilePage = () => {
 
 
 
+
+
+
+
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Employee Number
@@ -360,6 +470,10 @@ const EmployeeProfilePage = () => {
 
 
 
+
+
+
+
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Department
@@ -373,6 +487,10 @@ const EmployeeProfilePage = () => {
                  cursor-not-allowed focus:outline-none focus:border-blue-500 transition-colors h-12"
                   />
                 </div>
+
+
+
+
 
 
 
@@ -395,7 +513,15 @@ const EmployeeProfilePage = () => {
 
 
 
+
+
+
+
             )}
+
+
+
+
 
 
 
@@ -423,6 +549,10 @@ const EmployeeProfilePage = () => {
 
 
 
+
+
+
+
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     First Name <span className="text-red-500">*</span>
@@ -436,6 +566,10 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter first name"
                   />
                 </div>
+
+
+
+
 
 
 
@@ -486,6 +620,10 @@ const EmployeeProfilePage = () => {
 
 
 
+
+
+
+
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Date of Birth <span className="text-red-500">*</span>
@@ -498,32 +636,38 @@ const EmployeeProfilePage = () => {
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
                   />
                 </div>
-            <div className="col-span-2 flex justify-center">
-            <div className="w-full max-w-sm">
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
-                Employee Photo <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="file"
-                name="photo"
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files[0];
-                  if (file) {
-                    if (file.size > 2 * 1024 * 1024) {
-                      alert("File size must be less than 2MB");
-                      e.target.value = null;
-                      return;
-                    }
-                    setFormData((prev) => ({ ...prev, photo: file }));
-                  }
-                }}
-                className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-              />
-            </div>
-          </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Reference Person ID
+                  </label>
+                  <input
+                    type="text"
+                    name="referencePerson"
+                    value={formData.referencePerson}
+                    onChange={handleChange}
+                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
+                    placeholder="Enter reference person ID"
+                  />
+                </div>
 
 
+
+
+
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Personal Email
+                  </label>
+                  <input
+                    type="email"
+                    name="personalMail"
+                    value={formData.personalMail}
+                    onChange={handleChange}
+                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
+                    placeholder="Enter personal email"
+                  />
+                </div>
               </div>
             )}
 
@@ -584,6 +728,26 @@ const EmployeeProfilePage = () => {
 
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Bus Route
+                  </label>
+                  <select
+                    name="busId"
+                    value={formData.busId}
+                    onChange={handleChange}
+                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors bg-white h-12"
+                  >
+                    <option value="">Select Bus</option>
+                    {options.buses.map((b) => (
+                      <option key={b.busId} value={b.busId}>
+                        {b.busNumber}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
                     District
                   </label>
                   <input
@@ -595,6 +759,10 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter district"
                   />
                 </div>
+
+
+
+
 
 
 
@@ -616,6 +784,10 @@ const EmployeeProfilePage = () => {
 
 
 
+
+
+
+
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Pincode
@@ -631,6 +803,10 @@ const EmployeeProfilePage = () => {
                 </div>
               </div>
             )}
+
+
+
+
 
 
 
@@ -660,6 +836,10 @@ const EmployeeProfilePage = () => {
 
 
 
+
+
+
+
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Grade
@@ -681,6 +861,41 @@ const EmployeeProfilePage = () => {
 
 
 
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Qualification
+                  </label>
+                  <input
+                    type="text"
+                    name="qualification"
+                    value={formData.qualification}
+                    onChange={handleChange}
+                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
+                    placeholder="Enter qualification"
+                  />
+                </div>
+
+
+
+
+
+
+
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Experience
+                  </label>
+                  <input
+                    type="text"
+                    name="experience"
+                    value={formData.experience}
+                    onChange={handleChange}
+                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
+                    placeholder="Enter experience details"
+                  />
+                </div>
+
 
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
@@ -700,6 +915,10 @@ const EmployeeProfilePage = () => {
                     ))}
                   </select>
                 </div>
+
+
+
+
 
 
 
@@ -728,6 +947,10 @@ const EmployeeProfilePage = () => {
 
 
 
+
+
+
+
             {/* Attendance */}
             {activeTab === "attendance" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
@@ -750,23 +973,37 @@ const EmployeeProfilePage = () => {
                   </select>
                 </div>
 
+
+
+
+
+
+
+
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Shift
                   </label>
-                 {/* fixed input box that only shows shiftName */}
-                <input
-                  type="text"
-                  name="shiftName"
-                  value={
-                    options.shifts.find(s => s.shiftId === formData.shiftId)?.shiftName || ""
-                  }
-                  disabled
-                  className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors bg-white h-12"
-                />
+                  <select
+                    name="shiftId"
+                    value={formData.shiftId}
+                    onChange={handleChange}
+                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors bg-white h-12"
+                  >
+                    <option value="">Select Shift</option>
+                    {options.shifts.map((s) => (
+                      <option key={s.shiftId} value={s.shiftId}>
+                        {s.shiftName}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             )}
+
+
+
+
 
 
 
@@ -796,6 +1033,10 @@ const EmployeeProfilePage = () => {
 
 
 
+
+
+
+
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Caste
@@ -815,9 +1056,6 @@ const EmployeeProfilePage = () => {
                   </select>
                 </div>
 
-
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Marital Status
@@ -831,9 +1069,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter marital status"
                   />
                 </div>
-
-
-
 
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
@@ -849,9 +1084,6 @@ const EmployeeProfilePage = () => {
                   />
                 </div>
 
-
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Aadhar Number
@@ -865,9 +1097,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter Aadhar number"
                   />
                 </div>
-
-
-
 
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
@@ -884,9 +1113,6 @@ const EmployeeProfilePage = () => {
                 </div>
               </div>
             )}
-
-
-
 
             {/* Salary */}
             {activeTab === "salary" && (
@@ -905,9 +1131,6 @@ const EmployeeProfilePage = () => {
                   />
                 </div>
 
-
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Salary ID
@@ -921,9 +1144,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter salary ID"
                   />
                 </div>
-
-
-
 
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
@@ -939,9 +1159,6 @@ const EmployeeProfilePage = () => {
                   />
                 </div>
 
-
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Salary Mode
@@ -955,9 +1172,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter salary mode"
                   />
                 </div>
-
-
-
 
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
@@ -973,9 +1187,6 @@ const EmployeeProfilePage = () => {
                   />
                 </div>
 
-
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Account Number
@@ -989,9 +1200,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter account number"
                   />
                 </div>
-
-
-
 
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
@@ -1007,9 +1215,6 @@ const EmployeeProfilePage = () => {
                   />
                 </div>
 
-
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     PF Number
@@ -1023,9 +1228,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter PF number"
                   />
                 </div>
-
-
-
 
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
@@ -1041,9 +1243,6 @@ const EmployeeProfilePage = () => {
                   />
                 </div>
 
-
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     ESI Number
@@ -1057,9 +1256,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter ESI number"
                   />
                 </div>
-
-
-
 
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
@@ -1077,9 +1273,6 @@ const EmployeeProfilePage = () => {
               </div>
             )}
 
-
-
-
             {/* Exit */}
             {activeTab === "exit" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
@@ -1096,9 +1289,6 @@ const EmployeeProfilePage = () => {
                   />
                 </div>
 
-
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Relieving Date
@@ -1111,9 +1301,6 @@ const EmployeeProfilePage = () => {
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
                   />
                 </div>
-
-
-
 
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
@@ -1130,102 +1317,9 @@ const EmployeeProfilePage = () => {
               </div>
             )}
 
-
-
-
             {/* Extra */}
             {activeTab === "extra" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Bus Number
-                  </label>
-                  <select
-                    name="busId"
-                    value={formData.busId}
-                    onChange={handleChange}
-                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors bg-white h-12"
-                  >
-                    <option value="">Select Bus</option>
-                    {options.buses.map((b) => (
-                      <option key={b.busId} value={b.busId}>
-                        {b.busNumber}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-
-
-
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Reference Person ID
-                  </label>
-                  <input
-                    type="text"
-                    name="referencePerson"
-                    value={formData.referencePerson}
-                    onChange={handleChange}
-                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter reference person ID"
-                  />
-                </div>
-
-
-
-
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Qualification
-                  </label>
-                  <input
-                    type="text"
-                    name="qualification"
-                    value={formData.qualification}
-                    onChange={handleChange}
-                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter qualification"
-                  />
-                </div>
-
-
-
-
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Experience
-                  </label>
-                  <input
-                    type="text"
-                    name="experience"
-                    value={formData.experience}
-                    onChange={handleChange}
-                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter experience details"
-                  />
-                </div>
-
-
-
-
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Personal Email
-                  </label>
-                  <input
-                    type="email"
-                    name="personalMail"
-                    value={formData.personalMail}
-                    onChange={handleChange}
-                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter personal email"
-                  />
-                </div>
-
-
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Password
@@ -1242,9 +1336,6 @@ const EmployeeProfilePage = () => {
               </div>
             )}
           </div>
-
-
-
 
           {/* Save Button */}
           <div className="bg-gradient-to-r from-slate-50 to-slate-100 px-8 py-6 border-t border-slate-200 flex-shrink-0">
@@ -1263,6 +1354,5 @@ const EmployeeProfilePage = () => {
     </div>
   );
 };
-
 
 export default EmployeeProfilePage;
