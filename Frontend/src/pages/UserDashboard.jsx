@@ -92,7 +92,7 @@ export default function DashboardPage() {
               Leave History
             </h3>
           </div>
-          <div className="overflow-x-auto  max-h-110 overflow-y-auto">
+          <div className="overflow-x-auto  max-h-110 overflow-y-auto scrollbar-hide">
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
@@ -182,7 +182,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Right Actions */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 ">
               <button
                 onClick={openProfileModal}
                 className="w-12 h-12 bg-gray-100 hover:bg-gray-200 rounded-xl flex items-center justify-center transition-all duration-200"

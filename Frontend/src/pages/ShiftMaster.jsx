@@ -2,9 +2,6 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { Building2, Pencil, Trash, Plus, X } from "lucide-react";
 
-
-
-
 // ✅ Modal Form Component
 function AddOrEdit({ onSave, onCancel, editData }) {
   const [shiftName, setShiftName] = useState(editData?.shiftName || "");
@@ -13,14 +10,11 @@ function AddOrEdit({ onSave, onCancel, editData }) {
   const [shiftOutStartTime, setShiftOutStartTime] = useState(editData?.shiftOutStartTime || "");
   const [shiftMinHours, setShiftMinHours] = useState(editData?.shiftMinHours || "");
   const [shiftNextDay, setShiftNextDay] = useState(editData?.shiftNextDay || false);
-
-
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!shiftName || !shiftInStartTime || !shiftInEndTime || !shiftOutStartTime || !shiftMinHours) {
       return alert("Please fill all fields");
     }
-
 
     // Duration validation
     const [fromH, fromM] = shiftInStartTime.split(":").map(Number);
@@ -34,8 +28,6 @@ function AddOrEdit({ onSave, onCancel, editData }) {
       return alert(`Minimum hours cannot exceed shift duration (${durationHours.toFixed(2)} hrs)`);
     }
     const adminName = sessionStorage.getItem("userNumber");
-
-
     const shiftData = {
       shiftName,
       shiftInStartTime,
@@ -46,12 +38,8 @@ function AddOrEdit({ onSave, onCancel, editData }) {
       createdBy: editData ? editData.createdBy : adminName,
       updatedBy: adminName,
     };
-
-
     onSave(shiftData, editData?.shiftId);
   };
-
-
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm">
       <div className="relative max-w-xl w-full bg-white rounded-2xl shadow-xl p-8 border border-gray-200">
@@ -77,7 +65,6 @@ function AddOrEdit({ onSave, onCancel, editData }) {
           {editData ? "Edit Shift" : "Add New Shift"}
         </h2>
 
-
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
@@ -90,7 +77,6 @@ function AddOrEdit({ onSave, onCancel, editData }) {
               className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
             />
           </div>
-
 
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -172,9 +158,6 @@ function AddOrEdit({ onSave, onCancel, editData }) {
   );
 }
 
-
-
-
 // ✅ Main Component
 function ShiftMaster() {
   const [shifts, setShifts] = useState([]);
@@ -245,7 +228,7 @@ function ShiftMaster() {
 
 
   return (
-    <div className="min-h-screen p-6 flex flex-col">
+    <div className="h-full p-6 flex flex-col">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <input

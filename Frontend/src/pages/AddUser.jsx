@@ -211,7 +211,7 @@ export default function AddUser() {
         const res = await axios.post(
           `http://localhost:5000/api/users/lastEmpNumber/${deptId}`,{role:formData.role}
         );
-        console.log(res);
+        // console.log(res);
         
         const lastEmp = res.data?.lastEmpNumber || null;
         
@@ -220,7 +220,7 @@ export default function AddUser() {
         //       parseInt(lastEmp.replace(/\D/g, "")) + 1
         //     }`
         //   : `${department.departmentAckr.toLowerCase()}1`;
-        console.log(lastEmp);        
+        // console.log(lastEmp);        
         // const prefix = lastEmp.match(/^[A-Za-z]+/)[0];   // "CS"
         // const number = parseInt(lastEmp.match(/\d+$/)[0]); // 101
         let newEmpNum = lastEmp; // "CS102"
@@ -300,7 +300,7 @@ export default function AddUser() {
   );
 
   return (
-    <div className="h-screen bg-gray-50 p-6 relative">
+    <div className="h-full bg-gray-50 p-6 relative">
       {showForm && (
         <AddOrEditUser
           formData={formData}

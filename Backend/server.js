@@ -32,6 +32,7 @@ const holidayRoute = require('./routes/holidayRoute');
 const holidayPlanRoute = require('./routes/holidayPlanRoute');
 const leaveAllocationRoute = require('./routes/leaveAllocationRoute');
 const leaveTypeRoute = require('./routes/leaveTypeRoute');
+const leaveRoute = require('./routes/leaveRoute');
 const punchRoute = require('./routes/punchRoute');
 const religionRoute = require('./routes/religionRoute');
 const shiftRoute = require('./routes/shiftRoute');
@@ -56,8 +57,9 @@ app.use('/api/employeeGrades', employeeGradeRoute);
 app.use('/api/employeeTypes', employeeTypeRoute);
 app.use('/api/holidays', holidayRoute);
 app.use('/api/holidayPlans', holidayPlanRoute);
-app.use('/api/leaveAllocations', leaveAllocationRoute);
+app.use('/api/leaveAllocation', leaveAllocationRoute);
 app.use('/api/leaveTypes', leaveTypeRoute);
+app.use('/api/leaves', leaveRoute);
 app.use('/api/punches', punchRoute);
 app.use('/api/religions', religionRoute);
 app.use('/api/shifts', shiftRoute);
@@ -81,7 +83,7 @@ require('./models/EmployeeType');
 require('./models/Holiday');
 require('./models/HolidayPlan');
 require('./models/LeaveAllocation');
-require('./models/LeaveRequest');
+require('./models/Leave');
 require('./models/LeaveType');
 require('./models/Punch');
 require('./models/Religion');
@@ -95,32 +97,31 @@ const startServer = async () => {
     console.log("✅ DB Connected successfully");
 
     // ⚠️ safer: alter = keep data, adjust schema if needed
-    await seq.sync({ force:false});
+    await seq.sync({ force:true});
     console.log("✅ Tables synced");
 
     app.listen(5000, () => {
       console.log("🚀 Listening at http://localhost:5000");
     });
+    // // 🕛 Hourly biometric fetch
+    // cron.schedule("* * * * *", async () => {
+    //   try {
+    //     console.log("🕛 Running hourly biometric fetch...");
+    //     await fetchBiometrics();
+    //   } catch (err) {
+    //     console.error("❌ Error fetching biometrics:", err.message);
+    //   }
+    // });
 
-    // ⏱ Hourly biometric fetch
-    cron.schedule("* * * * *", async () => {
-      try {
-        console.log("⏱ Running hourly biometric fetch...");
-        await fetchBiometrics();
-      } catch (err) {
-        console.error("❌ Error fetching biometrics:", err.message);
-      }
-    });
-
-    // 🕛 Daily attendance processor at 12:00 AM
-    cron.schedule("* * * * *", async () => {
-      try {
-        console.log("🕛 Running daily attendance processor...");
-        await processAttendance();
-      } catch (err) {
-        console.error("❌ Error processing attendance:", err.message);
-      }
-    });
+    // // 🕛 Daily attendance processor at 12:00 AM
+    // cron.schedule("* * * * *", async () => {
+    //   try {
+    //     console.log("🕛 Running daily attendance processor...");
+    //     await processAttendance();
+    //   } catch (err) {
+    //     console.error("❌ Error processing attendance:", err.message);
+    //   }
+    // });
 
   } catch (error) {
     console.error("❌ Error starting server:", error.message);

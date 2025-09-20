@@ -77,9 +77,8 @@ const Employee = sequelize.define('Employee', {
   acctNumber: { type: DataTypes.STRING },
   qualification: { type: DataTypes.STRING },
   experience: { type: DataTypes.STRING },
-  referencePerson: { type: DataTypes.INTEGER },
+  referencePerson: { type: DataTypes.STRING },
   busId: { type: DataTypes.INTEGER },
-
   createdBy: { type: DataTypes.STRING },
   updatedBy: { type: DataTypes.STRING },
   status: { type: DataTypes.ENUM('active', 'inactive'), defaultValue: 'active' },
@@ -97,7 +96,6 @@ Employee.belongsTo(Shift, { foreignKey: 'shiftId', as: 'shift' });
 Employee.belongsTo(Religion, { foreignKey: 'religionId', as: 'religion' });
 Employee.belongsTo(Caste, { foreignKey: 'casteId', as: 'caste' });
 Employee.belongsTo(Employee, { foreignKey: 'reportsTo', as: 'manager' });
-Employee.belongsTo(Employee, { foreignKey: 'referencePerson', as: 'referencePersonDetails' });
 Employee.belongsTo(Bus, { foreignKey: 'busId', as: 'bus' });
 
 module.exports = Employee;

@@ -15,5 +15,4 @@ router.get('/:id', getShiftById);
 router.put('/:id', updateShift);
 router.delete('/:id', deleteShift);
 
-
 module.exports = router;

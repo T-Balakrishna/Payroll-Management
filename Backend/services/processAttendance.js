@@ -1,51 +1,47 @@
 const { Op } = require("sequelize");
 const Attendance = require("../models/Attendance");
-const Biometric = require("../models/Biometric");
+const Punch = require("../models/Punch");      // use Punch table
 const Employee = require("../models/Employee");
 const Shift = require("../models/Shift");
 
-// Daily attendance processor
 async function processAttendance() {
   try {
     const today = new Date().toISOString().split("T")[0];
 
-    // ✅ Fetch all biometric punches for today with proper alias for shift
-    const biometrics = await Biometric.findAll({
+    // ✅ Fetch all punches for today based on punchTimestamp
+    const punches = await Punch.findAll({
       include: [
-        {
-          model: Employee,
-          include: [{ model: Shift, as: "shift" }], // ✅ fixed alias
-        },
+        { model: Employee, include: [{ model: Shift, as: "shift" }] },
       ],
       where: {
-        createdAt: {
+        punchTimestamp: {
           [Op.gte]: new Date(`${today}T00:00:00`),
-        },
+          [Op.lte]: new Date(`${today}T23:59:59`)
+        }
       },
       order: [
         ["employeeNumber", "ASC"],
-        ["createdAt", "ASC"],
+        ["punchTimestamp", "ASC"]
       ],
     });
 
     // Group punches by employee
     const grouped = {};
-    biometrics.forEach((b) => {
-      const empNum = b.employeeNumber;
+    punches.forEach((p) => {
+      const empNum = p.employeeNumber;
       if (!grouped[empNum]) grouped[empNum] = [];
-      grouped[empNum].push(b);
+      grouped[empNum].push(p);
     });
 
     // Process each employee
     for (const empNum in grouped) {
-      const punches = grouped[empNum];
-      const firstPunch = punches[0].createdAt;
-      const lastPunch = punches[punches.length - 1].createdAt;
+      const empPunches = grouped[empNum];
+      const firstPunch = empPunches[0].punchTimestamp;
+      const lastPunch = empPunches[empPunches.length - 1].punchTimestamp;
 
-      // ✅ fetch employee with shift alias
       const employee = await Employee.findOne({
         where: { employeeNumber: empNum },
-        include: [{ model: Shift, as: "shift" }], // ✅ fixed alias
+        include: [{ model: Shift, as: "shift" }],
       });
 
       if (!employee || !employee.shift) continue;
@@ -57,14 +53,20 @@ async function processAttendance() {
       let workedHours = (lastPunch - firstPunch) / 1000 / 3600;
       let status = "Absent";
 
-      // Determine attendance status
       if (
         firstPunch <= shiftInEnd &&
         lastPunch >= shiftOutStart &&
         workedHours >= shift.shiftMinHours
       ) {
         status = "Present";
-      } else if (workedHours >= shift.shiftMinHours * 0.5) {
+      } 
+      else if(workedHours >= shift.shiftMinHours - 1) {
+        status="Present"
+      }
+      else if(workedHours >= shift.shiftMinHours - 2) {
+        status="Present"
+      }
+      else if (workedHours >= shift.shiftMinHours * 0.5) {
         status = "Half-Day";
       }
 
