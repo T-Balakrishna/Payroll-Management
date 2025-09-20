@@ -250,3 +250,22 @@ exports.getEmployeeFullByNumber = async (req, res) => {
   }
 };
 
+exports.uploadPhoto = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+
+    const employee = await Employee.findByPk(id);
+    if (!employee) return res.status(404).json({ error: "Employee not found" });
+
+    // Save relative path
+    employee.photo = `/uploads/employees/${req.file.filename}`;
+    await employee.save();
+
+    res.json({ message: "Photo uploaded successfully", employee });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+

@@ -64,6 +64,8 @@ app.use('/api/shifts', shiftRoute);
 app.use('/api/users', userRoute);
 app.use('/api/auth', authRoute);
 app.use("/api/shiftAllocation", shiftAllocationRoutes);
+app.use("/uploads", express.static("uploads"));
+
 
 // Import models for Sequelize
 require('./models/Attendance');
@@ -79,7 +81,7 @@ require('./models/EmployeeType');
 require('./models/Holiday');
 require('./models/HolidayPlan');
 require('./models/LeaveAllocation');
-require('./models/LeaveRequest');
+require('./models/Leave');
 require('./models/LeaveType');
 require('./models/Punch');
 require('./models/Religion');
@@ -93,32 +95,32 @@ const startServer = async () => {
     console.log("✅ DB Connected successfully");
 
     // ⚠️ safer: alter = keep data, adjust schema if needed
-    await seq.sync({ alter:true});
+    await seq.sync({ force:false});
     console.log("✅ Tables synced");
 
     app.listen(5000, () => {
       console.log("🚀 Listening at http://localhost:5000");
     });
 
-    // ⏱ Hourly biometric fetch
-    cron.schedule("* * * * *", async () => {
-      try {
-        console.log("⏱ Running hourly biometric fetch...");
-        await fetchBiometrics();
-      } catch (err) {
-        console.error("❌ Error fetching biometrics:", err.message);
-      }
-    });
+    // // 🕛 Hourly biometric fetch
+    // cron.schedule("* * * * *", async () => {
+    //   try {
+    //     console.log("🕛 Running hourly biometric fetch...");
+    //     await fetchBiometrics();
+    //   } catch (err) {
+    //     console.error("❌ Error fetching biometrics:", err.message);
+    //   }
+    // });
 
-    // 🕛 Daily attendance processor at 12:00 AM
-    cron.schedule("* * * * *", async () => {
-      try {
-        console.log("🕛 Running daily attendance processor...");
-        await processAttendance();
-      } catch (err) {
-        console.error("❌ Error processing attendance:", err.message);
-      }
-    });
+    // // 🕛 Daily attendance processor at 12:00 AM
+    // cron.schedule("* * * * *", async () => {
+    //   try {
+    //     console.log("🕛 Running daily attendance processor...");
+    //     await processAttendance();
+    //   } catch (err) {
+    //     console.error("❌ Error processing attendance:", err.message);
+    //   }
+    // });
 
   } catch (error) {
     console.error("❌ Error starting server:", error.message);

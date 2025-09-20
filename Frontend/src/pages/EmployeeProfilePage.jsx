@@ -105,13 +105,11 @@ const EmployeeProfilePage = () => {
   };
 
 
-
-useEffect(() => {
-  const fetchUserMappedData = async () => {
-    try {
-      const userNumber = sessionStorage.getItem("userNumber");
-      if (!userNumber) return;
-
+  useEffect(() => {
+    const fetchUserMappedData = async () => {
+      try {
+        const userNumber = sessionStorage.getItem("userNumber");
+        if (!userNumber) return;
       // Get mapped employee
       const res = await axios.get(
         `http://localhost:5000/api/employees/fromUser/${userNumber}`
@@ -137,7 +135,6 @@ useEffect(() => {
       console.error("Error fetching user-mapped employee data:", err);
     }
   };
-
   fetchUserMappedData();
 }, []);
 
