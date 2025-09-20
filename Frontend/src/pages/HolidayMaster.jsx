@@ -160,7 +160,7 @@ function HolidayPlans() {
   };
 
   return (
-    <div className="min-h-screen p-6 flex flex-col space-y-6">
+    <div className="h-full p-6 flex flex-col space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Holiday Plans</h1>

@@ -297,7 +297,7 @@ export default function AddUser() {
   );
 
   return (
-    <div className="h-screen bg-gray-50 p-6 relative">
+    <div className="h-full bg-gray-50 p-6 relative">
       {showForm && (
         <AddOrEditUser
           formData={formData}

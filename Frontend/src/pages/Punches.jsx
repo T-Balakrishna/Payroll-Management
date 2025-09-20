@@ -53,7 +53,7 @@ function Punches() {
   };
 
   return (
-    <div className="min-h-screen p-6 flex flex-col">
+    <div className="h-full px-6 py-4 flex flex-col">
       {/* Header */}
       <div className="flex flex-wrap justify-between items-center mb-6 gap-3">
         <div className="flex gap-2 items-center">

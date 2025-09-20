@@ -133,7 +133,7 @@ function CasteMaster() {
       editData={editData}
     />
   ) : (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="h-full bg-gray-50 p-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
         <div className="relative w-full sm:w-80 mb-4 sm:mb-0">
