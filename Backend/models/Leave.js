@@ -1,10 +1,9 @@
 const { DataTypes } = require('sequelize');
 const seq = require('../config/db');
 const Employee = require('./Employee');
-const LeavePolicy = require('./LeavePolicy');
 const LeaveType = require('./LeaveType');
 
-const LeaveRequest = seq.define('LeaveRequest', {
+const Leave = seq.define('Leave', {
   leaveId: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   employeeId: { 
     type: DataTypes.INTEGER, 
@@ -23,15 +22,15 @@ const LeaveRequest = seq.define('LeaveRequest', {
   createdBy: { type: DataTypes.STRING, allowNull: true },
   updatedBy: { type: DataTypes.STRING, allowNull: true }
 }, {
-  tableName: 'LeaveRequest',
+  tableName: 'Leave',
   timestamps: true
 });
 
 // Associations
-Employee.hasMany(LeaveRequest, { foreignKey: 'employeeId' });
-LeaveRequest.belongsTo(Employee, { foreignKey: 'employeeId' });
+Employee.hasMany(Leave, { foreignKey: 'employeeId' });
+Leave.belongsTo(Employee, { foreignKey: 'employeeId' });
 
-LeaveType.hasMany(LeaveRequest, { foreignKey: 'leaveTypeId' });
-LeaveRequest.belongsTo(LeaveType, { foreignKey: 'leaveTypeId' });
+LeaveType.hasMany(Leave, { foreignKey: 'leaveTypeId' });
+Leave.belongsTo(LeaveType, { foreignKey: 'leaveTypeId' });
 
-module.exports = LeaveRequest; 
+module.exports = Leave; 
