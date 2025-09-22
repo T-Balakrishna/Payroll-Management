@@ -166,7 +166,7 @@ export default function EmployeeTypeMaster() {
       editData={editData}
     />
   ) : (
-    <div className="min-h-screen p-6 flex flex-col">
+    <div className="h-full p-6 flex flex-col">
       <div className="flex justify-between items-center mb-4">
         <input
           type="text"

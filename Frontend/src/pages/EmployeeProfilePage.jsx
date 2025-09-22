@@ -229,9 +229,6 @@ const EmployeeProfilePage = () => {
           axios.get("http://localhost:5000/api/shifts"),
         ]);
 
-
-
-
         setOptions({
           designations: designations.data || [],
           grades: grades.data || [],
@@ -533,10 +530,34 @@ const EmployeeProfilePage = () => {
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
                   />
                 </div>
+            <div className="col-span-2 flex justify-center">
+            <div className="w-full max-w-sm">
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                Employee Photo <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="file"
+                name="photo"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    if (file.size > 2 * 1024 * 1024) {
+                      alert("File size must be less than 2MB");
+                      e.target.value = null;
+                      return;
+                    }
+                    setFormData((prev) => ({ ...prev, photo: file }));
+                  }
+                }}
+                className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
+              />
+            </div>
+          </div>
+
+
               </div>
             )}
-
-
 
 
             {/* Address */}
@@ -761,26 +782,20 @@ const EmployeeProfilePage = () => {
                   </select>
                 </div>
 
-
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Shift
                   </label>
-                  <select
-                    name="shiftId"
-                    value={formData.shiftId}
-                    onChange={handleChange}
-                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors bg-white h-12"
-                  >
-                    <option value="">Select Shift</option>
-                    {options.shifts.map((s) => (
-                      <option key={s.shiftId} value={s.shiftId}>
-                        {s.shiftName}
-                      </option>
-                    ))}
-                  </select>
+                 {/* fixed input box that only shows shiftName */}
+                <input
+                  type="text"
+                  name="shiftName"
+                  value={
+                    options.shifts.find(s => s.shiftId === formData.shiftId)?.shiftName || ""
+                  }
+                  disabled
+                  className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors bg-white h-12"
+                />
                 </div>
               </div>
             )}
@@ -1155,7 +1170,7 @@ const EmployeeProfilePage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Bus Route
+                    Bus Number
                   </label>
                   <select
                     name="busId"

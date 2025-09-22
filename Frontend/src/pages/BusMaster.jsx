@@ -166,7 +166,7 @@ function BusMaster() {
   };
 
   return (
-<div className="h-screen align-items-center justify-center bg-gray-50 p-6 relative ">
+<div className="h-full align-items-center justify-center bg-gray-50 p-6 relative ">
       {/* Modal */}
       {showForm && (
         <AddOrEdit
