@@ -65,9 +65,6 @@ exports.getUserById = async (req, res) => {
   }
 };
 
-// Update user
-// userController.js
-
 exports.updateUser = async (req, res) => {
   try {
     const { userNumber } = req.params;

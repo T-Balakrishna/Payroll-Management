@@ -1,5 +1,5 @@
-const LeaveRequest = require('../models/LeaveRequest');
-const LeavePolicyDetails = require('../models/LeavePolicyDetails');
+const Leave = require('../models/Leave');
+const LeaveType = require('../models/LeaveType');
 const Employee = require('../models/Employee');
 const sequelize = require('../config/db');
 
@@ -11,27 +11,13 @@ exports.applyLeave = async (req, res) => {
     const employee = await Employee.findByPk(employeeId);
     if (!employee) return res.status(404).send("Employee not found");
 
-    const policyId = employee.leavePolicyId;
-
-    const policyDetail = await LeavePolicyDetails.findOne({
-      where: { leavePolicyId: policyId, leaveTypeId }
-    });
-    if (!policyDetail) return res.status(400).send("Leave type not allowed for this employee");
-
-    const usedLeaves = await LeaveRequest.sum(
-      sequelize.literal("DATEDIFF(endDate, startDate)+1"),
-      { where: { employeeId, leaveTypeId, status: 'Approved' } }
-    ) || 0;
-
+    // Calculate requested days
     const requestedDays = (new Date(endDate) - new Date(startDate)) / (1000*60*60*24) + 1;
-    const remainingLeaves = policyDetail.allocatedLeaves - usedLeaves;
 
-    if (requestedDays > remainingLeaves) 
-      return res.status(400).send(`Not enough remaining leaves. Available: ${remainingLeaves}`);
+    // TODO: plug in leave policy validation if needed
 
-    const newLeave = await LeaveRequest.create({
+    const newLeave = await Leave.create({
       employeeId,
-      leavePolicyId: policyId,
       leaveTypeId,
       startDate,
       endDate,
@@ -49,9 +35,9 @@ exports.applyLeave = async (req, res) => {
 // Get all leave requests for an employee
 exports.getLeavesByEmployee = async (req, res) => {
   try {
-    const leaves = await LeaveRequest.findAll({
+    const leaves = await Leave.findAll({
       where: { employeeId: req.params.id },
-      include: ['LeaveType', 'LeavePolicy']
+      include: [LeaveType, Employee]
     });
     res.json(leaves);
   } catch (error) {
@@ -62,7 +48,7 @@ exports.getLeavesByEmployee = async (req, res) => {
 // Approve / Reject leave
 exports.updateLeaveStatus = async (req, res) => {
   try {
-    const leave = await LeaveRequest.findByPk(req.params.id);
+    const leave = await Leave.findByPk(req.params.id);
     if (!leave) return res.status(404).send("Leave request not found");
 
     await leave.update({ status: req.body.status, updatedBy: req.body.updatedBy });
@@ -72,14 +58,14 @@ exports.updateLeaveStatus = async (req, res) => {
   }
 };
 
+// Get all pending leave requests
 exports.getPendingLeaveRequests = async (req, res) => {
   try {
-    const pendingLeaves = await LeaveRequest.findAll({
+    const pendingLeaves = await Leave.findAll({
       where: { status: 'Pending' },
       include: [
         { model: Employee, attributes: ['employeeName', 'employeeId'] },
-        { model: LeaveType, attributes: ['leaveTypeName'] },
-        { model: LeavePolicy, attributes: ['policyName'] }
+        { model: LeaveType, attributes: ['leaveTypeName'] }
       ],
       order: [['createdAt', 'DESC']]
     });
