@@ -18,6 +18,14 @@ const LeaveAllocation = sequelize.define("LeaveAllocation", {
     type: DataTypes.STRING,
     allowNull: false,
   },
+  startDate: {
+    type: DataTypes.DATEONLY,
+    allowNull: false,
+  },
+  endDate: {
+    type: DataTypes.DATEONLY,
+    allowNull: false,
+  },
   allotedLeave: {
     type: DataTypes.INTEGER,
     allowNull: false,

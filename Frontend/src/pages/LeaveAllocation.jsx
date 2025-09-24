@@ -1,337 +1,412 @@
-import React, { useEffect, useState, useRef } from "react";
+// LeaveAllocation.jsx
+import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { Plus } from "lucide-react";
+import Swal from "sweetalert2";
 
 const LeaveAllocation = () => {
   const [leaveTypes, setLeaveTypes] = useState([]);
-  const [holidayPlans, setHolidayPlans] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [designations, setDesignations] = useState([]);
+  const [employeeGrades, setEmployeeGrades] = useState([]);
+  const [employeeTypes, setEmployeeTypes] = useState([]);
+
   const [employees, setEmployees] = useState([]);
+  const [filteredEmployees, setFilteredEmployees] = useState([]);
   const [selectedDepts, setSelectedDepts] = useState([]);
   const [selectedEmps, setSelectedEmps] = useState([]);
-  const [allocatedLeaves, setAllocatedLeaves] = useState({});
-  const [existingLeaves, setExistingLeaves] = useState({});
-  const [leaveTypeId, setLeaveTypeId] = useState("");
-  const [leavePeriod, setLeavePeriod] = useState("");
-  const [showDeptDropdown, setShowDeptDropdown] = useState(false);
-  const [bulkLeaves, setBulkLeaves] = useState(""); // new state for bulk apply
-  const userNumber = sessionStorage.getItem("userNumber");
-  const dropdownRef = useRef(null);
+  const [selectAllChecked, setSelectAllChecked] = useState(false);
 
-  // Fetch leave types, holiday plans, departments
+  const [allocatedLeaves, setAllocatedLeaves] = useState({});  // only current input
+  const [existingLeaves, setExistingLeaves] = useState({});    // current period
+  const [previousLeaves, setPreviousLeaves] = useState({});    // previous year
+
+  const [leaveTypeId, setLeaveTypeId] = useState("");
+  const [startYear, setStartYear] = useState("");
+  const endYear = startYear ? String(Number(startYear) + 1) : "";
+  const period = startYear ? `${startYear}-${endYear}` : "";
+
+  const [filterDept, setFilterDept] = useState("");
+  const [filterDesignation, setFilterDesignation] = useState("");
+  const [filterGrade, setFilterGrade] = useState("");
+  const [filterType, setFilterType] = useState("");
+
+  const [bulkLeaves, setBulkLeaves] = useState("");
+  const userNumber = sessionStorage.getItem("userNumber") || "system";
+
+  // ---------- Initial fetch ----------
   useEffect(() => {
-    axios.get("http://localhost:5000/api/leaveTypes").then(res => setLeaveTypes(res.data));
-    axios.get("http://localhost:5000/api/holidayPlans").then(res => setHolidayPlans(res.data));
-    axios.get("http://localhost:5000/api/departments").then(res => setDepartments(res.data));
+    axios.get("http://localhost:5000/api/leaveTypes").then(r => setLeaveTypes(r.data)).catch(() => {});
+    axios.get("http://localhost:5000/api/departments").then(r => setDepartments(r.data)).catch(() => {});
+    axios.get("http://localhost:5000/api/designations").then(r => setDesignations(r.data)).catch(() => {});
+    axios.get("http://localhost:5000/api/employeeGrades").then(r => setEmployeeGrades(r.data)).catch(() => {});
+    axios.get("http://localhost:5000/api/employeeTypes").then(r => setEmployeeTypes(r.data)).catch(() => {});
+    axios.get("http://localhost:5000/api/employees").then(r => setEmployees(r.data || [])).catch(() => setEmployees([]));
   }, []);
 
-  // Fetch employees based on selected departments
+  // ---------- Fetch employees by department ----------
   useEffect(() => {
     if (selectedDepts.length > 0) {
       axios.post("http://localhost:5000/api/employees/byDepartments", { departments: selectedDepts })
-        .then(res => setEmployees(res.data));
-    } else { 
-      setEmployees([]);
+        .then(res => setEmployees(res.data || []))
+        .catch(() => setEmployees([]));
+    } else {
+      axios.get("http://localhost:5000/api/employees").then(res => setEmployees(res.data || [])).catch(() => setEmployees([]));
     }
     setSelectedEmps([]);
     setAllocatedLeaves({});
+    setSelectAllChecked(false);
   }, [selectedDepts]);
 
-  // Fetch existing allocated leaves for the selected leave type
+  // ---------- Filter employees ----------
   useEffect(() => {
-    if (leaveTypeId && leavePeriod) {
-      axios.get(`http://localhost:5000/api/leaveAllocations?leaveTypeId=${leaveTypeId}&leavePeriod=${leavePeriod}`)
-        .then(res => {
-          const mapping = {};
-          res.data.forEach(e => {
-            mapping[e.employeeNumber] = e.allotedLeave; // make sure key matches your backend
-          });
-          setExistingLeaves(mapping);
-        });
-    } else {
-      setExistingLeaves({});
-    }
-  }, [leaveTypeId, leavePeriod]);
+    let list = [...employees];
+    if (filterDept) list = list.filter(e => String(e.departmentId) === String(filterDept));
+    if (filterDesignation) list = list.filter(e => String(e.designationId) === String(filterDesignation));
+    if (filterGrade) list = list.filter(e => String(e.employeeGradeId) === String(filterGrade));
+    if (filterType) list = list.filter(e => String(e.employeeTypeId) === String(filterType));
+    setFilteredEmployees(list);
+  }, [employees, filterDept, filterDesignation, filterGrade, filterType]);
+
+  const getLeaveType = () => leaveTypes.find(l => String(l.leaveTypeId) === String(leaveTypeId)) || null;
+
+  // ---------- Fetch existing allocations ----------
+  useEffect(() => {
+  if (!leaveTypeId || !startYear) {
+    setExistingLeaves({});
+    setPreviousLeaves({});
+    return;
+  }
+
+  const lt = getLeaveType();
+  if (!lt) return;
+
+  // previous period for carry forward
+  if (lt.isCarryForward) {
+    const prevPeriod = `${Number(startYear) - 1}-${Number(endYear) - 1}`;
+    axios.get(`http://localhost:5000/api/leaveAllocations?leaveTypeId=${leaveTypeId}&leavePeriod=${prevPeriod}`)
+      .then(res => {
+        const prevMapping = {};
+        (res.data || []).forEach(r => prevMapping[r.employeeNumber] = r.balance || 0);
+        setPreviousLeaves(prevMapping);
+
+        // fetch current period allocations AFTER previous year fetched
+        axios.get(`http://localhost:5000/api/leaveAllocations?leaveTypeId=${leaveTypeId}&leavePeriod=${period}`)
+          .then(res2 => {
+            const mapping = {};
+            (res2.data || []).forEach(r => {
+              const prev = prevMapping[r.employeeNumber] ?? 0;
+              mapping[r.employeeNumber] = (r.allotedLeave || 0) - prev; // subtract carry-forward
+            });
+            setExistingLeaves(mapping);
+            setAllocatedLeaves({}); // reset input
+          })
+          .catch(() => setExistingLeaves({}));
+      })
+      .catch(() => {
+        setPreviousLeaves({});
+        setExistingLeaves({});
+      });
+  } else {
+    setPreviousLeaves({});
+    // fetch current period allocations for non-carry-forward
+    axios.get(`http://localhost:5000/api/leaveAllocations?leaveTypeId=${leaveTypeId}&leavePeriod=${period}`)
+      .then(res => {
+        const mapping = {};
+        (res.data || []).forEach(r => mapping[r.employeeNumber] = r.allotedLeave || 0);
+        setExistingLeaves(mapping);
+        setAllocatedLeaves({}); // reset input
+      })
+      .catch(() => setExistingLeaves({}));
+  }
+}, [leaveTypeId, startYear, endYear, period, leaveTypes]);
 
 
-  const toggleDept = (deptId) => {
-    setSelectedDepts(prev =>
-      prev.includes(deptId) ? prev.filter(id => id !== deptId) : [...prev, deptId]
-    );
-  };
 
-  const toggleEmp = (empId) => {
-    if (selectedEmps.includes(empId)) {
-      setSelectedEmps(prev => prev.filter(id => id !== empId));
+  // ---------- Toggle employee ----------
+  const toggleEmp = (empNum) => {
+    if (selectedEmps.includes(empNum)) {
+      setSelectedEmps(prev => prev.filter(e => e !== empNum));
       setAllocatedLeaves(prev => {
-        const copy = { ...prev };
-        delete copy[empId];
-        return copy;
+        const c = { ...prev };
+        delete c[empNum];
+        return c;
       });
     } else {
-      setSelectedEmps(prev => [...prev, empId]);
-      setAllocatedLeaves(prev => ({ ...prev, [empId]: existingLeaves[empId] || 1 }));
+      setSelectedEmps(prev => [...prev, empNum]);
+
+      // Use only current period allocation, no subtraction of previous
+      const currentAlloc = existingLeaves[empNum] ?? 0;
+      setAllocatedLeaves(prev => ({ ...prev, [empNum]: currentAlloc }));
     }
   };
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setShowDeptDropdown(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
-  // Apply bulk leaves to all selected employees
+
+
+  // ---------- Select all ----------
+  const handleSelectAll = () => {
+    if (selectAllChecked) {
+      setSelectedEmps([]);
+      setAllocatedLeaves({});
+      setSelectAllChecked(false);
+    } else {
+      const allIds = filteredEmployees.map(e => e.employeeNumber);
+      setSelectedEmps(allIds);
+
+      const mapping = {};
+      allIds.forEach(id => {
+        mapping[id] = existingLeaves[id] ?? 0; // only current period
+      });
+      setAllocatedLeaves(mapping);
+      setSelectAllChecked(true);
+    }
+  };
+
+
+
+
+  // ---------- Bulk apply ----------
   const applyBulkLeaves = () => {
     if (!bulkLeaves) return;
     const updated = {};
-    selectedEmps.forEach(empId => {
-      updated[empId] = Number(bulkLeaves);
-    });
+    selectedEmps.forEach(empId => updated[empId] = Number(bulkLeaves));
     setAllocatedLeaves(prev => ({ ...prev, ...updated }));
   };
 
-  // Save allocations
-  const handleSave = async () => {
-    if (!leaveTypeId || !leavePeriod) {
-      alert("Please select Leave Type and Period");
+  // ---------- Handle input change ----------
+  const handleAllocatedChange = (empNum, val) => {
+    const parsed = Number(val);
+    if (isNaN(parsed)) {
+      setAllocatedLeaves(prev => ({ ...prev, [empNum]: "" }));
       return;
     }
-    const payload = selectedEmps.map(empId => ({
-      employeeNumber: empId,
-      leaveTypeId,
-      leavePeriod,
-      allotedLeave: allocatedLeaves[empId] || 0,
-      createdBy: userNumber,
-    }));
 
-    try {
-      await axios.post("http://localhost:5000/api/leaveAllocations", payload);
-      alert("✅ Leave allocations saved successfully!");
-    } catch (err) {
-      console.error(err);
-      alert("❌ Error saving leave allocations");
+    const lt = getLeaveType();
+    if (lt?.maxAllocation != null) {
+      if (parsed > Number(lt.maxAllocation)) {
+        alert(`Max allocation for ${lt.leaveTypeName} is ${lt.maxAllocation}.`);
+        setAllocatedLeaves(prev => ({ ...prev, [empNum]: Number(lt.maxAllocation) }));
+        return;
+      }
+      if (parsed < 0) {
+        setAllocatedLeaves(prev => ({ ...prev, [empNum]: 0 }));
+        return;
+      }
     }
+
+    setAllocatedLeaves(prev => ({ ...prev, [empNum]: parsed }));
   };
 
+  // ---------- Save allocations ----------
+  const handleSave = async () => {
+  const lt = getLeaveType();
+
+  for (let empNum of selectedEmps) {
+    const newAlloc = Number(allocatedLeaves[empNum] ?? 0);
+    const oldAlloc = Number(previousLeaves[empNum] ?? 0);
+    const totalToStore = lt.isCarryForward ? newAlloc + oldAlloc : newAlloc;
+
+    // Check if allocation already exists for this employee + leave type + period
+    const exists = existingLeaves[empNum] !== undefined;
+
+    if (exists) {
+      // --- UPDATE existing allocation ---
+      await axios.put(`http://localhost:5000/api/leaveAllocations`, {
+        employeeNumber: empNum,
+        leaveTypeId,
+        startYear,
+        endYear,
+        leavePeriod: period,
+        allotedLeave: totalToStore,
+        previousBalance: oldAlloc,
+        updatedBy: userNumber
+      });
+      Swal.fire({
+        icon: "success",
+        title: "Updated",
+        text: `Allocation updated for ${empNum}`
+      });
+    } else {
+      // --- CREATE new allocation ---
+      await axios.post(`http://localhost:5000/api/leaveAllocations`, {
+        employeeNumber: empNum,
+        leaveTypeId,
+        startYear,
+        endYear,
+        leavePeriod: period,
+        allotedLeave: totalToStore,
+        previousBalance: oldAlloc,
+        createdBy: userNumber
+      });
+      Swal.fire({
+        icon: "success",
+        title: "Added",
+        text: `Allocation created for ${empNum}`
+      });
+    }
+    
+  }
+
+  // Refresh current period allocations (only current allocation)
+  const res = await axios.get(`http://localhost:5000/api/leaveAllocations?leaveTypeId=${leaveTypeId}&leavePeriod=${period}`);
+  const mapping = {};
+  (res.data || []).forEach(r => {
+    const prev = lt.isCarryForward ? previousLeaves[r.employeeNumber] ?? 0 : 0;
+    mapping[r.employeeNumber] = (r.allotedLeave || 0) - prev;
+  });
+
+  setExistingLeaves(mapping);
+  setAllocatedLeaves({});
+};
+
+
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold">Leave Allocation</h1>
 
-      {/* Leave Type */}
-      <div>
-        <label className="block font-medium mb-2">Leave Type</label>
-        <select
-          value={leaveTypeId}
-          onChange={(e) => setLeaveTypeId(e.target.value)}
-          className="border rounded-lg p-2 w-full"
-        >
-          <option value="">Select Leave Type</option>
-          {leaveTypes.map(type => (
-            <option key={type.leaveTypeId} value={type.leaveTypeId}>
-              {type.leaveTypeName}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Holiday Plan */}
-      <div>
-        <label className="block font-medium mb-2">Leave Period</label>
-        <select
-          value={leavePeriod}
-          onChange={(e) => setLeavePeriod(e.target.value)}
-          className="border rounded-lg p-2 w-full"
-        >
-          <option value="">Select Holiday Plan</option>
-          {holidayPlans.map(plan => (
-            <option key={plan.holidayPlanId} value={plan.holidayPlanId}>
-              {plan.holidayPlanName}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Departments Dropdown */}
-      <div className="relative" ref={dropdownRef}>
-        <label className="block font-medium mb-2">Departments</label>
-        <div
-          className="border rounded-lg p-2 cursor-pointer flex justify-between items-center"
-          onClick={() => setShowDeptDropdown(prev => !prev)}
-        >
-          <span>{selectedDepts.length > 0 ? `${selectedDepts.length} selected` : "Select Departments"}</span>
-          <Plus size={18} />
+      {/* Leave Type & Start Year */}
+      <div className="grid grid-cols-3 gap-4">
+        <div>
+          <label className="block font-medium mb-2">Leave Type</label>
+          <select value={leaveTypeId} onChange={e => setLeaveTypeId(e.target.value)} className="border rounded-lg p-2 w-full">
+            <option value="">Select Leave Type</option>
+            {leaveTypes.map(type => (
+              <option key={type.leaveTypeId} value={type.leaveTypeId}>
+                {type.leaveTypeName} {type.maxAllocation ? `(max ${type.maxAllocation})` : ""}
+              </option>
+            ))}
+          </select>
         </div>
 
-        {showDeptDropdown && (
-          <div className="absolute bg-white border rounded-lg mt-1 w-full max-h-40 overflow-y-auto z-20 shadow-lg">
-            <div className="p-2 border-b">
-              <input
-                type="checkbox"
-                checked={selectedDepts.length === departments.length && departments.length > 0}
-                onChange={() =>
-                  setSelectedDepts(
-                    selectedDepts.length === departments.length
-                      ? []
-                      : departments.map(d => d.departmentId)
-                  )
-                }
-              />
-              <span className="ml-2 font-medium">Select All</span>
-            </div>
-            {departments.map(dept => (
-              <div key={dept.departmentId} className="p-2">
-                <input
-                  type="checkbox"
-                  checked={selectedDepts.includes(dept.departmentId)}
-                  onChange={() => toggleDept(dept.departmentId)}
-                />
-                <span className="ml-2">{dept.departmentName}</span>
-              </div>
-            ))}
-          </div>
-        )}
+        <div>
+          <label className="block font-medium mb-2">Start Year</label>
+          <input
+            type="number"
+            value={startYear}
+            onChange={e => setStartYear(e.target.value)}
+            placeholder="e.g. 2024"
+            className="border rounded-lg p-2 w-full"
+          />
+        </div>
+
+        <div>
+          <label className="block font-medium mb-2">End Year</label>
+          <input type="text" value={endYear} readOnly className="border rounded-lg p-2 w-full bg-gray-50" />
+        </div>
       </div>
 
-      {/* Selected Employees Table */}
+      {/* Filters */}
+      <div className="flex gap-4 mb-4">
+        <select value={filterDept} onChange={e => setFilterDept(e.target.value)} className="border rounded p-2">
+          <option value="">All Departments</option>
+          {departments.map(d => <option key={d.departmentId} value={d.departmentId}>{d.departmentName}</option>)}
+        </select>
+
+        <select value={filterDesignation} onChange={e => setFilterDesignation(e.target.value)} className="border rounded p-2">
+          <option value="">All Designations</option>
+          {designations.map(d => <option key={d} value={d}>{d}</option>)}
+        </select>
+
+        <select value={filterGrade} onChange={e => setFilterGrade(e.target.value)} className="border rounded p-2">
+          <option value="">All Grades</option>
+          {employeeGrades.map(g => <option key={g} value={g}>{g}</option>)}
+        </select>
+
+        <select value={filterType} onChange={e => setFilterType(e.target.value)} className="border rounded p-2">
+          <option value="">All Types</option>
+          {employeeTypes.map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
+      </div>
+
+      {/* Employee Table */}
       <div className="border rounded-lg p-4">
-        <h2 className="text-lg font-bold mb-2">Selected Employees</h2>
-
-        {/* Bulk leaves input */}
-        {selectedEmps.length > 0 && (
-          <div className="mb-4 flex gap-2 items-center">
-            <input
-              type="number"
-              value={bulkLeaves}
-              onChange={(e) => setBulkLeaves(e.target.value)}
-              placeholder="Set leaves for all"
-              className="border rounded px-2 py-1 w-40"
-            />
-            <button
-              onClick={applyBulkLeaves}
-              className="bg-green-500 hover:bg-green-600 text-white px-4 py-1 rounded"
-            >
-              Apply to All
-            </button>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold">Employees ({filteredEmployees.length})</h2>
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={selectAllChecked} onChange={handleSelectAll} />
+              Select All
+            </label>
+            <div className="flex items-center gap-2">
+              <input type="number" value={bulkLeaves} onChange={e => setBulkLeaves(e.target.value)} placeholder="Set leaves for selected" className="border rounded px-2 py-1 w-44"/>
+              <button onClick={applyBulkLeaves} className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded">Apply</button>
+            </div>
           </div>
-        )}
+        </div>
 
-        <div className="max-h-60 overflow-y-auto">
-          <table className="w-full border-collapse border">
+        <div className="overflow-x-auto">
+          <table className="w-full border text-left">
             <thead>
               <tr className="bg-gray-100">
-                <th className="border p-2">
-                  <input
-                    type="checkbox"
-                    checked={selectedEmps.length === employees.length && employees.length > 0}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedEmps(employees.map(emp => emp.employeeNumber));
-                        const allLeaves = {};
-                        employees.forEach(emp => {
-                          allLeaves[emp.employeeNumber] = existingLeaves[emp.employeeNumber] || 1;
-                        });
-                        setAllocatedLeaves(allLeaves);
-                      } else {
-                        setSelectedEmps([]);
-                        setAllocatedLeaves({});
-                      }
-                    }}
-                  />
-                </th>
-                <th className="border p-2">Employee Name</th>
-                <th className="border p-2">Employee Number</th>
-                <th className="border p-2">Allocated Leaves</th>
-                <th className="border p-2">Actions</th>
+                <th className="py-2 px-3">Select</th>
+                <th className="py-2 px-3">Employee</th>
+                <th className="py-2 px-3">Dept</th>
+                <th className="py-2 px-3">Designation</th>
+                <th className="py-2 px-3">Grade</th>
+                <th className="py-2 px-3">Type</th>
+                <th className="py-2 px-3">Allocated Leave</th>
+                <th className="py-2 px-3">Prev Year (if carry)</th>
               </tr>
             </thead>
             <tbody>
-              {[...employees].sort((a, b) => {
-                const aSel = selectedEmps.includes(a.employeeNumber);
-                const bSel = selectedEmps.includes(b.employeeNumber);
-                return bSel - aSel;
-              }).map(emp => (
-                <tr key={emp.employeeNumber} className="hover:bg-gray-50">
-                  <td className="border p-2">
-                    <input
-                      type="checkbox"
-                      checked={selectedEmps.includes(emp.employeeNumber)}
-                      onChange={() => toggleEmp(emp.employeeNumber)}
-                    />
-                  </td>
-                  <td className="border p-2">{emp.employeeName}</td>
-                  <td className="border p-2">{emp.employeeNumber}</td>
-                  <td className="border p-2">
-                    <input
-                        type="number"
-                        className="border rounded px-2 py-1 w-20"
-                        value={allocatedLeaves[emp.employeeNumber] ?? existingLeaves[emp.employeeNumber] ?? ""}
-                        onChange={(e) =>
-                          setAllocatedLeaves((prev) => ({
-                            ...prev,
-                            [emp.employeeNumber]: Number(e.target.value),
-                          }))
-                        }
-                        disabled={!selectedEmps.includes(emp.employeeNumber)}
-                        placeholder={
-                          existingLeaves[emp.employeeNumber]
-                            ? `Already ${existingLeaves[emp.employeeNumber]}`
-                            : ""
-                        }
-                      />
+  {filteredEmployees.length === 0 ? (
+    <tr>
+      <td colSpan="8" className="text-center py-4">No employees found</td>
+    </tr>
+  ) : (
+    filteredEmployees.map(emp => {
+      const empNum = emp.employeeNumber;
+      const currentAlloc = allocatedLeaves[empNum] ?? existingLeaves[empNum] ?? 0; 
+      const prevYear = previousLeaves[empNum] ?? 0;
 
-                  </td>
-                  <td className="border p-2 flex gap-2">
-                    <button
-                      className="bg-blue-500 hover:bg-blue-600 text-white p-1 rounded"
-                      onClick={() => {
-                        const leaves = allocatedLeaves[emp.employeeNumber] || 1;
-                        setAllocatedLeaves(prev => ({ ...prev, [emp.employeeNumber]: leaves }));
-                      }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="bg-red-500 hover:bg-red-600 text-white p-1 rounded"
-                      onClick={() => {
-                        setAllocatedLeaves(prev => {
-                          const copy = { ...prev };
-                          delete copy[emp.employeeNumber];
-                          return copy;
-                        });
-                        setSelectedEmps(prev => prev.filter(id => id !== emp.employeeNumber));
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {employees.length === 0 && (
-                <tr>
-                  <td colSpan="5" className="text-center p-2 text-gray-500">
-                    No employees selected
-                  </td>
-                </tr>
-              )}
-            </tbody>
+      return (
+        <tr key={empNum} className="border-t">
+          {/* Select */}
+          <td className="py-2 px-3">
+            <input
+              type="checkbox"
+              checked={selectedEmps.includes(empNum)}
+              onChange={() => toggleEmp(empNum)}
+            />
+          </td>
+
+          {/* Employee Info */}
+          <td className="py-2 px-3">{emp.employeeName}</td>
+          <td className="py-2 px-3">{emp.department?.departmentName || "-"}</td>
+          <td className="py-2 px-3">{emp.designation?.designationName || "-"}</td>
+          <td className="py-2 px-3">{emp.grade?.gradeName || "-"}</td>
+          <td className="py-2 px-3">{emp.type?.typeName || "-"}</td>
+
+          {/* Current Allocation (editable) */}
+          <td className="py-2 px-3">
+            <input
+              type="number"
+              className="border rounded px-2 py-1 w-24"
+              value={currentAlloc}
+              onChange={(e) => handleAllocatedChange(empNum, e.target.value)}
+              disabled={!selectedEmps.includes(empNum)}
+            />
+          </td>
+
+          {/* Previous Year Balance (read-only) */}
+          <td className="py-2 px-3 text-gray-600">
+            {prevYear}
+          </td>
+        </tr>
+      );
+    })
+  )}
+</tbody>
+
           </table>
         </div>
-      </div>
 
-      {/* Save Button */}
-      {selectedEmps.length > 0 && (
-        <button
-          onClick={handleSave}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded"
-        >
-          Save Allocations
-        </button>
-      )}
+        <div className="mt-4 flex justify-end">
+          <button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+            Save Allocations
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

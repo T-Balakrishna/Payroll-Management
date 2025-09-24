@@ -4,18 +4,35 @@ const LeaveAllocation = require("../models/LeaveAllocation");
 // Create (single + bulk)
 exports.createLeaveAllocation = async (req, res) => {
   try {
-    const data = req.body; // could be object or array
+    let data = req.body; // could be object or array
+
+    const normalize = (obj) => {
+      const { startYear, endYear, ...rest } = obj;
+
+      // ensure endYear = startYear + 1
+      console.log(startYear+" "+endYear);      
+      if (Number(endYear) !== Number(startYear) + 1) {
+        throw new Error(`❌ Invalid period: endYear must be startYear + 1`);
+      }     
+      return {
+        ...rest,
+        leavePeriod: `${startYear}-${endYear}`,
+        startDate: `${startYear}-06-01`,
+        endDate: `${endYear}-04-30`,
+      };
+    };
 
     if (Array.isArray(data)) {
-      // Bulk insert
-      const allocations = await LeaveAllocation.bulkCreate(data, { returning: true });
+      const prepared = data.map(normalize);
+      const allocations = await LeaveAllocation.bulkCreate(prepared, { returning: true });
       return res.status(201).json(allocations);
     } else {
-      // Single insert
-      const allocation = await LeaveAllocation.create(data);
+      const prepared = normalize(data);
+      const allocation = await LeaveAllocation.create(prepared);
       return res.status(201).json(allocation);
     }
   } catch (error) {
+    console.error("❌ Error creating leave allocation:", error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -54,15 +71,29 @@ exports.getLeaveAllocationById = async (req, res) => {
 // ✅ Update
 exports.updateLeaveAllocation = async (req, res) => {
   try {
-    const { allotedLeave, usedLeave, leavePeriod, leaveTypeId, updatedBy } = req.body;
+    const { employeeNumber, leaveTypeId, leavePeriod, allotedLeave, usedLeave, updatedBy } = req.body;
 
-    const allocation = await LeaveAllocation.findByPk(req.params.id);
-    if (!allocation) return res.status(404).json({ error: "Not found" });
+    // find the record by employeeNumber + leaveTypeId + leavePeriod
+    let allocation = await LeaveAllocation.findOne({
+      where: { employeeNumber, leaveTypeId, leavePeriod }
+    });
 
+    if (!allocation) {
+      // if not found, optionally create a new one
+      allocation = await LeaveAllocation.create({
+        employeeNumber,
+        leaveTypeId,
+        leavePeriod,
+        allotedLeave,
+        usedLeave: usedLeave || 0,
+        createdBy: updatedBy
+      });
+      return res.status(201).json(allocation);
+    }
+
+    // update existing
     allocation.allotedLeave = allotedLeave ?? allocation.allotedLeave;
     allocation.usedLeave = usedLeave ?? allocation.usedLeave;
-    allocation.leavePeriod = leavePeriod ?? allocation.leavePeriod;
-    allocation.leaveTypeId = leaveTypeId ?? allocation.leaveTypeId;
     allocation.updatedBy = updatedBy ?? allocation.updatedBy;
 
     await allocation.save();
@@ -71,6 +102,7 @@ exports.updateLeaveAllocation = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
 
 // ✅ Delete
 exports.deleteLeaveAllocation = async (req, res) => {

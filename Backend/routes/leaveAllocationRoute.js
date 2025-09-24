@@ -12,7 +12,7 @@ const {
 router.post("/", createLeaveAllocation);
 router.get("/", getAllLeaveAllocations);
 router.get("/:id", getLeaveAllocationById);
-router.put("/:id", updateLeaveAllocation);
+router.put("/", updateLeaveAllocation);
 router.delete("/:id", deleteLeaveAllocation);
 
 module.exports = router;

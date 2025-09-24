@@ -94,7 +94,9 @@ const startServer = async () => {
   try {
     await seq.authenticate();
     console.log("✅ DB Connected successfully");
-    await seq.sync({ alter: true });
+
+    // ⚠️ safer: alter = keep data, adjust schema if needed
+    await seq.sync({ alter:false}); 
     console.log("✅ Tables synced");
 
     app.listen(5000, () => {

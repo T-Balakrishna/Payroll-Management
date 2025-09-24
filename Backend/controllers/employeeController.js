@@ -14,7 +14,6 @@ const bcrypt = require("bcrypt");
 const UserController = require("./userController");
 
 // ================= CRUD =================
-
 // ✅ Create Employee
 exports.createEmployee = async (req, res) => {
   try {
