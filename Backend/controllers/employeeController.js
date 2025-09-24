@@ -7,137 +7,168 @@ const Shift = require('../models/Shift');
 const Religion = require('../models/Religion');
 const Caste = require('../models/Caste');
 const Bus = require('../models/Bus');
-const User = require('../models/User')
+const User = require('../models/User');
 const { log } = require('node-zklib/helpers/errorLog');
-const {Op} = require('sequelize')
+const { Op } = require('sequelize');
 const bcrypt = require("bcrypt");
 const UserController = require("./userController");
-
 
 // ================= CRUD =================
 
 // ✅ Create Employee
 exports.createEmployee = async (req, res) => {
-  try {    
-    console.log(req.body);    
+  try {
+    console.log(req.body);
     const employee = await Employee.create(req.body);
     res.status(201).json(employee);
   } catch (error) {
-    res.status(500).json({error: error.message });
+    console.error("❌ Error in createEmployee:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
+    res.status(500).json({ error: "Failed to create employee", details: error.message });
   }
 };
 
-// ✅ Get all Employees with associations
+// ✅ Get all Employees with associations (referencePersonDetails removed as it's a string)
 exports.getEmployees = async (req, res) => {
   try {
     const employees = await Employee.findAll({
+      attributes: [
+        'employeeId', 'employeeNumber', 'firstName', 'lastName', 'employeeMail',
+        'salutation', 'gender', 'DOB', 'DOJ', 'departmentId', 'designationId',
+        'reportsTo', 'referencePerson', 'photo', 'status' // Essential fields; add more if needed
+      ],
       include: [
-        { model: Department, as: 'department' },
-        { model: Designation, as: 'designation' },
-        { model: EmployeeGrade, as: 'grade' },
-        { model: Shift, as: 'shift' },
-        { model: Religion, as: 'religion' },
-        { model: Caste, as: 'caste' },
-        { model: Bus, as: 'bus' },
-        { model: Employee, as: 'manager' },
-        { model: Employee, as: 'referencePersonDetails' },
+        { model: Department, as: 'department', required: false },
+        { model: Designation, as: 'designation', required: false },
+        { model: EmployeeGrade, as: 'grade', required: false },
+        { model: Shift, as: 'shift', required: false },
+        { model: Religion, as: 'religion', required: false },
+        { model: Caste, as: 'caste', required: false },
+        { model: Bus, as: 'bus', required: false },
+        { model: Employee, as: 'manager', required: false },
+        // referencePersonDetails removed: referencePerson is a STRING, not a foreign key
       ],
     });
     res.json(employees);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("❌ Error in getEmployees:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
+    res.status(500).json({ error: "Failed to fetch employees", details: error.message });
   }
 };
 
-// ✅ Get Employee by ID
+// ✅ Get Employee by ID (referencePersonDetails removed as it's a string)
 exports.getEmployeeById = async (req, res) => {
   try {
-    const employee = await Employee.findByPk(req.params.id, {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ error: "Employee ID is required" });
+    }
+
+    const employee = await Employee.findByPk(id, {
       include: [
-        { model: Department, as: 'department' },
-        { model: Designation, as: 'designation' },
-        { model: EmployeeGrade, as: 'grade' },
-        { model: Shift, as: 'shift' },
-        { model: Religion, as: 'religion' },
-        { model: Caste, as: 'caste' },
-        { model: Bus, as: 'bus' },
-        { model: Employee, as: 'manager' },
-        { model: Employee, as: 'referencePersonDetails' },
+        { model: Department, as: 'department', required: false },
+        { model: Designation, as: 'designation', required: false },
+        { model: EmployeeGrade, as: 'grade', required: false },
+        { model: Shift, as: 'shift', required: false },
+        { model: Religion, as: 'religion', required: false },
+        { model: Caste, as: 'caste', required: false },
+        { model: Bus, as: 'bus', required: false },
+        { model: Employee, as: 'manager', required: false },
+        // referencePersonDetails removed: referencePerson is a STRING, not a foreign key
       ],
     });
 
-    if (!employee) return res.status(404).json({ error: "Employee not found" });
+    if (!employee) {
+      return res.status(404).json({ error: "Employee not found" });
+    }
 
     res.json(employee);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("❌ Error in getEmployeeById:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
+    res.status(500).json({ error: "Failed to fetch employee", details: error.message });
   }
 };
 
 // ✅ Update Employee
-// exports.updateEmployee = async (req, res) => {
-//   try {
-//     // const oldPassword = Employee.
-//     const { employeeNumber } = req.params; // frontend sends this
-//     const [updated] = await Employee.update(req.body, {
-//       where: { employeeNumber }
-//     });
-
-//     if (!updated) return res.status(404).json({ error: "Employee not found" });
-
-//     const updatedEmployee = await Employee.findOne({where:{employeeNumber}});
-//     res.json(updatedEmployee);
-//   } catch (error) {
-//     res.status(500).json({ error: error.message });
-//   }
-// };
-
-
 exports.updateEmployee = async (req, res) => {
   try {
     const { employeeNumber } = req.params;
     const { password, updatedBy } = req.body;
+
+    if (!employeeNumber) {
+      return res.status(400).json({ error: "Employee number is required" });
+    }
+
     // Update employee
     const [updated] = await Employee.update(req.body, { where: { employeeNumber } });
-    if (!updated) return res.status(404).json({ error: "Employee not found" });
+    if (!updated) {
+      return res.status(404).json({ error: "Employee not found" });
+    }
 
     const updatedEmployee = await Employee.findOne({ where: { employeeNumber } });
 
     // 🔑 Only check password change
     if (password) {
-      var isSamePassword;
       const user = await User.findOne({ where: { userNumber: employeeNumber } });
       if (user) {
-        isSamePassword = await bcrypt.compare(password, user.password);
+        const isSamePassword = await bcrypt.compare(password, user.password);
         if (!isSamePassword) {
           const hashedPassword = await bcrypt.hash(password, 10);
           await user.update({ password: hashedPassword, updatedBy });
           await updatedEmployee.update({ password: hashedPassword, updatedBy });
         }
+      } else {
+        console.warn(`User not found for employeeNumber: ${employeeNumber}`);
       }
     }
 
     res.json(updatedEmployee);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("❌ Error in updateEmployee:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
+    res.status(500).json({ error: "Failed to update employee", details: error.message });
   }
 };
 
-
-
-// ✅ Delete Employee
-// ================= DELETE EMPLOYEE =================
+// ✅ Delete Employee (Soft delete)
 exports.deleteEmployee = async (req, res) => {
   try {
-    const employee = await Employee.findOne({ where: { employeeId: req.params.id } });
-    if (!employee) return res.status(404).send("Employee not found");
+    const { id } = req.params;
+    const { updatedBy } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ error: "Employee ID is required" });
+    }
+
+    const employee = await Employee.findOne({ where: { employeeId: id } });
+    if (!employee) {
+      return res.status(404).json({ error: "Employee not found" });
+    }
 
     // Soft delete: set status to 'inactive'
-    await employee.update({ status: 'inactive', updatedBy: req.body.updatedBy });
+    await employee.update({ status: 'inactive', updatedBy });
     res.json({ message: "Employee deactivated successfully" });
   } catch (error) {
-    console.error("❌ Error deactivating employee:", error);
-    res.status(500).send("Error deactivating employee: " + error.message);
+    console.error("❌ Error deactivating employee:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
+    res.status(500).json({ error: "Failed to deactivate employee", details: error.message });
   }
 };
 
@@ -147,8 +178,7 @@ exports.deleteEmployee = async (req, res) => {
 exports.getEmployeesByDepartment = async (req, res) => {
   try {
     const { departments } = req.body; // array of departmentIds
-    
-    
+
     if (!departments || !Array.isArray(departments) || departments.length === 0) {
       return res.status(400).json({ error: "Departments array is required" });
     }
@@ -156,40 +186,37 @@ exports.getEmployeesByDepartment = async (req, res) => {
     console.log("Generated where clause:", { departmentId: { [Op.in]: departments } });
     const employees = await Employee.findAll({
       where: { departmentId: { [Op.in]: departments } },
-      // include: [
-      //   { model: Department, as: "department" },
-      //   { model: Designation, as: "designation" },
-      //   { model: EmployeeGrade, as: "grade" },
-      //   { model: Shift, as: "shift" },
-      //   { model: Religion, as: "religion" },
-      //   { model: Caste, as: "caste" },
-      //   { model: Bus, as: "bus" },
-      //   { model: Employee, as: "manager" },
-      //   { model: Employee, as: "referencePersonDetails" },
-      // ],
+      // Associations commented out for performance; add if needed
     });
 
     if (!employees || employees.length === 0) {
       return res.status(404).json({ error: "No employees found for these departments" });
     }
+
     console.log(employees);
-    
     res.json(employees);
   } catch (error) {
-    console.error("❌ Error fetching employees:", error);
-    res.status(500).json({ error: "hi"+error.message });
+    console.error("❌ Error fetching employees by department:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
+    res.status(500).json({ error: "Failed to fetch employees", details: error.message });
   }
 };
 
 exports.getEmployeeFromUser = async (req, res) => {
-  
   try {
-    const { userNumber } = req.params; // frontend sends this
-    console.log("Hello this new controller"+ userNumber);
-    if (!userNumber) return res.status(400).json({ error: "Missing userNumber" });
+    const { userNumber } = req.params;
+    console.log("Hello this new controller" + userNumber);
+    if (!userNumber) {
+      return res.status(400).json({ error: "Missing userNumber" });
+    }
 
     const user = await User.findOne({ where: { userNumber } });
-    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
 
     res.json({
       employeeMail: user.userMail,
@@ -198,17 +225,25 @@ exports.getEmployeeFromUser = async (req, res) => {
       departmentId: user.departmentId, // adjust based on your column name
     });
   } catch (err) {
-    console.error("❌ Error in /byUser:", err);
-    res.status(500).json({ error: "Internal Server Errors" });
+    console.error("❌ Error in getEmployeeFromUser:", {
+      message: err.message,
+      stack: err.stack,
+      name: err.name,
+    });
+    res.status(500).json({ error: "Failed to fetch employee from user", details: err.message });
   }
-}
+};
 
 exports.getEmployeeName = async (req, res) => {
   try {
     const { userNumber } = req.params;
-    console.log(userNumber);    
+    console.log(userNumber);
+    if (!userNumber) {
+      return res.status(400).json({ error: "User number is required" });
+    }
+
     const employee = await Employee.findOne({
-      where: { employeeNumber:userNumber },
+      where: { employeeNumber: userNumber },
     });
 
     if (!employee) {
@@ -219,8 +254,12 @@ exports.getEmployeeName = async (req, res) => {
       employeeName: `${employee.firstName} ${employee.lastName}`.trim()
     });
   } catch (error) {
-    console.error("❌ Error in getEmployeeName:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+    console.error("❌ Error in getEmployeeName:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
+    res.status(500).json({ error: "Failed to fetch employee name", details: error.message });
   }
 };
 
@@ -228,44 +267,67 @@ exports.getEmployeeName = async (req, res) => {
 exports.getEmployeeFullByNumber = async (req, res) => {
   try {
     const { employeeNumber } = req.params;
+    if (!employeeNumber) {
+      return res.status(400).json({ error: "Employee number is required" });
+    }
+
     const employee = await Employee.findOne({
       where: { employeeNumber },
       include: [
-        { model: Department, as: "department" },
-        { model: Designation, as: "designation" },
-        { model: EmployeeGrade, as: "grade" },
-        { model: Shift, as: "shift" },
-        { model: Religion, as: "religion" },
-        { model: Caste, as: "caste" },
-        { model: Bus, as: "bus" },
+        { model: Department, as: "department", required: false },
+        { model: Designation, as: "designation", required: false },
+        { model: EmployeeGrade, as: "grade", required: false },
+        { model: Shift, as: "shift", required: false },
+        { model: Religion, as: "religion", required: false },
+        { model: Caste, as: "caste", required: false },
+        { model: Bus, as: "bus", required: false },
+        // referencePersonDetails removed: referencePerson is a STRING, not a foreign key
       ],
     });
 
-    if (!employee) return res.status(404).json({ error: "Employee not found" });
+    if (!employee) {
+      return res.status(404).json({ error: "Employee not found" });
+    }
 
     res.json(employee); // send entire employee object
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Internal Server Error" });
+    console.error("❌ Error in getEmployeeFullByNumber:", {
+      message: err.message,
+      stack: err.stack,
+      name: err.name,
+    });
+    res.status(500).json({ error: "Failed to fetch full employee", details: err.message });
   }
 };
 
 exports.uploadPhoto = async (req, res) => {
   try {
     const { id } = req.params;
-    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+    if (!id) {
+      return res.status(400).json({ error: "Employee ID is required" });
+    }
 
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    console.log('Uploaded file:', req.file); // Debug log
     const employee = await Employee.findByPk(id);
-    if (!employee) return res.status(404).json({ error: "Employee not found" });
+    if (!employee) {
+      return res.status(404).json({ error: "Employee not found" });
+    }
 
-    // Save relative path
-    employee.photo = `/uploads/employees/${req.file.filename}`;
+    // Save correct path
+    employee.photo = `/uploads/${req.file.filename}`; // Changed from /Uploads/employees/
     await employee.save();
 
     res.json({ message: "Photo uploaded successfully", employee });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("❌ Error in uploadPhoto:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
+    res.status(500).json({ error: "Failed to upload photo", details: error.message });
   }
 };
-
-

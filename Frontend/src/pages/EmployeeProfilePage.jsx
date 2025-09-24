@@ -1,19 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import axios from "axios";
-
-
-
-
-
-
-
 
 const EmployeeProfilePage = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
-
-
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const [options, setOptions] = useState({
     designations: [],
     grades: [],
@@ -26,14 +21,6 @@ const EmployeeProfilePage = () => {
     employees: [],
     shifts: [],
   });
-
-
-
-
-
-
-
-
   const [formData, setFormData] = useState({
     salutation: "",
     firstName: "",
@@ -79,27 +66,35 @@ const EmployeeProfilePage = () => {
     salaryId: "",
     acctNumber: "",
     password: "",
+    confirmPassword: "",
     qualification: "",
     experience: "",
     referencePerson: "",
     busId: "",
+    photo: null,
+    photoPath: "",
+    employeeId: null,
   });
-
-
-
-
-
-
-
-
   const [departments, setDepartments] = useState([]);
+  const passwordMismatch = formData.password !== formData.confirmPassword && formData.confirmPassword !== "";
+  const [photoPreview, setPhotoPreview] = useState("/placeholder-image.jpg");
 
-
-
-
-
-
-
+  useEffect(() => {
+    if (formData.photo instanceof File) {
+      const url = URL.createObjectURL(formData.photo);
+      setPhotoPreview(url);
+      return () => URL.revokeObjectURL(url);
+    } else if (formData.photoPath) {
+      // Transform photoPath to match static route (/uploads/<filename>)
+      const correctedPhotoPath = formData.photoPath.includes('/uploads/employees/')
+        ? `/uploads/${formData.photoPath.split('/').pop()}`
+        : formData.photoPath;
+      console.log('Corrected photoPath:', correctedPhotoPath); // Debug log
+      setPhotoPreview(correctedPhotoPath);
+    } else {
+      setPhotoPreview("/placeholder-image.jpg");
+    }
+  }, [formData.photo, formData.photoPath]);
 
   useEffect(() => {
     const fetchDepartments = async () => {
@@ -108,69 +103,26 @@ const EmployeeProfilePage = () => {
         setDepartments(res.data);
       } catch (err) {
         console.error("Error fetching departments:", err);
+        setErrorMessage("Failed to load departments. Please try again.");
       }
     };
     fetchDepartments();
   }, []);
-
-
-
-
-
-
-
 
   const getDepartmentName = (id) => {
     const dept = departments.find((d) => d.departmentId === id);
     return dept ? dept.departmentName : id;
   };
 
-
-
-
-  //   useEffect(() => {
-  //     const fetchUserMappedData = async () => {
-  //       try {
-  //         const userNumber = sessionStorage.getItem("userNumber");
-  //         if (!userNumber) return;
-  //       // Get mapped employee
-  //       const res = await axios.get(
-  //         `http://localhost:5000/api/employees/fromUser/${userNumber}`
-  //       );
-
-  //       console.log("First "+formData.employeeNumber);
-  //       setFormData((prev) => ({
-  //         ...prev,
-  //         employeeMail: res.data.employeeMail,
-  //         employeeNumber: res.data.employeeNumber,
-  //         password: res.data.password,
-  //         departmentId: res.data.departmentId,
-  //       }));
-  //       // Check if employee already exists
-  //       const check = await axios.get(
-  //         `http://localhost:5000/api/employees/full/${res.data.employeeNumber}`
-  //       );
-
-
-
-
-  //       if (!check.data) {
-  //         // If employee not found → create
-  //         await axios.post("http://localhost:5000/api/employees", res.data);
-  //       }
-  //     } catch (err) {
-  //       console.error("Error fetching user-mapped employee data:", err);
-  //     }
-  //   };
-  //   fetchUserMappedData();
-  // }, []);
-
-
   useEffect(() => {
     const fetchUserMappedData = async () => {
       try {
         const userNumber = sessionStorage.getItem("userNumber");
-        if (!userNumber) return;
+        if (!userNumber) {
+          setErrorMessage("User number not found. Please log in again.");
+          return;
+        }
+        console.log('Fetching user data for userNumber:', userNumber); // Debug log
         const res = await axios.get(`http://localhost:5000/api/employees/fromUser/${userNumber}`);
         setFormData((prev) => ({
           ...prev,
@@ -179,194 +131,254 @@ const EmployeeProfilePage = () => {
           password: res.data.password,
           departmentId: res.data.departmentId,
         }));
-        //   const res1 = await axios.get(`http://localhost:5000/api/employees/full/${userNumber}`)
-        //   if(!res1){
-        //     const res2 = await axios.post(`http://localhost:5000/api/employees`,
-        //       {
-        //         employeeMail: res.data.employeeMail,
-        //         employeeNumber: res.data.employeeNumber,
-        //         password: res.data.password,
-        //         departmentId: res.data.departmentId,
-        //     })
-        //  }
       } catch (err) {
         console.error("Error fetching user-mapped employee data:", err);
+        setErrorMessage("Failed to load user data. Please try again.");
       }
     };
     fetchUserMappedData();
   }, []);
 
-
-
-
   useEffect(() => {
     const fetchExistingEmployeeData = async () => {
       try {
         const employeeNumber = sessionStorage.getItem("userNumber");
-        if (!employeeNumber) return;
+        if (!employeeNumber) {
+          setErrorMessage("User number not found. Please log in again.");
+          return;
+        }
+        console.log('Fetching employee data for employeeNumber:', employeeNumber); // Debug log
         const res = await axios.get(
           `http://localhost:5000/api/employees/full/${employeeNumber}`
         );
         if (res.data) {
+          console.log('Fetched employee data:', res.data); // Debug log
           const filteredData = Object.fromEntries(
             Object.entries(res.data).filter(
               ([key, value]) =>
                 value !== null &&
                 value !== undefined &&
-                !["employeeNumber", "employeeMail", "departmentId", "DOJ"].includes(key)
+                !["employeeNumber", "employeeMail", "departmentId", "photo"].includes(key)
             )
           );
           setFormData((prev) => ({
             ...prev,
             ...filteredData,
+            employeeId: res.data.employeeId,
+            photoPath: res.data.photo || "",
+            photo: null,
           }));
         }
       } catch (err) {
         console.error("Error fetching existing employee data:", err);
+        setErrorMessage(`Failed to load employee data: ${err.response?.data?.error || err.message}`);
       }
     };
     fetchExistingEmployeeData();
   }, []);
 
-
-
-
-
-
   useEffect(() => {
     const fetchOptions = async () => {
+      const requests = [
+        axios.get("http://localhost:5000/api/designations"),
+        axios.get("http://localhost:5000/api/employeeGrades"),
+        axios.get("http://localhost:5000/api/employeeTypes"),
+        axios.get("http://localhost:5000/api/holidayPlans"),
+        axios.get("http://localhost:5000/api/religions"),
+        axios.get("http://localhost:5000/api/castes"),
+        axios.get("http://localhost:5000/api/buses"),
+        axios.get("http://localhost:5000/api/employees"),
+        axios.get("http://localhost:5000/api/shifts"),
+      ];
+
       try {
-        const [
-          designations,
-          grades,
-          types,
-          departments,
-          holidayPlans,
-          religions,
-          castes,
-          buses,
-          employees,
-          shifts,
-        ] = await Promise.all([
-          axios.get("http://localhost:5000/api/designations"),
-          axios.get("http://localhost:5000/api/employeeGrades"),
-          axios.get("http://localhost:5000/api/employeeTypes"),
-          axios.get("http://localhost:5000/api/departments"),
-          axios.get("http://localhost:5000/api/holidayPlans"),
-          axios.get("http://localhost:5000/api/religions"),
-          axios.get("http://localhost:5000/api/castes"),
-          axios.get("http://localhost:5000/api/buses"),
-          axios.get("http://localhost:5000/api/employees"),
-          axios.get("http://localhost:5000/api/shifts"),
-        ]);
+        const results = await Promise.allSettled(requests);
 
+        const newOptions = {
+          designations: [],
+          grades: [],
+          types: [],
+          departments: [],
+          holidayPlans: [],
+          religions: [],
+          castes: [],
+          buses: [],
+          employees: [],
+          shifts: [],
+        };
 
+        const mappings = [
+          { key: 'designations', resIndex: 0 },
+          { key: 'grades', resIndex: 1 },
+          { key: 'types', resIndex: 2 },
+          { key: 'holidayPlans', resIndex: 3 },
+          { key: 'religions', resIndex: 4 },
+          { key: 'castes', resIndex: 5 },
+          { key: 'buses', resIndex: 6 },
+          { key: 'employees', resIndex: 7 },
+          { key: 'shifts', resIndex: 8 },
+        ];
 
-
-
-
-
-
-        setOptions({
-          designations: designations.data || [],
-          grades: grades.data || [],
-          types: types.data || [],
-          departments: departments.data || [],
-          holidayPlans: holidayPlans.data || [],
-          religions: religions.data || [],
-          castes: castes.data || [],
-          buses: buses.data || [],
-          employees: employees.data || [],
-          shifts: shifts.data || [],
+        let hasErrors = false;
+        mappings.forEach(({ key, resIndex }) => {
+          if (results[resIndex].status === 'fulfilled') {
+            newOptions[key] = results[resIndex].value.data || [];
+          } else {
+            console.error(`Failed to load ${key}:`, results[resIndex].reason);
+            hasErrors = true;
+            newOptions[key] = [];
+          }
         });
+
+        setOptions(newOptions);
+
+        if (hasErrors) {
+          setErrorMessage(
+            "Some options, including employee data, failed to load. Some features may be limited. Please try again or contact support."
+          );
+        }
       } catch (error) {
-        console.error("Failed to load options:", error);
+        console.error("Unexpected error in fetchOptions:", error);
+        setErrorMessage("Failed to load options. Please try again.");
       }
     };
-
-
-
-
-
-
-
 
     fetchOptions();
   }, []);
 
-
-
-
-
-
-
-
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    const { name, value, files } = e.target;
+    if (name === "photo") {
+      setFormData((prev) => ({
+        ...prev,
+        photo: files[0] || null,
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
+    setErrorMessage("");
   };
-
-
-
-
-
-
-
 
   const handleSave = async () => {
     const requiredFields = ["firstName", "lastName", "departmentId", "DOB", "employeeNumber"];
 
-
-
-
-
-
-
-
-    for (let field of requiredFields) {
-      if (!formData[field] || formData[field].toString().trim() === "") {
-        alert(`${field} is required`);
+    if (activeTab !== "password") {
+      for (let field of requiredFields) {
+        if (!formData[field] || formData[field].toString().trim() === "") {
+          setErrorMessage(`${field} is required`);
+          return;
+        }
+      }
+      if (activeTab === "basic" && !formData.photo && !formData.photoPath) {
+        setErrorMessage("Profile Photo is required");
         return;
       }
     }
 
-
-
-
-
-
-
-
-    const filteredData = Object.fromEntries(
-      Object.entries(formData).filter(([_, value]) => value !== "")
-    );
-
-
-
-
-
-
-
+    if (activeTab === "password") {
+      if (!formData.password || !formData.confirmPassword) {
+        setErrorMessage("Both password and confirm password are required");
+        return;
+      }
+      if (formData.password !== formData.confirmPassword) {
+        setErrorMessage("Passwords do not match");
+        return;
+      }
+    }
 
     try {
       const employeeNumber = sessionStorage.getItem("userNumber");
-      await axios.put(`http://localhost:5000/api/employees/${employeeNumber}`, filteredData);
+      if (!employeeNumber) {
+        setErrorMessage("User number not found. Please log in again.");
+        return;
+      }
+      console.log('Saving with employeeNumber:', employeeNumber); // Debug log
+
+      // Check if employee exists
+      let employee;
+      try {
+        const response = await axios.get(`http://localhost:5000/api/employees/full/${employeeNumber}`);
+        employee = response.data;
+      } catch (err) {
+        if (err.response?.status === 404) {
+          console.log('Employee not found, creating new employee');
+          const createResponse = await axios.post(`http://localhost:5000/api/employees`, {
+            employeeNumber,
+            firstName: formData.firstName || "Default",
+            lastName: formData.lastName || "User",
+            departmentId: formData.departmentId || 1, // Ensure valid departmentId
+            employeeMail: formData.employeeMail || `${employeeNumber}@example.com`,
+          });
+          employee = createResponse.data;
+          setFormData((prev) => ({
+            ...prev,
+            employeeId: employee.employeeId,
+          }));
+        } else {
+          throw err;
+        }
+      }
+
+      if (formData.photo instanceof File && activeTab === "basic") {
+        if (!formData.employeeId && !employee.employeeId) {
+          setErrorMessage("Employee ID is missing for photo upload");
+          return;
+        }
+        const photoFormData = new FormData();
+        photoFormData.append("photo", formData.photo);
+        try {
+          const photoResponse = await axios.post(
+            `http://localhost:5000/api/employees/${formData.employeeId || employee.employeeId}/photo`,
+            photoFormData,
+            {
+              headers: {
+                "Content-Type": "multipart/form-data",
+              },
+            }
+          );
+          console.log('Photo upload response:', photoResponse.data); // Debug log
+          setFormData((prev) => ({
+            ...prev,
+            photoPath: photoResponse.data.employee.photo,
+            photo: null,
+          }));
+        } catch (photoError) {
+          console.error("Error uploading photo:", photoError);
+          setErrorMessage("Failed to upload photo. Please try again.");
+          return;
+        }
+      }
+
+      const filteredData = Object.fromEntries(
+        Object.entries(formData).filter(
+          ([key, value]) => key !== "photo" && key !== "photoPath" && key !== "confirmPassword" && value !== "" && value !== null
+        )
+      );
+
+      console.log('Sending PUT with data:', filteredData); // Debug log
+      await axios.put(`http://localhost:5000/api/employees/${employeeNumber}`, filteredData, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
       alert("Employee saved successfully!");
+      setErrorMessage("");
+
+      setFormData((prev) => ({
+        ...prev,
+        confirmPassword: activeTab === "password" ? "" : prev.confirmPassword,
+        photo: activeTab === "basic" ? null : prev.photo,
+      }));
     } catch (error) {
       console.error("Error saving employee:", error);
-      alert("Failed to save employee");
+      const errorMsg = error.response?.data?.error || error.message;
+      setErrorMessage(`Failed to save employee: ${errorMsg}`);
     }
   };
-
-
-
-
-
-
-
 
   const tabs = [
     { id: "overview", label: "Overview", icon: "👤" },
@@ -377,35 +389,26 @@ const EmployeeProfilePage = () => {
     { id: "personal", label: "Personal", icon: "🏠" },
     { id: "salary", label: "Salary", icon: "💰" },
     { id: "exit", label: "Exit", icon: "🚪" },
-    { id: "extra", label: "Additional", icon: "📋" },
+    { id: "password", label: "Change Password", icon: "📋" },
   ];
-
-
-
-
-
-
-
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      {/* Header with Close Button and Tabs */}
       <div className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Modal Header */}
           <div className="flex justify-between items-center py-4 border-b border-slate-100">
             <h1 className="text-2xl font-bold text-slate-800">Employee Profile</h1>
           </div>
-          {/* Horizontal Tab Navigation */}
           <div className="flex py-3">
             <div className="flex space-x-2 overflow-x-auto">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
-                  className={`flex-shrink-0 px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-1 text-sm ${activeTab === tab.id
-                    ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                    }`}
+                  className={`flex-shrink-0 px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-1 text-sm ${
+                    activeTab === tab.id
+                      ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                  }`}
                   onClick={() => setActiveTab(tab.id)}
                 >
                   <span>{tab.icon}</span>
@@ -417,19 +420,15 @@ const EmployeeProfilePage = () => {
         </div>
       </div>
 
-
-
-
-
-
-
-
-      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-2xl shadow-xl border border-slate-200 flex flex-col">
-          {/* Form Content */}
+          {errorMessage && (
+            <div className="p-4 bg-red-100 border-l-4 border-red-500 text-red-700">
+              {errorMessage}
+            </div>
+          )}
+
           <div className="p-8">
-            {/* Overview */}
             {activeTab === "overview" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
                 <div>
@@ -441,18 +440,9 @@ const EmployeeProfilePage = () => {
                     name="employeeMail"
                     value={formData.employeeMail}
                     disabled
-                    className="w-full p-3 border-2 border-slate-200 rounded-lg font-medium text-slate-600
-                 cursor-not-allowed focus:outline-none focus:border-blue-500 transition-colors h-12"
+                    className="w-full p-3 border-2 border-slate-200 rounded-lg font-medium text-slate-600 cursor-not-allowed focus:outline-none focus:border-blue-500 transition-colors h-12"
                   />
                 </div>
-
-
-
-
-
-
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Employee Number
@@ -462,18 +452,9 @@ const EmployeeProfilePage = () => {
                     name="employeeNumber"
                     value={formData.employeeNumber}
                     disabled
-                    className="w-full p-3 border-2 border-slate-200 rounded-lg font-medium text-slate-600
-                 cursor-not-allowed focus:outline-none focus:border-blue-500 transition-colors h-12"
+                    className="w-full p-3 border-2 border-slate-200 rounded-lg font-medium text-slate-600 cursor-not-allowed focus:outline-none focus:border-blue-500 transition-colors h-12"
                   />
                 </div>
-
-
-
-
-
-
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Department
@@ -483,18 +464,9 @@ const EmployeeProfilePage = () => {
                     name="departmentId"
                     value={getDepartmentName(formData.departmentId)}
                     disabled
-                    className="w-full p-3 border-2 border-slate-200 rounded-lg font-medium text-slate-600
-                 cursor-not-allowed focus:outline-none focus:border-blue-500 transition-colors h-12"
+                    className="w-full p-3 border-2 border-slate-200 rounded-lg font-medium text-slate-600 cursor-not-allowed focus:outline-none focus:border-blue-500 transition-colors h-12"
                   />
                 </div>
-
-
-
-
-
-
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Date of Joining
@@ -504,29 +476,12 @@ const EmployeeProfilePage = () => {
                     name="DOJ"
                     value={formData.DOJ || new Date().toISOString().split("T")[0]}
                     disabled
-                    className="w-full p-3 border-2 border-slate-200 rounded-lg font-medium text-slate-600
-                 cursor-not-allowed focus:outline-none focus:border-blue-500 transition-colors h-12"
+                    className="w-full p-3 border-2 border-slate-200 rounded-lg font-medium text-slate-600 cursor-not-allowed focus:outline-none focus:border-blue-500 transition-colors h-12"
                   />
                 </div>
               </div>
-
-
-
-
-
-
-
-
             )}
 
-
-
-
-
-
-
-
-            {/* Basic */}
             {activeTab === "basic" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
                 <div>
@@ -545,14 +500,6 @@ const EmployeeProfilePage = () => {
                     <option value="Mrs">Mrs</option>
                   </select>
                 </div>
-
-
-
-
-
-
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     First Name <span className="text-red-500">*</span>
@@ -566,14 +513,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter first name"
                   />
                 </div>
-
-
-
-
-
-
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Middle Name
@@ -616,14 +555,6 @@ const EmployeeProfilePage = () => {
                     <option value="Other">Other</option>
                   </select>
                 </div>
-
-
-
-
-
-
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Date of Birth <span className="text-red-500">*</span>
@@ -649,12 +580,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter reference person ID"
                   />
                 </div>
-
-
-
-
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Personal Email
@@ -668,11 +593,40 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter personal email"
                   />
                 </div>
+                <div className="col-span-1 md:col-span-2 flex justify-center mt-6">
+                  <div className="w-full max-w-md">
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                      Profile Photo <span className="text-red-500">*</span>
+                    </label>
+                    <div className="mb-4">
+                      <img
+                        src={photoPreview}
+                        alt="Profile"
+                        className="w-32 h-32 object-cover rounded-full mx-auto border-2 border-slate-200"
+                        onError={(e) => {
+                          console.error('Failed to load image:', photoPreview); // Debug log
+                          e.currentTarget.src = "/placeholder-image.jpg";
+                          setErrorMessage("Failed to load profile photo");
+                        }}
+                      />
+                    </div>
+                    <input
+                      type="file"
+                      name="photo"
+                      accept="image/*"
+                      onChange={handleChange}
+                      className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors bg-white h-12"
+                    />
+                    {formData.photo && (
+                      <p className="text-sm text-slate-600 mt-2">
+                        Selected: {formData.photo.name}
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
-
-            {/* Address */}
             {activeTab === "address" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
                 <div>
@@ -688,10 +642,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter door number"
                   />
                 </div>
-
-
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Street Name
@@ -705,10 +655,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter street name"
                   />
                 </div>
-
-
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     City
@@ -722,10 +668,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter city"
                   />
                 </div>
-
-
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Bus Route
@@ -744,8 +686,6 @@ const EmployeeProfilePage = () => {
                     ))}
                   </select>
                 </div>
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     District
@@ -759,14 +699,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter district"
                   />
                 </div>
-
-
-
-
-
-
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     State
@@ -780,14 +712,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter state"
                   />
                 </div>
-
-
-
-
-
-
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Pincode
@@ -804,14 +728,6 @@ const EmployeeProfilePage = () => {
               </div>
             )}
 
-
-
-
-
-
-
-
-            {/* Job */}
             {activeTab === "job" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
                 <div>
@@ -832,14 +748,6 @@ const EmployeeProfilePage = () => {
                     ))}
                   </select>
                 </div>
-
-
-
-
-
-
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Grade
@@ -858,9 +766,6 @@ const EmployeeProfilePage = () => {
                     ))}
                   </select>
                 </div>
-
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Qualification
@@ -874,14 +779,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter qualification"
                   />
                 </div>
-
-
-
-
-
-
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Experience
@@ -895,8 +792,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter experience details"
                   />
                 </div>
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Reports To
@@ -908,21 +803,19 @@ const EmployeeProfilePage = () => {
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors bg-white h-12"
                   >
                     <option value="">Select Manager</option>
-                    {options.employees.map((emp) => (
-                      <option key={emp.employeeId} value={emp.employeeId}>
-                        {emp.firstName} {emp.lastName}
+                    {options.employees.length > 0 ? (
+                      options.employees.map((emp) => (
+                        <option key={emp.employeeId} value={emp.employeeId}>
+                          {emp.firstName} {emp.lastName}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>
+                        No managers available
                       </option>
-                    ))}
+                    )}
                   </select>
                 </div>
-
-
-
-
-
-
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Employee Type
@@ -944,14 +837,6 @@ const EmployeeProfilePage = () => {
               </div>
             )}
 
-
-
-
-
-
-
-
-            {/* Attendance */}
             {activeTab === "attendance" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
                 <div>
@@ -972,14 +857,6 @@ const EmployeeProfilePage = () => {
                     ))}
                   </select>
                 </div>
-
-
-
-
-
-
-
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Shift
@@ -1001,14 +878,6 @@ const EmployeeProfilePage = () => {
               </div>
             )}
 
-
-
-
-
-
-
-
-            {/* Personal */}
             {activeTab === "personal" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
                 <div>
@@ -1047,7 +916,6 @@ const EmployeeProfilePage = () => {
                     ))}
                   </select>
                 </div>
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Marital Status
@@ -1061,7 +929,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter marital status"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Blood Group
@@ -1075,7 +942,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter blood group"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Aadhar Number
@@ -1089,7 +955,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter Aadhar number"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Passport Number
@@ -1106,7 +971,6 @@ const EmployeeProfilePage = () => {
               </div>
             )}
 
-            {/* Salary */}
             {activeTab === "salary" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
                 <div>
@@ -1122,7 +986,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter CTC amount"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Salary ID
@@ -1136,7 +999,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter salary ID"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Salary Currency
@@ -1150,7 +1012,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter currency (e.g., INR)"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Salary Mode
@@ -1164,7 +1025,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter salary mode"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Payroll Cost Center
@@ -1178,7 +1038,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter cost center"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Account Number
@@ -1192,7 +1051,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter account number"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     PAN Number
@@ -1206,7 +1064,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter PAN number"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     PF Number
@@ -1220,7 +1077,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter PF number"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     PF Nominee
@@ -1234,7 +1090,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter PF nominee name"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     ESI Number
@@ -1248,7 +1103,6 @@ const EmployeeProfilePage = () => {
                     placeholder="Enter ESI number"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     UAN Number
@@ -1265,7 +1119,6 @@ const EmployeeProfilePage = () => {
               </div>
             )}
 
-            {/* Exit */}
             {activeTab === "exit" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
                 <div>
@@ -1280,7 +1133,6 @@ const EmployeeProfilePage = () => {
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Relieving Date
@@ -1293,7 +1145,6 @@ const EmployeeProfilePage = () => {
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Exit Interview Held On
@@ -1309,27 +1160,59 @@ const EmployeeProfilePage = () => {
               </div>
             )}
 
-            {/* Extra */}
-            {activeTab === "extra" && (
+            {activeTab === "password" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
-                <div>
+                <div className="relative">
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Password
+                    New Password
                   </label>
                   <input
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     name="password"
                     value={formData.password}
                     onChange={handleChange}
-                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter password"
+                    className={`w-full p-3 border-2 rounded-lg focus:outline-none transition-colors h-12 pr-10 ${
+                      passwordMismatch ? "border-red-500 focus:border-red-500" : "border-slate-200 focus:border-blue-500"
+                    }`}
+                    placeholder="Enter new password"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-10 text-slate-500 hover:text-slate-700"
+                  >
+                    {showPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                  </button>
+                </div>
+                <div className="relative">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Confirm Password
+                  </label>
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    className={`w-full p-3 border-2 rounded-lg focus:outline-none transition-colors h-12 pr-10 ${
+                      passwordMismatch ? "border-red-500 focus:border-red-500" : "border-slate-200 focus:border-blue-500"
+                    }`}
+                    placeholder="Confirm new password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-10 text-slate-500 hover:text-slate-700"
+                  >
+                    {showConfirmPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                  </button>
+                  {passwordMismatch && (
+                    <p className="text-red-500 text-sm mt-1">Passwords do not match.</p>
+                  )}
                 </div>
               </div>
             )}
           </div>
 
-          {/* Save Button */}
           <div className="bg-gradient-to-r from-slate-50 to-slate-100 px-8 py-6 border-t border-slate-200 flex-shrink-0">
             <div className="flex justify-end">
               <button
