@@ -114,45 +114,6 @@ const EmployeeProfilePage = () => {
     return dept ? dept.departmentName : id;
   };
 
-<<<<<<< HEAD
-=======
-
-//   useEffect(() => {
-//     const fetchUserMappedData = async () => {
-//       try {
-//         const userNumber = sessionStorage.getItem("userNumber");
-//         if (!userNumber) return;
-//       // Get mapped employee
-//       const res = await axios.get(
-//         `http://localhost:5000/api/employees/fromUser/${userNumber}`
-//       );
-      
-//       console.log("First "+formData.employeeNumber);
-//       setFormData((prev) => ({
-//         ...prev,
-//         employeeMail: res.data.employeeMail,
-//         employeeNumber: res.data.employeeNumber,
-//         password: res.data.password,
-//         departmentId: res.data.departmentId,
-//       }));
-//       // Check if employee already exists
-//       const check = await axios.get(
-//         `http://localhost:5000/api/employees/full/${res.data.employeeNumber}`
-//       );
-
-
-//       if (!check.data) {
-//         // If employee not found → create
-//         await axios.post("http://localhost:5000/api/employees", res.data);
-//       }
-//     } catch (err) {
-//       console.error("Error fetching user-mapped employee data:", err);
-//     }
-//   };
-//   fetchUserMappedData();
-// }, []);
-
->>>>>>> 371ace307729fd042dc52023f890a0e4b49b3bb2
   useEffect(() => {
     const fetchUserMappedData = async () => {
       try {
@@ -170,19 +131,6 @@ const EmployeeProfilePage = () => {
           password: res.data.password,
           departmentId: res.data.departmentId,
         }));
-<<<<<<< HEAD
-=======
-      //   const res1 = await axios.get(`http://localhost:5000/api/employees/full/${userNumber}`)
-      //   if(!res1){
-      //     const res2 = await axios.post(`http://localhost:5000/api/employees`,
-      //       {
-      //         employeeMail: res.data.employeeMail,
-      //         employeeNumber: res.data.employeeNumber,
-      //         password: res.data.password,
-      //         departmentId: res.data.departmentId,
-      //     })
-      //  }
->>>>>>> 371ace307729fd042dc52023f890a0e4b49b3bb2
       } catch (err) {
         console.error("Error fetching user-mapped employee data:", err);
         setErrorMessage("Failed to load user data. Please try again.");
@@ -190,10 +138,6 @@ const EmployeeProfilePage = () => {
     };
     fetchUserMappedData();
   }, []);
-<<<<<<< HEAD
-=======
-
->>>>>>> 371ace307729fd042dc52023f890a0e4b49b3bb2
 
   useEffect(() => {
     const fetchExistingEmployeeData = async () => {
