@@ -77,7 +77,7 @@ async function processAttendance() {
         attendanceStatus: status,
       });
 
-      console.log(`✅ ${employee.employeeName}: ${status}`);
+      console.log( `✅${employee.employeeName}: ${status}`);
     }
 
     console.log("🎯 Attendance processing completed!");

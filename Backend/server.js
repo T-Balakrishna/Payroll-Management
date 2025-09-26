@@ -59,7 +59,7 @@ app.use('/api/employeeGrades', employeeGradeRoute);
 app.use('/api/employeeTypes', employeeTypeRoute);
 app.use('/api/holidays', holidayRoute);
 app.use('/api/holidayPlans', holidayPlanRoute);
-app.use('/api/leaveAllocation', leaveAllocationRoute);
+app.use('/api/leaveAllocations', leaveAllocationRoute);
 app.use('/api/leaveTypes', leaveTypeRoute);
 app.use('/api/leaves', leaveRoute);
 app.use('/api/punches', punchRoute);
@@ -104,6 +104,26 @@ const startServer = async () => {
     app.listen(5000, () => {
       console.log("🚀 Listening at http://localhost:5000");
     });
+
+    cron.schedule("* * * * *", async () => {
+      try {
+        console.log("⏱ Running hourly biometric fetch...");
+        await fetchBiometrics();
+      } catch (err) {
+        console.error("❌ Error fetching biometrics:", err.message);
+      }
+    });
+
+    // 🕛 Daily attendance processor at 12:00 AM
+    cron.schedule("* * * * *", async () => {
+      try {
+        console.log("🕛 Running daily attendance processor...");
+        await processAttendance();
+      } catch (err) {
+        console.error("❌ Error processing attendance:", err.message);
+      }
+    });
+
   } catch (error) {
     console.error("❌ Error starting server:", error.message);
   }

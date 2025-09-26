@@ -39,7 +39,8 @@ import {
   Activity,
   Menu,
   ComputerIcon,
-  LucideComputer
+  LucideComputer,
+  Badge
 } from 'lucide-react';
 
 const Admin = () => {
@@ -61,6 +62,7 @@ const Admin = () => {
     { id: 'employeeType', label: 'Employee Type Master', icon: Users, color: 'text-cyan-600' },
     { id: 'attendance', label: 'Attendance Master', icon: Activity, color: 'text-emerald-600'},
     { id: 'holiday', label: 'Holiday Master', icon: Calendar, color: 'text-yellow-600' },
+    { id: 'leave', label: 'Leave Approval Master', icon: Badge, color: 'text-lime-600' },
     { id: 'leaveType', label: 'Leave Type Master', icon: Clock, color: 'text-lime-600' },
     { id: 'leaveAllocation', label: 'Leave Allocation ', icon: Clock, color: 'text-lime-600' },
     { id: 'punches', label: 'Punch Details ', icon: LucideComputer, color: 'text-indigo-600' },
@@ -93,6 +95,7 @@ const Admin = () => {
     employeeGrade: "Employee Grade Master",
     employeeType: "Employee Type Master",
     holiday: "Holiday Master",
+    leave: "Leave Approval Master",
     leaveType: "Leave Type Master",
     leaveAllocation: "Leave Allocation",
     punches: "Punch Details",
@@ -187,6 +190,7 @@ const Admin = () => {
       case "employeeGrade": return <EmployeeGradeMaster />;
       case "employeeType": return <EmployeeTypeMaster />;
       case "holiday": return <HolidayMaster />;
+      case "leave": return <LeaveApproval />;
       case "leaveType": return <LeaveTypeMaster />;
       case "leaveAllocation": return <LeaveAllocation />;
       case "punches": return <Punches />;

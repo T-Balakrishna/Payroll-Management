@@ -1,31 +1,106 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FileText, User, Calendar, Plus } from "lucide-react";
+import axios from "axios";
+import dayjs from "dayjs";
+import Swal from "sweetalert2";
 
-const TakeLeavePage = ({ empId }) => {
+const TakeLeavePage = () => {
+  const employeeNumber = sessionStorage.getItem("userNumber");
+
+  const [leaveTypes, setLeaveTypes] = useState([]);
+  const [allocation, setAllocation] = useState(null);
+  const [requestedDays, setRequestedDays] = useState(0);
   const [formData, setFormData] = useState({
-    empId: empId || "EMP001",
+    employeeNumber: employeeNumber || "",
+    leaveTypeId: "",
     reason: "",
     fromDate: "",
     toDate: ""
   });
 
-  const remainingLeaves = 12;
+  // Fetch leave types
+  useEffect(() => {
+    axios.get("http://localhost:5000/api/leavetypes")
+      .then(res => setLeaveTypes(res.data))
+      .catch(err => console.error("❌ Error fetching leave types:", err));
+  }, []);
 
+  // Calculate leave period based on month
+  const getLeavePeriod = (date) => {
+    const year = dayjs(date).year();
+    const month = dayjs(date).month() + 1; // 0-based
+    return month >= 6 ? `${year}-${year + 1}` : `${year - 1}-${year}`;
+  };
+
+  // Fetch allocation whenever leaveType changes
+  useEffect(() => {
+    const fetchAllocation = async () => {
+      if (!formData.leaveTypeId) return;
+      try {
+        const period = getLeavePeriod(formData.fromDate);
+        const res = await axios.get("http://localhost:5000/api/leaveAllocations", {
+          params: { employeeNumber, leaveTypeId: formData.leaveTypeId, leavePeriod: period }
+        });
+        console.log(res.data);
+        setAllocation(res.data[0] || null);
+      } catch (err) {
+        console.error("❌ Error fetching allocation:", err);
+      }
+    };
+    fetchAllocation();
+  }, [formData.leaveTypeId, employeeNumber,formData.fromDate,formData.toDate]);
+
+  // Handle input changes
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  // Calculate requested days
+  const calculateDays = (fromDate, toDate) => {
+    if (!fromDate || !toDate) return 0;
+    const start = dayjs(fromDate);
+    const end = dayjs(toDate);
+    const diff = end.diff(start, "day") + 1;
+    return diff > 0 ? diff : 0;
+  };
+
+  // Update requestedDays whenever from/to dates change
+  useEffect(() => {
+    setRequestedDays(calculateDays(formData.fromDate, formData.toDate));
+  }, [formData.fromDate, formData.toDate]);
+
+  // Handle form submit
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Leave Request Submitted:", formData);
-    alert("Leave request submitted successfully!");
-    // Reset form
-    setFormData({
-      ...formData,
-      reason: "",
-      fromDate: "",
-      toDate: ""
-    });
+    const { leaveTypeId, fromDate, toDate, reason } = formData;
+
+    // Validate dates
+    if (dayjs(toDate).isBefore(dayjs(fromDate))) {
+      return Swal.fire({ icon: "error", title: "Invalid Dates", text: "To Date cannot be earlier than From Date" });
+    }
+    console.log(allocation,requestedDays,allocation?.balance);
+    if (!allocation || requestedDays > allocation.balance) {
+      return Swal.fire({ icon: "warning", title: "Insufficient Balance", text: "Not enough leave balance available." });
+    }
+
+    try {
+      await axios.post("http://localhost:5000/api/leaves", {
+        employeeNumber,
+        leaveTypeId,
+        startDate: fromDate,
+        endDate: toDate,
+        reason,
+        status: "Pending",
+        createdBy: employeeNumber
+      });
+
+      Swal.fire({ icon: "success", title: "Success", text: "Leave request submitted successfully!" });
+      setFormData({ ...formData, reason: "", fromDate: "", toDate: "" });
+      setRequestedDays(0);
+    } catch (err) {
+      console.error("❌ Error submitting leave request:", err);
+      Swal.fire({ icon: "error", title: "Error", text: "Failed to submit leave request. Try again." });
+    }
   };
 
   return (
@@ -42,37 +117,55 @@ const TakeLeavePage = ({ empId }) => {
           </div>
         </div>
 
-        {/* Remaining Leaves Card */}
-        <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-2xl p-6 mb-8 border border-blue-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-blue-900">Available Leaves</h3>
-              <p className="text-blue-700">You have remaining leaves for this year</p>
-            </div>
-            <div className="text-4xl font-bold text-blue-600">{remainingLeaves}</div>
-          </div>
-        </div>
-
         {/* Leave Form */}
         <form onSubmit={handleSubmit} className="bg-white border border-gray-100 rounded-2xl p-8">
           <div className="space-y-6">
+            {/* Employee Number */}
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <User className="w-4 h-4 text-blue-600" />
-                Employee ID
+                <User className="w-4 h-4 text-blue-600" /> Employee Number
               </label>
               <input
                 type="text"
-                value={formData.empId}
+                value={formData.employeeNumber}
                 readOnly
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-600"
               />
             </div>
 
+            {/* Leave Type */}
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <FileText className="w-4 h-4 text-blue-600" />
-                Reason for Leave
+                <FileText className="w-4 h-4 text-blue-600" /> Leave Type
+              </label>
+              <select
+                name="leaveTypeId"
+                value={formData.leaveTypeId}
+                onChange={handleChange}
+                required
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              >
+                <option value="">-- Select Leave Type --</option>
+                {leaveTypes.map(type => (
+                  <option key={type.leaveTypeId} value={type.leaveTypeId}>
+                    {type.leaveTypeName}
+                  </option>
+                ))}
+              </select>
+
+              {/* Available Leaves */}
+              {allocation && (
+                <p className={`mt-2 font-semibold ${requestedDays > allocation.balance ? 'text-red-600' : 'text-blue-700'}`}>
+                  Available Leaves: {allocation.balance}  
+                  {requestedDays > allocation.balance && ' ⚠ Requested exceeds balance'}
+                </p>
+              )}
+            </div>
+
+            {/* Reason */}
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                <FileText className="w-4 h-4 text-blue-600" /> Reason for Leave
               </label>
               <input
                 type="text"
@@ -81,15 +174,15 @@ const TakeLeavePage = ({ empId }) => {
                 onChange={handleChange}
                 required
                 placeholder="Enter your reason for leave"
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200"
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
             </div>
 
+            {/* Dates */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                  <Calendar className="w-4 h-4 text-blue-600" />
-                  From Date
+                  <Calendar className="w-4 h-4 text-blue-600" /> From Date
                 </label>
                 <input
                   type="date"
@@ -97,14 +190,12 @@ const TakeLeavePage = ({ empId }) => {
                   value={formData.fromDate}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
               </div>
-
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                  <Calendar className="w-4 h-4 text-blue-600" />
-                  To Date
+                  <Calendar className="w-4 h-4 text-blue-600" /> To Date
                 </label>
                 <input
                   type="date"
@@ -112,17 +203,17 @@ const TakeLeavePage = ({ empId }) => {
                   value={formData.toDate}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
               </div>
             </div>
 
+            {/* Submit */}
             <button
               type="submit"
-              className="w-full px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
+              className="w-full px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg flex items-center justify-center gap-2"
             >
-              <Plus className="w-5 h-5" />
-              Submit Leave Request
+              <Plus className="w-5 h-5" /> Submit Leave Request
             </button>
           </div>
         </form>

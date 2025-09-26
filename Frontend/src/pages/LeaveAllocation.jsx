@@ -371,7 +371,7 @@ const LeaveAllocation = () => {
           </td>
 
           {/* Employee Info */}
-          <td className="py-2 px-3">{emp.employeeName}</td>
+          <td className="py-2 px-3">{emp.employeeNumber}</td>
           <td className="py-2 px-3">{emp.department?.departmentName || "-"}</td>
           <td className="py-2 px-3">{emp.designation?.designationName || "-"}</td>
           <td className="py-2 px-3">{emp.grade?.gradeName || "-"}</td>
