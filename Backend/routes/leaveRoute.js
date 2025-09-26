@@ -1,23 +1,17 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
+const leaveController = require("../controllers/leaveController");
 
-const {
-  applyLeave,
-  getLeavesByEmployee,
-  updateLeaveStatus,
-  getPendingLeaveRequests
-} = require('../controllers/leaveController');
+// Employee: Apply leave
+router.post("/", leaveController.applyLeave);
 
-// Apply leave
-router.post('/', applyLeave);
+// Admin/Employee: Get all leaves (optional status filter via query)
+router.get("/", leaveController.getAllLeaves);
 
-// Get all leaves for employee
-router.get('/employee/:id', getLeavesByEmployee);
+// Admin: Get leaves by specific status (pending, approved, rejected)
+router.get("/status/:status", leaveController.getLeavesByStatus);
 
-// Approve / Reject leave
-router.put('/:id/status', updateLeaveStatus);
-
-// Get all pending leave requests (admin view)
-router.get('/pending', getPendingLeaveRequests);
+// Admin: Update leave status (approve/reject)
+router.put("/:leaveId/status", leaveController.updateLeaveStatus);
 
 module.exports = router;
