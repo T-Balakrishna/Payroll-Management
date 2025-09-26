@@ -1,13 +1,13 @@
 const Attendance = require('../models/Attendance'); // Sequelize model
 const Employee = require('../models/Employee');
-
+const { Op } = require('sequelize');
 
 // Create
 exports.createAttendance = async (req, res) => {
   try {
-    const { employeeId, attendanceDate, attendanceStatus } = req.body;
+    const { employeeNumber, attendanceDate, attendanceStatus } = req.body;
     const newAttendance = await Attendance.create({
-      employeeId,
+      employeeNumber,
       attendanceDate,
       attendanceStatus
     });
@@ -20,16 +20,46 @@ exports.createAttendance = async (req, res) => {
 };
 
 // Read All
+// Read All with optional filters
+ // Make sure this is imported
+
 exports.getAllAttendances = async (req, res) => {
   try {
+    const { date, employeeNumber, startDate, endDate } = req.query;
+    const where = {};
+
+    // Partial search for employeeNumber
+    if (employeeNumber) {
+      where.employeeNumber = {
+        [Op.like]: `%${employeeNumber}%`  // % means anything before or after
+      };
+    }
+
+    // Daily filter
+    if (date) {
+      where.attendanceDate = date;
+    }
+
+    // Monthly / Yearly filter
+    if (startDate && endDate) {
+      where.attendanceDate = {
+        [Op.between]: [startDate, endDate]
+      };
+    }
+
     const attendances = await Attendance.findAll({
-      include: [{ model: Employee }],
+      where,
+      include: [{ model: Employee }]
     });
+
     res.json(attendances);
   } catch (error) {
+    console.error("❌ Error fetching attendances:", error);
     res.status(500).send("Error fetching attendances: " + error.message);
   }
 };
+
+
 
 // Read One by ID
 exports.getAttendanceById = async (req, res) => {

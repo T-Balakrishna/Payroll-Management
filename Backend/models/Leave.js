@@ -5,10 +5,10 @@ const LeaveType = require('./LeaveType');
 
 const Leave = seq.define('Leave', {
   leaveId: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  employeeId: { 
-    type: DataTypes.INTEGER, 
+  employeeNumber: { 
+    type: DataTypes.STRING, 
     allowNull: false, 
-    references: { model: Employee, key: 'employeeId' } 
+    references: { model: Employee, key: 'employeeNumber' } 
   },
   leaveTypeId: { 
     type: DataTypes.INTEGER, 
@@ -27,10 +27,10 @@ const Leave = seq.define('Leave', {
 });
 
 // Associations
-Employee.hasMany(Leave, { foreignKey: 'employeeId' });
-Leave.belongsTo(Employee, { foreignKey: 'employeeId' });
+Employee.hasMany(Leave, { foreignKey: 'employeeNumber' });
+Leave.belongsTo(Employee, { foreignKey: 'employeeNumber' });
 
 LeaveType.hasMany(Leave, { foreignKey: 'leaveTypeId' });
 Leave.belongsTo(LeaveType, { foreignKey: 'leaveTypeId' });
 
-module.exports = Leave; 
+module.exports = Leave;
