@@ -9,6 +9,7 @@ import EmployeeGradeMaster from './EmployeeGradeMaster.jsx';
 import EmployeeTypeMaster from './EmployeeTypeMaster.jsx';
 import HolidayMaster from './HolidayMaster.jsx';
 import LeaveAllocation from './LeaveAllocation.jsx';
+import LeaveApproval from './LeaveApproval.jsx'
 import LeaveTypeMaster from './LeaveTypeMaster.jsx';
 import Punches from './Punches.jsx';
 import ReligionMaster from './ReligionMaster.jsx';
