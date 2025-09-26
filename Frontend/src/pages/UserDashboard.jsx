@@ -5,7 +5,7 @@ import {
   Plus, XCircle, CheckCircle, AlertCircle
 } from "lucide-react";
 import EmployeeProfile from './EmployeeProfilePage';
-import CalendarPage from './TakeLeavePage';
+import CalendarPage from './CalendarPage';
 import TakeLeavePage from './TakeLeavePage';
 
 export default function DashboardPage() {
@@ -190,7 +190,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            <button onClick={openProfileModal} className="w-12 h-12 bg-gray-100 hover:bg-gray-200 rounded-xl flex items-center justify-center overflow-hidden relative">
+            <button onClick={openProfileModal} className="w-15 h-15 bg-gray-100 hover:bg-gray-200 rounded-xl flex items-center justify-center overflow-hidden relative">
               <img
                 src={photoUrl || "/placeholder-image.jpg"}
                 alt="Profile"

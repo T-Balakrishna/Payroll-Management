@@ -30,7 +30,8 @@ exports.fetchPunches = async (req, res) => {
         });
 
         const employeeNum = bioRecord ? bioRecord.employeeNumber : null; // or handle missing
-
+        console.log(bioRecord,employeeNum);
+        
         const saved = await Punch.create({
           biometricNumber: log.deviceUserId,
           employeeNumber: employeeNum,   // use fetched value

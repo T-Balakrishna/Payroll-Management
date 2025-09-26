@@ -279,48 +279,63 @@ function HolidayPlans() {
                   <th className="py-3 px-4">Actions</th>
                 </tr>
               </thead>
-              <tbody>
-                {holidays.map((h) => (
-                  <tr key={h.holidayId} className="border-t hover:bg-gray-50">
-                    <td className="py-2 px-4">{h.holidayDate}</td>
-                    <td className="py-2 px-4">{h.description}</td>
-                    <td className="py-2 px-4 flex gap-2">
-                      {String(h.holidayId).startsWith("wo-") ? (
-                        <span className="text-gray-400">Weekly Off</span>
-                      ) : (
-                        <>
-                          <button
-                            className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-md"
-                            onClick={() => {
-                              setHolidayForm({
-                                holidayDate: h.holidayDate,
-                                description: h.description,
-                              });
-                              setSelectedHoliday(h);
-                              setHolidayModalOpen(true);
-                            }}
-                          >
-                            <Pencil size={16} />
-                          </button>
-                          <button
-                            className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md"
-                            onClick={() => handleDeleteHoliday(h.holidayId)}
-                          >
-                            <Trash size={16} />
-                          </button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {holidays.length === 0 && (
-                  <tr>
-                    <td colSpan="3" className="text-center py-4 text-gray-500">
-                      No holidays found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
+                <tbody>
+                  {holidays.map((h) => {
+                    const isPast = new Date(h.holidayDate) < new Date();
+
+                    return (
+                      <tr key={h.holidayId} className="border-t hover:bg-gray-50">
+                        <td className="py-2 px-4">{h.holidayDate}</td>
+                        <td className="py-2 px-4">{h.description}</td>
+                        <td className="py-2 px-4 flex gap-2">
+                          {String(h.holidayId).startsWith("wo-") ? (
+                            <span className="text-gray-400">Weekly Off</span>
+                          ) : (
+                            <>
+                              <button
+                                className={`p-2 rounded-md ${
+                                  isPast
+                                    ? "bg-gray-300 cursor-not-allowed"
+                                    : "bg-blue-500 hover:bg-blue-600 text-white"
+                                }`}
+                                disabled={isPast}
+                                onClick={() => {
+                                  setHolidayForm({
+                                    holidayDate: h.holidayDate,
+                                    description: h.description,
+                                  });
+                                  setSelectedHoliday(h);
+                                  setHolidayModalOpen(true);
+                                }}
+                              >
+                                <Pencil size={16} />
+                              </button>
+                              <button
+                                className={`p-2 rounded-md ${
+                                  isPast
+                                    ? "bg-gray-300 cursor-not-allowed"
+                                    : "bg-red-500 hover:bg-red-600 text-white"
+                                }`}
+                                disabled={isPast}
+                                onClick={() => handleDeleteHoliday(h.holidayId)}
+                              >
+                                <Trash size={16} />
+                              </button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {holidays.length === 0 && (
+                    <tr>
+                      <td colSpan="3" className="text-center py-4 text-gray-500">
+                        No holidays found
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+
             </table>
           </div>
         </div>

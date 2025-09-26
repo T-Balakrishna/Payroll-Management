@@ -1,76 +1,152 @@
-const Leave = require('../models/Leave');
-const LeaveType = require('../models/LeaveType');
-const Employee = require('../models/Employee');
-const sequelize = require('../config/db');
+// controllers/leaveController.js
+const dayjs = require("dayjs");
+const Leave = require("../models/Leave");
+const LeaveAllocation = require("../models/LeaveAllocation");
+const Employee = require('../models/Employee')
 
-// Apply Leave
+// helper: calculate leavePeriod
+const getLeavePeriod = (date) => {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = d.getMonth() + 1;
+  return month >= 6 ? `${year}-${year + 1}` : `${year - 1}-${year}`;
+};
+
+
+function calculateLeaveDays(startDate, endDate) {
+  return dayjs(endDate).diff(dayjs(startDate), "day") + 1;
+}
+
+// Employee apply leave
 exports.applyLeave = async (req, res) => {
   try {
-    const { employeeId, leaveTypeId, startDate, endDate, reason, createdBy } = req.body;
+    const { employeeNumber, leaveTypeId, startDate, endDate, reason } = req.body;
 
-    const employee = await Employee.findByPk(employeeId);
-    if (!employee) return res.status(404).send("Employee not found");
+    const requestedDays = calculateLeaveDays(startDate, endDate);
 
-    // Calculate requested days
-    const requestedDays = (new Date(endDate) - new Date(startDate)) / (1000*60*60*24) + 1;
+    // Determine leavePeriod
+    const currentYear = dayjs(startDate).year();
+    const month = dayjs(startDate).month() + 1; // 0-based index
+    const leavePeriod = month >= 6 
+      ? `${currentYear}-${currentYear + 1}` 
+      : `${currentYear - 1}-${currentYear}`;
 
-    // TODO: plug in leave policy validation if needed
+    // Find allocation
+    const allocation = await LeaveAllocation.findOne({
+      where: { employeeNumber, leaveTypeId, leavePeriod }
+    });
 
-    const newLeave = await Leave.create({
-      employeeId,
+    if (!allocation || allocation.balance < requestedDays) {
+      return res.status(400).json({ message: "Insufficient leave balance" });
+    }
+
+    // Save leave application
+    const leave = await Leave.create({
+      employeeNumber,  // since your Leave links by employeeId
       leaveTypeId,
       startDate,
       endDate,
       reason,
-      createdBy
+      status: "Pending",
+      createdBy: employeeNumber
     });
 
-    res.status(201).json(newLeave);
-  } catch (error) {
-    console.error(error);
-    res.status(500).send("Error applying leave: " + error.message);
+    res.status(201).json({ message: "Leave applied successfully", leave });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
-// Get all leave requests for an employee
-exports.getLeavesByEmployee = async (req, res) => {
+
+// Admin get all leaves
+exports.getAllLeaves = async (req, res) => {
   try {
+    const { status } = req.query; // optional filter
+    const where = status ? { status } : {};
     const leaves = await Leave.findAll({
-      where: { employeeId: req.params.id },
-      include: [LeaveType, Employee]
+      where,
+      order: [["createdAt", "DESC"]]
     });
     res.json(leaves);
-  } catch (error) {
-    res.status(500).send("Error fetching leaves: " + error.message);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
-// Approve / Reject leave
+// Admin approve/reject
 exports.updateLeaveStatus = async (req, res) => {
   try {
-    const leave = await Leave.findByPk(req.params.id);
-    if (!leave) return res.status(404).send("Leave request not found");
+    const { leaveId } = req.params;
+    const { status, updatedBy } = req.body;
 
-    await leave.update({ status: req.body.status, updatedBy: req.body.updatedBy });
-    res.json(leave);
-  } catch (error) {
-    res.status(500).send("Error updating leave status: " + error.message);
+    const leave = await Leave.findByPk(leaveId);
+    if (!leave) return res.status(404).json({ message: "Leave not found" });
+
+    if (status === "Approved") {
+      const leavePeriod = getLeavePeriod(leave.startDate);
+      const requestedDays = calculateLeaveDays(leave.startDate, leave.endDate);
+
+      const allocation = await LeaveAllocation.findOne({
+        where: {
+          employeeNumber: leave.employeeNumber,   // maps to LeaveAllocation
+          leaveTypeId: leave.leaveTypeId,
+          leavePeriod
+        }
+      });
+      console.log(allocation);
+      
+      if (!allocation || allocation.balance < requestedDays) {
+        return res.status(400).json({ message: "Insufficient balance at approval" });
+      }
+      console.log(requestedDays,allocation.usedLeave,allocation.balance);
+      
+      await allocation.update({
+        usedLeave: allocation.usedLeave + requestedDays,
+        balance: allocation.balance - requestedDays,
+        updatedBy: updatedBy
+      });
+
+      console.log("After update:", allocation.toJSON());
+
+    }
+
+    leave.status = status;
+    leave.updatedBy = updatedBy;
+    await leave.save();
+
+    res.json({ message: `Leave ${status} successfully` });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
-// Get all pending leave requests
-exports.getPendingLeaveRequests = async (req, res) => {
+exports.getLeavesByStatus = async (req, res) => {
   try {
-    const pendingLeaves = await Leave.findAll({
-      where: { status: 'Pending' },
-      include: [
-        { model: Employee, attributes: ['employeeName', 'employeeId'] },
-        { model: LeaveType, attributes: ['leaveTypeName'] }
-      ],
-      order: [['createdAt', 'DESC']]
+    const status = req.params.status || 'all'; // 'pending', 'approved', 'rejected', 'all'
+    let whereClause = {};
+    if (status !== 'all') whereClause.status = status;
+
+    const leaves = await Leave.findAll({
+      where: whereClause,      
+      order: [['createdAt', 'DESC']],
     });
-    res.json(pendingLeaves);
-  } catch (error) {
-    res.status(500).send("Error fetching pending leave requests: " + error.message);
+
+    // Map employee name
+    const formattedLeaves = leaves.map((leave) => ({
+      leaveId: leave.leaveId,
+      leaveTypeId: leave.leaveTypeId,
+      employeeNumber: leave.employeeNumber,
+      startDate: leave.startDate,
+      endDate: leave.endDate,
+      reason: leave.reason,
+      status: leave.status,
+    }));
+
+
+
+    res.json(formattedLeaves);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Failed to fetch leaves.' });
   }
 };
