@@ -60,6 +60,20 @@ exports.updateBiometricDevice = async (req, res) => {
   }
 };
 
+// Get device by deviceIp
+exports.getBiometricDeviceByIp = async (req, res) => {
+  try {
+    const { deviceIp } = req.params;
+    const device = await BiometricDevice.findOne({ where: { deviceIp, status: 'active' } });
+
+    if (!device) return res.status(404).json({ error: "Device not found" });
+
+    res.json(device);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // Delete device
 exports.deleteBiometricDevice = async (req, res) => {
   try {

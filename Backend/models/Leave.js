@@ -33,4 +33,4 @@ Leave.belongsTo(Employee, { foreignKey: 'employeeNumber' });
 LeaveType.hasMany(Leave, { foreignKey: 'leaveTypeId' });
 Leave.belongsTo(LeaveType, { foreignKey: 'leaveTypeId' });
 
-module.exports = Leave; 
+module.exports = Leave;

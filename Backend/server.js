@@ -4,21 +4,20 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const seq = require('./config/db');
 const cron = require("node-cron");
-const path = require("path");
+
 const app = express();
 
-// Middlewares
+// ✅ Middlewares
 app.use(helmet());
 app.use(morgan('dev'));
 app.use(cors({
-  origin: "http://localhost:5173",
+  origin: "http://localhost:5173", // your React frontend
   credentials: true,
 }));
-app.use("/uploads", express.static(path.join(__dirname, "uploads/employees"))); // Use lowercase /uploads
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Routes
+// ✅ Routes
 const attendanceRoute = require('./routes/attendanceRoute');
 const biometricRoute = require('./routes/biometricRoute');
 const biometricDeviceRoute = require('./routes/biometricDeviceRoute');
@@ -37,8 +36,8 @@ const leaveRoute = require('./routes/leaveRoute');
 const punchRoute = require('./routes/punchRoute');
 const religionRoute = require('./routes/religionRoute');
 const shiftRoute = require('./routes/shiftRoute');
-const userRoute = require('./routes/userRoute');
-const authRoute = require('./routes/authRoute');
+const userRoute = require('./routes/userRoute');  
+const authRoute = require('./routes/authRoute');  
 const shiftAllocationRoutes = require("./routes/shiftAllocationRoutes");
 
 // Services
@@ -67,6 +66,7 @@ app.use('/api/shifts', shiftRoute);
 app.use('/api/users', userRoute);
 app.use('/api/auth', authRoute);
 app.use("/api/shiftAllocation", shiftAllocationRoutes);
+app.use("/uploads", express.static("uploads"));
 
 // Import models for Sequelize
 require('./models/Attendance');
@@ -89,23 +89,24 @@ require('./models/Religion');
 require('./models/Shift');
 require('./models/User');
 
-// Start server
+// ✅ Start server
 const startServer = async () => {
   try {
     await seq.authenticate();
     console.log("✅ DB Connected successfully");
 
     // ⚠️ safer: alter = keep data, adjust schema if needed
-    await seq.sync({ alter:false}); 
+    await seq.sync({ alter:true}); 
     console.log("✅ Tables synced");
 
     app.listen(5000, () => {
       console.log("🚀 Listening at http://localhost:5000");
     });
 
+    // 🕛 Hourly biometric fetch
     cron.schedule("* * * * *", async () => {
       try {
-        console.log("⏱ Running hourly biometric fetch...");
+        console.log("🕛 Running hourly biometric fetch...");
         await fetchBiometrics();
       } catch (err) {
         console.error("❌ Error fetching biometrics:", err.message);
