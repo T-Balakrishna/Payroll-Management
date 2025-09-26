@@ -211,7 +211,7 @@ const LeaveAllocation = () => {
 
     if (exists) {
       // --- UPDATE existing allocation ---
-      await axios.put(`http://localhost:5000/api/leaveAllocations`, {
+      await axios.put("http://localhost:5000/api/leaveAllocations", {
         employeeNumber: empNum,
         leaveTypeId,
         startYear,
@@ -228,7 +228,7 @@ const LeaveAllocation = () => {
       });
     } else {
       // --- CREATE new allocation ---
-      await axios.post(`http://localhost:5000/api/leaveAllocations`, {
+      await axios.post("http://localhost:5000/api/leaveAllocations", {
         employeeNumber: empNum,
         leaveTypeId,
         startYear,
@@ -272,7 +272,7 @@ const LeaveAllocation = () => {
             <option value="">Select Leave Type</option>
             {leaveTypes.map(type => (
               <option key={type.leaveTypeId} value={type.leaveTypeId}>
-                {type.leaveTypeName} {type.maxAllocation ? `(max ${type.maxAllocation})` : ""}
+                {type.leaveTypeName} {type.maxAllocation ? (`max ${type.maxAllocation}`) : ""}
               </option>
             ))}
           </select>
@@ -304,17 +304,17 @@ const LeaveAllocation = () => {
 
         <select value={filterDesignation} onChange={e => setFilterDesignation(e.target.value)} className="border rounded p-2">
           <option value="">All Designations</option>
-          {designations.map(d => <option key={d} value={d}>{d}</option>)}
+          {designations.map(d => <option key={d.designationId} value={d.designationId}>{d.designationAckr}</option>)}
         </select>
 
         <select value={filterGrade} onChange={e => setFilterGrade(e.target.value)} className="border rounded p-2">
           <option value="">All Grades</option>
-          {employeeGrades.map(g => <option key={g} value={g}>{g}</option>)}
+          {employeeGrades.map(g => <option key={g.employeeGradeId} value={g.employeeGradeId}>{g.employeeGradeAckr}</option>)}
         </select>
 
         <select value={filterType} onChange={e => setFilterType(e.target.value)} className="border rounded p-2">
           <option value="">All Types</option>
-          {employeeTypes.map(t => <option key={t} value={t}>{t}</option>)}
+          {employeeTypes.map(t => <option key={t.employeeTypeId} value={t.employeeTypeId}>{t.employeeTypeAckr}</option>)}
         </select>
       </div>
 
