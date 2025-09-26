@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import BusMaster from './BusMaster.jsx';
 import BiometricMaster from './BiometricMaster.jsx';
 import BiometricDeviceMaster from './BiometricDeviceMaster.jsx';
@@ -15,7 +15,8 @@ import ReligionMaster from './ReligionMaster.jsx';
 import ShiftMaster from './ShiftMaster.jsx';
 import AddUser from './AddUser.jsx';
 import ShiftAllocationMaster from './ShiftAllocationMaster.jsx';
-import LeaveApproval from './LeaveApproval.jsx';
+import AttendanceMaster from './AttendanceMaster.jsx';
+import ReportGenerator from './ReportGenerator.jsx';
 
 import { 
   Users, 
@@ -30,6 +31,8 @@ import {
   Home, 
   ChevronLeft, 
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   X,
   Settings,
   Plus,
@@ -44,6 +47,7 @@ const Admin = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activePage, setActivePage] = useState("dashboard");
+  const navRef = useRef(null); // Reference to the nav element for scrolling
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Home, color: 'text-blue-600' },
@@ -56,6 +60,7 @@ const Admin = () => {
     { id: 'designation', label: 'Designation Master', icon: Award, color: 'text-pink-600' },
     { id: 'employeeGrade', label: 'Employee Grade Master', icon: Users, color: 'text-amber-600' },
     { id: 'employeeType', label: 'Employee Type Master', icon: Users, color: 'text-cyan-600' },
+    { id: 'attendance', label: 'Attendance Master', icon: Activity, color: 'text-emerald-600'},
     { id: 'holiday', label: 'Holiday Master', icon: Calendar, color: 'text-yellow-600' },
     { id: 'leave', label: 'Leave Approval Master', icon: Badge, color: 'text-lime-600' },
     { id: 'leaveType', label: 'Leave Type Master', icon: Clock, color: 'text-lime-600' },
@@ -63,7 +68,8 @@ const Admin = () => {
     { id: 'punches', label: 'Punch Details ', icon: LucideComputer, color: 'text-indigo-600' },
     { id: 'religion', label: 'Religion Master', icon: Building, color: 'text-amber-600' },
     { id: 'shift', label: 'Shift Master', icon: Activity, color: 'text-emerald-600' },
-    { id : 'shiftallocation', label :'Shift Allocation Master' ,icon: Activity,color :'text-emerald-600'}
+    { id: 'shiftallocation', label: 'Shift Allocation Master', icon: Activity, color: 'text-emerald-600'},
+    { id: 'reportgenerator', label: 'Report Generator', icon: Settings, color: 'text-gray-600' },
   ];
 
   const authItems = [
@@ -95,7 +101,46 @@ const Admin = () => {
     punches: "Punch Details",
     religion: "Religion Master",
     shift: "Shift Master",
-    shiftallocation:"Shift Allocation Master"
+    shiftallocation: "Shift Allocation Master",
+    attendance: "Attendance Master",
+    reportgenerator: "Report Generator"
+  };
+
+  // Navigation logic for up and down arrows
+  const handleNavigateUp = (e) => {
+    e.preventDefault(); // Prevent default button behavior
+    e.stopPropagation(); // Stop event bubbling
+    const currentIndex = menuItems.findIndex(item => item.id === activePage);
+    if (currentIndex > 0) {
+      const previousPage = menuItems[currentIndex - 1].id;
+      setActivePage(previousPage);
+      setMobileMenuOpen(false);
+      // Scroll to the selected menu item
+      setTimeout(() => {
+        const selectedItem = document.querySelector(`button[data-page-id="${previousPage}"]`);
+        if (selectedItem && navRef.current) {
+          selectedItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }, 0);
+    }
+  };
+
+  const handleNavigateDown = (e) => {
+    e.preventDefault(); // Prevent default button behavior
+    e.stopPropagation(); // Stop event bubbling
+    const currentIndex = menuItems.findIndex(item => item.id === activePage);
+    if (currentIndex < menuItems.length - 1) {
+      const nextPage = menuItems[currentIndex + 1].id;
+      setActivePage(nextPage);
+      setMobileMenuOpen(false);
+      // Scroll to the selected menu item
+      setTimeout(() => {
+        const selectedItem = document.querySelector(`button[data-page-id="${nextPage}"]`);
+        if (selectedItem && navRef.current) {
+          selectedItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }, 0);
+    }
   };
 
   const renderDashboard = () => (
@@ -142,7 +187,7 @@ const Admin = () => {
       case "caste": return <CasteMaster />;
       case "department": return <DepartmentMaster />;
       case "designation": return <DesignationMaster />;
-      case "employeeGrade": return <EmployeeGradeMaster/>;
+      case "employeeGrade": return <EmployeeGradeMaster />;
       case "employeeType": return <EmployeeTypeMaster />;
       case "holiday": return <HolidayMaster />;
       case "leave": return <LeaveApproval />;
@@ -151,8 +196,10 @@ const Admin = () => {
       case "punches": return <Punches />;
       case "religion": return <ReligionMaster />;
       case "shift": return <ShiftMaster />;
-      case "shiftallocation":return <ShiftAllocationMaster />;
+      case "shiftallocation": return <ShiftAllocationMaster />;
       case "users": return <AddUser />;
+      case "attendance": return <AttendanceMaster />;
+      case "reportgenerator": return <ReportGenerator />;
       default: return renderDashboard();
     }
   };
@@ -184,35 +231,52 @@ const Admin = () => {
       )}
 
       {/* Sidebar */}
-        <div
+      <div
         className={`fixed inset-y-0 left-0 z-50
         ${sidebarCollapsed ? 'w-16' : 'w-64'}
         bg-white shadow-lg transition-all duration-300 transform
         ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
         lg:translate-x-0 flex flex-col`}
       >
-        {/* Header (logo + collapse buttons) */}
+        {/* Header (logo + collapse + navigation buttons) */}
         <div className="flex items-center justify-between h-14 lg:h-16 px-4 border-b border-gray-200">
           {!sidebarCollapsed && <h1 className="text-lg lg:text-xl font-bold text-gray-900 truncate">Admin Panel</h1>}
-          <button
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="hidden lg:block p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            {sidebarCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
-          </button>
-          <button
-            onClick={() => setMobileMenuOpen(false)}
-            className="lg:hidden p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={handleNavigateUp}
+              className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+              disabled={menuItems.findIndex(item => item.id === activePage) === 0}
+            >
+              <ChevronUp className="w-5 h-5" />
+            </button>
+            <button
+              onClick={handleNavigateDown}
+              className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+              disabled={menuItems.findIndex(item => item.id === activePage) === menuItems.length - 1}
+            >
+              <ChevronDown className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="hidden lg:block p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              {sidebarCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+            </button>
+            <button
+              onClick={() => setMobileMenuOpen(false)}
+              className="lg:hidden p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Menu (scrollable) */}
-        <nav className="flex-1 overflow-y-auto px-2 py-4 space-y-1">
+        <nav ref={navRef} className="flex-1 overflow-y-auto px-2 py-4 space-y-1">
           {menuItems.map(item => (
             <button
               key={item.id}
+              data-page-id={item.id} // Added for scrollIntoView
               onClick={() => {
                 setActivePage(item.id);
                 setMobileMenuOpen(false);
@@ -232,6 +296,7 @@ const Admin = () => {
             {authItems.map(item => (
               <button
                 key={item.id}
+                data-page-id={item.id} // Added for consistency
                 onClick={() => {
                   sessionStorage.removeItem("token");
                   sessionStorage.removeItem("userNumber");

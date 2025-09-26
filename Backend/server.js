@@ -39,6 +39,7 @@ const shiftRoute = require('./routes/shiftRoute');
 const userRoute = require('./routes/userRoute');  
 const authRoute = require('./routes/authRoute');  
 const shiftAllocationRoutes = require("./routes/shiftAllocationRoutes");
+const attendanceRoutes = require("./routes/attendanceRoute");
 
 // Services
 const processAttendance = require("./services/processAttendance");
@@ -66,7 +67,7 @@ app.use('/api/shifts', shiftRoute);
 app.use('/api/users', userRoute);
 app.use('/api/auth', authRoute);
 app.use("/api/shiftAllocation", shiftAllocationRoutes);
-app.use("/uploads", express.static("uploads"));
+app.use("/api/attendance", attendanceRoutes);
 
 // Import models for Sequelize
 require('./models/Attendance');
@@ -96,7 +97,7 @@ const startServer = async () => {
     console.log("✅ DB Connected successfully");
 
     // ⚠️ safer: alter = keep data, adjust schema if needed
-    await seq.sync({ alter:false});
+    await seq.sync({ alter:true}); 
     console.log("✅ Tables synced");
 
     app.listen(5000, () => {

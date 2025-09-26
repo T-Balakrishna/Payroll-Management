@@ -4,15 +4,23 @@ const Employee = require('./Employee');
 
 const Attendance = seq.define('Attendance', {
   attendanceId: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  employeeId: { type: DataTypes.INTEGER, allowNull: false, references: { model: Employee, key: 'employeeId' } },
+  employeeNumber: { 
+    type: DataTypes.STRING, 
+    allowNull: false, 
+    references: { model: Employee, key: 'employeeNumber' } 
+  },
   attendanceDate: { type: DataTypes.DATEONLY, allowNull: false },
-  attendanceStatus: { type: DataTypes.ENUM('Present', 'Absent', 'Half-Day', 'Leave', 'Holiday', 'Permission'), allowNull: false },
+  attendanceStatus: { 
+    type: DataTypes.ENUM('Present', 'Absent', 'Half-Day', 'Leave', 'Holiday', 'Permission'), 
+    allowNull: false 
+  },
 }, {
   tableName: 'Attendance',
   timestamps: true
 });
 
-Attendance.belongsTo(Employee, { foreignKey: 'employeeId' });
-Employee.hasMany(Attendance, { foreignKey: 'employeeId' });
+// Correct associations
+Attendance.belongsTo(Employee, { foreignKey: 'employeeNumber'});
+Employee.hasMany(Attendance, { foreignKey: 'employeeNumber'});
 
 module.exports = Attendance;
