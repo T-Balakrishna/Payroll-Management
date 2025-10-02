@@ -20,10 +20,10 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 const attendanceRoute = require('./routes/attendanceRoute');
-const biometricRoute = require('./routes/biometricRoute');
 const biometricDeviceRoute = require('./routes/biometricDeviceRoute');
 const busRoute = require('./routes/busRoute');
 const casteRoute = require('./routes/casteRoute');
+const companyRoute = require('./routes/companyRoute');
 const departmentRoute = require('./routes/departmentRoute');
 const designationRoute = require('./routes/designationRoute');
 const employeeGradeRoute = require('./routes/employeeGradeRoute');
@@ -40,6 +40,7 @@ const shiftRoute = require('./routes/shiftRoute');
 const userRoute = require('./routes/userRoute');
 const authRoute = require('./routes/authRoute');
 const shiftAllocationRoutes = require("./routes/shiftAllocationRoutes");
+const attendanceRoutes = require("./routes/attendanceRoute");
 
 // Services
 const processAttendance = require("./services/processAttendance");
@@ -47,10 +48,10 @@ const fetchBiometrics = require("./services/fetchBiometrics");
 
 // Map routes
 app.use('/api/attendance', attendanceRoute);
-app.use('/api/biometrics', biometricRoute);
 app.use('/api/biometricDevices', biometricDeviceRoute);
 app.use('/api/buses', busRoute);
 app.use('/api/castes', casteRoute);
+app.use('/api/companies', companyRoute);
 app.use('/api/departments', departmentRoute);
 app.use('/api/designations', designationRoute);
 app.use('/api/employees', employeeRoute);
@@ -67,13 +68,14 @@ app.use('/api/shifts', shiftRoute);
 app.use('/api/users', userRoute);
 app.use('/api/auth', authRoute);
 app.use("/api/shiftAllocation", shiftAllocationRoutes);
+app.use("/api/attendance", attendanceRoutes);
 
 // Import models for Sequelize
 require('./models/Attendance');
 require('./models/BiometricDevice');
 require('./models/Bus');
-require('./models/Biometric');
 require('./models/Caste');
+require('./models/Company');
 require('./models/Department');
 require('./models/Designation');
 require('./models/Employee');

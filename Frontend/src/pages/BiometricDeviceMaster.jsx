@@ -1,28 +1,78 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { Cpu, Pencil, Trash, Search, Plus, X } from "lucide-react";
+import { toast } from "react-toastify";
+import { Cpu, Pencil, Trash, Plus, X } from "lucide-react";
+import { jwtDecode } from "jwt-decode";
+import Swal from "sweetalert2";
 
-function AddOrEdit({ onSave, onCancel, editData }) {
+let token = sessionStorage.getItem("token");
+let decoded = token ? jwtDecode(token) : {};
+let userNumber = decoded.userNumber;
+let userRole = decoded.role;
+
+// 🔹 Modal Form Component
+function AddOrEdit({
+  onSave,
+  onCancel,
+  editData,
+  userRole,
+  selectedCompanyId,
+  selectedCompanyName,
+}) {
   const [deviceIp, setDeviceIp] = useState(editData?.deviceIp || "");
   const [location, setLocation] = useState(editData?.location || "");
+  const [companyId, setCompanyId] = useState(
+    editData?.companyId || selectedCompanyId || ""
+  );
+  const [companyName, setCompanyName] = useState(
+    editData?.companyName || selectedCompanyName || ""
+  );
+  const [companies, setCompanies] = useState([]);
 
+  // 🔹 Fetch companies (only for Super Admin to choose)
+  useEffect(() => {
+    let mounted = true;
+    const fetchCompanies = async () => {
+      try {
+        const res = await axios.get("http://localhost:5000/api/companies", {
+          headers: { Authorization: `Bearer ${sessionStorage.getItem("token")}` },
+        });
+        if (!mounted) return;
+        setCompanies(res.data || []);
+
+        if (userRole === "Super Admin" && companyId) {
+          const selected = res.data.find((c) => c.companyId === Number(companyId));
+          setCompanyName(selected ? selected.companyName : companyName || "");
+        }
+      } catch (err) {
+        console.error("Error fetching companies:", err);
+      }
+    };
+
+    if (userRole === "Super Admin") fetchCompanies();
+    return () => {
+      mounted = false;
+    };
+  }, [userRole, companyId]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!deviceIp) {
-      return alert("Device IP is required");
-    }
+    if (!deviceIp) return toast.error("Device IP is required");
+
     const deviceData = {
       deviceIp,
       location,
+      companyId: companyId , // ✅ allow change for super admin
+      createdBy: editData ? editData.createdBy : userNumber,
+      updatedBy: userNumber,
     };
+
     onSave(deviceData, editData?.deviceId);
   };
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm">
       <div className="max-w-xl w-full bg-white rounded-2xl shadow-xl p-8 relative">
-        {/* Close Button */}
         <button
           onClick={onCancel}
           className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-100 transition"
@@ -30,20 +80,22 @@ function AddOrEdit({ onSave, onCancel, editData }) {
           <X size={20} />
         </button>
 
-        {/* Icon + Heading */}
         <div className="flex justify-center mb-6">
           <div className="bg-blue-100 p-4 rounded-full">
             <Cpu className="text-blue-600" size={40} />
           </div>
         </div>
+
         <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">
           {editData ? "Edit Biometric Device" : "Add New Biometric Device"}
         </h2>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Device IP */}
           <div>
-            <label className="block font-medium text-gray-700 mb-2">Device IP</label>
+            <label className="block font-medium text-gray-700 mb-2">
+              Device IP
+            </label>
             <input
               type="text"
               value={deviceIp}
@@ -53,8 +105,11 @@ function AddOrEdit({ onSave, onCancel, editData }) {
             />
           </div>
 
+          {/* Location */}
           <div>
-            <label className="block font-medium text-gray-700 mb-2">Location</label>
+            <label className="block font-medium text-gray-700 mb-2">
+              Location
+            </label>
             <input
               type="text"
               value={location}
@@ -63,7 +118,43 @@ function AddOrEdit({ onSave, onCancel, editData }) {
             />
           </div>
 
-          {/* Footer Buttons */}
+          {/* Company */}
+          <div>
+            <label className="block font-medium text-gray-700 mb-2">
+              Company
+            </label>
+            {userRole === "Super Admin" ? (
+              <select
+                value={companyId}
+                onChange={(e) => {
+                  setCompanyId(e.target.value);
+                  const selected = companies.find(
+                    (c) => String(c.companyId) === e.target.value
+                  );
+                  setCompanyName(selected ? selected.companyName : "");
+                }}
+                className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              >
+                <option value="">Select Company</option>
+                {companies
+                  .filter((c) => c.companyId !== 1)
+                  .map((c) => (
+                    <option key={c.companyId} value={c.companyId}>
+                      {c.companyName}
+                    </option>
+                  ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={companyName || "No company selected"}
+                disabled
+                className="w-full border border-gray-300 rounded-lg p-3 bg-gray-100 cursor-not-allowed"
+              />
+            )}
+          </div>
+
+          {/* Buttons */}
           <div className="flex justify-end gap-3 pt-4">
             <button
               type="button"
@@ -85,18 +176,87 @@ function AddOrEdit({ onSave, onCancel, editData }) {
   );
 }
 
-function BiometricDeviceMaster() {
+// 🔹 Main Component
+function BiometricDeviceMaster({ selectedCompanyId, selectedCompanyName }) {
   const [devices, setDevices] = useState([]);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editData, setEditData] = useState(null);
+  const [companies, setCompanies] = useState([]);
+
+  const getCompanyAcronym = (id) => {
+    const company = companies.find((c) => c.companyId === id);
+    return company ? company.companyAcr : "";
+  };
+
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const res = await axios.get("http://localhost:5000/api/companies", {
+          headers: { Authorization: `Bearer ${sessionStorage.getItem("token")}` },
+        });
+        setCompanies(res.data || []);
+      } catch (err) {
+        console.error("Error fetching companies:", err);
+      }
+    };
+    fetchCompanies();
+  }, []);
 
   const fetchDevices = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/biometricDevices");
-      setDevices(res.data);
+      let url = "http://localhost:5000/api/biometricDevices";
+      if (selectedCompanyId) {
+        url += `?companyId=${selectedCompanyId}`;
+      }
+      const res = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setDevices(res.data || []);
     } catch (err) {
-      console.error("Error fetching devices:", err);
+      toast.error(
+        "Error fetching devices: " +
+          (err.response?.data?.message || err.message)
+      );
+    }
+  };
+
+  useEffect(() => {
+    fetchDevices();
+  }, [selectedCompanyId]);
+
+  const filteredData = devices.filter(
+    (d) =>
+      d.deviceIp?.toLowerCase().includes(search.trim().toLowerCase()) ||
+      d.location?.toLowerCase().includes(search.trim().toLowerCase())
+  );
+
+  const handleSave = async (deviceData, deviceId) => {
+    try {
+      if (deviceId) {
+        await axios.put(
+          `http://localhost:5000/api/biometricDevices/${deviceId}`,
+          deviceData,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      } else {
+        await axios.post("http://localhost:5000/api/biometricDevices", deviceData, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+      await fetchDevices();
+      setShowForm(false);
+      setEditData(null);
+      Swal.fire({
+        icon: "success",
+        title: deviceId ? "Updated" : "Added",
+        text: `Device ${deviceId ? "Updated" : "Added"} Successfully`,
+      });
+    } catch (err) {
+      toast.error(
+        "Error saving device: " +
+          (err.response?.data?.message || err.message)
+      );
     }
   };
 
@@ -105,55 +265,92 @@ function BiometricDeviceMaster() {
     setShowForm(true);
   };
 
-  useEffect(() => {
-    fetchDevices();
-  }, []);
-
-  const filteredData = devices.filter(
-    (d) =>
-      d.deviceIp?.toString().toLowerCase().includes(search.toLowerCase()) ||
-      d.location?.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const handleSave = async (deviceData, deviceId) => {
-    try {
-      const adminName = sessionStorage.getItem("userNumber");
-      if (deviceId) {
-        await axios.put(`http://localhost:5000/api/biometricDevices/${deviceId}`, {
-          ...deviceData,
-          updatedBy: adminName,
-        });
-      } else {
-        await axios.post("http://localhost:5000/api/biometricDevices", {
-          ...deviceData,
-          createdBy: adminName,
-        });
-      }
-      fetchDevices();
-      setShowForm(false);
-      setEditData(null);
-    } catch (err) {
-        alert("❌ Error saving device:", err);
-      console.error("❌ Error saving device:", err);
-    }
-  };
-
   const handleDelete = async (deviceId) => {
+    if (!window.confirm("Are you sure you want to delete this device?")) return;
     try {
-      const adminName = sessionStorage.getItem("userNumber");
-      if (!deviceId) return;
-      await axios.delete(`http://localhost:5000/api/biometricDevices/${deviceId}`, {
-        data: { updatedBy: adminName },
-      });
-      fetchDevices();
+      await axios.delete(
+        `http://localhost:5000/api/biometricDevices/${deviceId}`,
+        {
+          data: { updatedBy: userNumber },
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      await fetchDevices();
     } catch (err) {
       console.error("Error deleting device:", err);
     }
   };
 
   return (
-    <div className="h-full align-items-center justify-center bg-gray-50 p-6 relative">
-      {/* Modal */}
+    <div className="h-full flex flex-col px-6">
+      <div className="flex justify-between items-center mb-4">
+        <input
+          type="text"
+          placeholder="Search device..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="border border-gray-300 bg-white text-black rounded-lg px-4 py-2 w-1/3 outline-none"
+        />
+        <button
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md"
+          onClick={() => {
+            setShowForm(true);
+            setEditData(null);
+          }}
+        >
+          <Plus size={18} /> Add Device
+        </button>
+      </div>
+
+      <div
+        className="overflow-y-auto border border-gray-200 rounded-lg shadow-sm flex-1"
+        style={{ maxHeight: "320px" }}
+      >
+        <table className="w-full text-left text-sm">
+          <thead className="sticky top-0">
+            <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+              <th className="py-3 px-4">Device IP</th>
+              <th className="py-3 px-4">Location</th>
+              {!selectedCompanyId && <th className="py-3 px-4">Company</th>}
+              <th className="py-3 px-4">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredData.map((d) => (
+              <tr key={d.deviceId} className="border-t hover:bg-gray-50">
+                <td className="py-2 px-4">{d.deviceIp}</td>
+                <td className="py-2 px-4">{d.location}</td>
+                {!selectedCompanyId && <td>{getCompanyAcronym(d.companyId)}</td>}
+                <td className="py-2 px-4 flex gap-2">
+                  <button
+                    className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-md"
+                    onClick={() => handleEdit(d)}
+                  >
+                    <Pencil size={16} />
+                  </button>
+                  <button
+                    className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md"
+                    onClick={() => handleDelete(d.deviceId)}
+                  >
+                    <Trash size={16} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {filteredData.length === 0 && (
+              <tr>
+                <td
+                  colSpan="4"
+                  className="text-center py-4 text-gray-500"
+                >
+                  No devices found
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
       {showForm && (
         <AddOrEdit
           onSave={handleSave}
@@ -162,84 +359,11 @@ function BiometricDeviceMaster() {
             setEditData(null);
           }}
           editData={editData}
+          userRole={userRole}
+          selectedCompanyId={selectedCompanyId}
+          selectedCompanyName={selectedCompanyName}
         />
       )}
-
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
-        <div className="relative w-full sm:w-80 mb-4 sm:mb-0">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-          <input
-            type="text"
-            placeholder="Search devices..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
-          />
-        </div>
-        <button
-          onClick={() => {
-            setShowForm(true);
-            setEditData(null);
-          }}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg shadow-md transition"
-        >
-          <Plus size={18} /> Add
-        </button>
-      </div>
-
-      {/* Table */}
-      <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
-        <div className="max-h-[500px] overflow-y-auto">
-          <table className="w-full border-collapse">
-            <thead className="sticky top-0">
-              <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-                <th className="py-3 px-4 text-left font-semibold">Device IP</th>
-                <th className="py-3 px-4 text-left font-semibold">Location</th>
-                <th className="py-3 px-4 text-center font-semibold">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filteredData.length > 0 ? (
-                filteredData.map((d) => (
-                  <tr key={d.deviceId} className="hover:bg-gray-50 transition">
-                    <td className="py-3 px-4 font-medium text-gray-800">{d.deviceIp}</td>
-                    <td className="py-3 px-4 text-gray-700">{d.location}</td>
-                    <td className="py-3 px-4 flex justify-center gap-2">
-                      <button
-                        className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-md shadow"
-                        onClick={() => handleEdit(d)}
-                        title="Edit device"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button
-                        className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md shadow"
-                        onClick={() => handleDelete(d.deviceId)}
-                        title="Delete device"
-                      >
-                        <Trash size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="4" className="py-16 text-center text-gray-500">
-                    <div className="flex flex-col items-center">
-                      <Cpu size={40} className="text-gray-400 mb-3" />
-                      <p className="font-medium">No devices found</p>
-                      <p className="text-sm text-gray-400 mt-1">
-                        Try adjusting your search criteria or add a new device.
-                      </p>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
   );
 }

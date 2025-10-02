@@ -2,24 +2,28 @@ import { useNavigate } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
 import { useState } from "react";
 import API from "../api";
+import {jwtDecode} from "jwt-decode";
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const [identifier, setIdentifier] = useState(""); // email or userNumber
   const [password, setPassword] = useState("");
 
+  const adminRoles = ["Admin", "Super Admin", "Department Admin"];
+
   const handleLogin = async () => {
     if (!identifier || !password) return alert("Enter email/userNumber & password");
 
     try {
       const res = await API.post("/auth/login", { identifier, password });
-      const { token, user } = res.data;
+      const { token } = res.data;
 
       sessionStorage.setItem("token", token);
-      sessionStorage.setItem("userNumber", user.userNumber);
-      // sessionStorage.setItem("role", user.role);
-      navigate(user.role === "Admin" ? "/adminDashboard" : "/userDashboard");
+
+      const role = jwtDecode(token).role;
+      navigate(adminRoles.includes(role) ? "/adminDashboard" : "/userDashboard");
     } catch (err) {
+      console.error(err);
       alert(err.response?.data?.msg || "Login failed");
     }
   };
@@ -29,13 +33,13 @@ export default function LoginPage() {
 
     try {
       const apiRes = await API.post("/auth/google-login", { token: res.credential });
-      const { token, user } = apiRes.data;
+      const { token } = apiRes.data;
 
       sessionStorage.setItem("token", token);
-      sessionStorage.setItem("userNumber", user.userNumber);
-      // sessionStorage.setItem("role", user.role);
-      navigate(user.role === "Admin" ? "/adminDashboard" : "/userDashboard");
+      const role = jwtDecode(token).role;
+      navigate(adminRoles.includes(role) ? "/adminDashboard" : "/userDashboard");
     } catch (err) {
+      console.error(err);
       alert(err.response?.data?.msg || "Google login failed");
     }
   };

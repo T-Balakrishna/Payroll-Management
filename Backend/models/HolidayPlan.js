@@ -32,17 +32,23 @@ const HolidayPlan = sequelize.define("HolidayPlan", {
   },
   createdBy: {
     type: DataTypes.STRING,
+    allowNull: true,
   },
   updatedBy: {
     type: DataTypes.STRING,
+    allowNull: true,
   },
   status: {
     type: DataTypes.STRING,
     defaultValue: "active",
-  }
+  },
+  companyId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+  },
 }, {
-    tableName: 'HolidayPlan',
-    timestamps: true
+  tableName: 'HolidayPlan',
+  timestamps: true
 });
 
 module.exports = HolidayPlan;

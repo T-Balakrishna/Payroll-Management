@@ -3,11 +3,12 @@ const Department = require('../models/Department'); // Sequelize model
 // Create
 exports.createDepartment = async (req, res) => {
   try {
-    const { departmentName, departmentAckr, createdBy } = req.body;
+    const { departmentName, departmentAckr, createdBy,companyId } = req.body;
     const newDepartment = await Department.create({
       departmentName,
       departmentAckr,
-      createdBy
+      createdBy,
+      companyId,
     });
 
     res.status(201).json(newDepartment);

@@ -1,40 +1,81 @@
+import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { GoogleOAuthProvider } from "@react-oauth/google";
+import {jwtDecode} from "jwt-decode";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
 import LoginPage from "./pages/LoginPage";
-import { jwtDecode } from "jwt-decode";
 import UserDashboard from "./pages/UserDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import { CompanyProvider } from "./context/CompanyContext";
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || 
-  "180795642065-a8vha11jug7jv8ip5b4ivggi39pqej6h.apps.googleusercontent.com";
+// Optional 404 page
+function NotFound() {
+  return (
+    <div className="flex items-center justify-center h-screen">
+      <h1 className="text-4xl font-bold text-red-600">404 - Page Not Found</h1>
+    </div>
+  );
+}
+
+const GOOGLE_CLIENT_ID =
+  import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+  "YOUR_GOOGLE_CLIENT_ID_HERE";
 
 // 🔹 Role-based private route
 function PrivateRoute({ children, allowedRoles }) {
-  const token = sessionStorage.getItem("token"); // only token stored
-
-  if (!token) return <Navigate to="/" />; // not logged in
+  const token = sessionStorage.getItem("token");
+  if (!token) return <Navigate to="/" />;
 
   try {
-    const decoded = jwtDecode(token); // decode JWT
-    const role = decoded.role; // get role from token
-
+    const decoded = jwtDecode(token);
+    const role = decoded.role;
     if (allowedRoles && !allowedRoles.includes(role)) {
-      return <Navigate to="/" />; // role not allowed
+      return <Navigate to="/" />;
     }
-
-    return children; // role allowed
+    return children;
   } catch (err) {
     console.error("Invalid token:", err);
-    return <Navigate to="/" />; // invalid token
+    return <Navigate to="/" />;
   }
+}
+
+// 🔹 Redirect logged-in users from login page
+function PublicRoute({ children }) {
+  const token = sessionStorage.getItem("token");
+  if (token) {
+    try {
+      const role = jwtDecode(token).role;
+      const adminRoles = ["Admin", "Super Admin", "Department Admin"];
+      if (adminRoles.includes(role)) return <Navigate to="/adminDashboard" />;
+      return <Navigate to="/userDashboard" />;
+    } catch {
+      sessionStorage.removeItem("token");
+      return children;
+    }
+  }
+  return children;
 }
 
 export default function App() {
   return (
+    
+    <CompanyProvider>
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<LoginPage />} />
+          {/* Public login page */}
+          <Route
+            path="/"
+            element={
+              <PublicRoute>
+                <LoginPage />
+              </PublicRoute>
+            }
+          />
+
+          {/* User dashboard */}
           <Route
             path="/userDashboard"
             element={
@@ -43,16 +84,23 @@ export default function App() {
               </PrivateRoute>
             }
           />
+
+          {/* Admin dashboard */}
           <Route
             path="/adminDashboard"
             element={
-              <PrivateRoute allowedRoles={["Admin"]}>
+              <PrivateRoute allowedRoles={["Admin", "Super Admin", "Department Admin"]}>
                 <AdminDashboard />
               </PrivateRoute>
             }
           />
+
+          {/* Catch-all 404 */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
     </GoogleOAuthProvider>
+    `<ToastContainer />
+    </CompanyProvider>
   );
 }

@@ -1,60 +1,65 @@
 const User = require('../models/User');
-const Department = require('../models/Department')
-const Employee = require('../models/Employee')
+const Department = require('../models/Department');
+const Employee = require('../models/Employee');
+const Company = require('../models/Company');
 const bcrypt = require('bcryptjs');
-const {Op} = require('sequelize')
+const { Op } = require('sequelize');
 
 
-// Create a new user
+// ------------------ CREATE USER ------------------
 exports.createUser = async (req, res) => {
   try {
-    const { userMail, userName, userNumber, role, departmentId, password, createdBy } = req.body;
+    const { userMail, userName, userNumber, role, departmentId, companyId, password, createdBy } = req.body;
 
     const existing = await User.findOne({ where: { userMail } });
     if (existing) return res.status(400).json({ error: "User already exists" });
 
-    // Hash the password before saving
     const hashedPassword = await bcrypt.hash(password, 10);
-    // const { departmentId, ...rest } = req.body;
-    // if(departmentId==''){
-      
-    // }
+
     const newUser = await User.create({
       userMail,
       userName,
       userNumber,
       role,
       departmentId,
+      companyId,
       password: hashedPassword,
       createdBy
     });
 
-    const newEmployee = await Employee.create({
-      employeeMail :userMail,
-      employeeName:userName,
-      employeeNumber:userNumber,
-      departmentId:departmentId,
+    await Employee.create({
+      employeeMail: userMail,
+      employeeName: userName,
+      employeeNumber: userNumber,
+      departmentId,
+      companyId,
       password: hashedPassword,
       createdBy
     });
 
-    res.status(201).json({ message: "User & Employee created", user: newUser , employee : newEmployee});
+    res.status(201).json({ message: "User & Employee created", user: newUser });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// Get all users
+// ------------------ GET ALL USERS ------------------
 exports.getAllUsers = async (req, res) => {
   try {
-    const users = await User.findAll({where:{status:'active'}});
+    const { companyId, departmentId } = req.query; // optional filters
+
+    const filter = { status: 'active' };
+    if (companyId) filter.companyId = companyId;
+    if (departmentId) filter.departmentId = departmentId;
+
+    const users = await User.findAll({ where: filter });
     res.json(users);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// Get user by ID
+// ------------------ GET USER BY ID ------------------
 exports.getUserById = async (req, res) => {
   try {
     const user = await User.findByPk(req.params.id);
@@ -65,31 +70,25 @@ exports.getUserById = async (req, res) => {
   }
 };
 
+// ------------------ UPDATE USER ------------------
 exports.updateUser = async (req, res) => {
   try {
     const { userNumber } = req.params;
     const { password, updatedBy } = req.body;
-  
 
-    // Update user first
     const [updated] = await User.update(req.body, { where: { userNumber } });
     if (!updated) return res.status(404).json({ error: "User not found" });
 
     const updatedUser = await User.findOne({ where: { userNumber } });
 
-    // 🔑 Only check password change
     if (password) {
       const isSamePassword = await bcrypt.compare(password, updatedUser.password);
-
       if (!isSamePassword) {
         const hashedPassword = await bcrypt.hash(password, 10);
         await updatedUser.update({ password: hashedPassword, updatedBy });
 
-        // 🔄 Also update Employee table
-        const employee = await Employee.findOne({ where: { employeeNumber: updatedUser.userNumber } });
-        if (employee) {
-          await employee.update({ password: hashedPassword, updatedBy });
-        }
+        const employee = await Employee.findOne({ where: { employeeNumber: userNumber } });
+        if (employee) await employee.update({ password: hashedPassword, updatedBy });
       }
     }
 
@@ -99,75 +98,84 @@ exports.updateUser = async (req, res) => {
   }
 };
 
-
-// Delete user
+// ------------------ DELETE USER ------------------
 exports.deleteUser = async (req, res) => {
   try {
-    const user = await User.findByPk(req.params.id);
+    const { userNumber } = req.params;
+    const { updatedBy } = req.body;
+
+    const user = await User.findOne({ where: { userNumber } });
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    await user.update({ status: 'inactive', updatedBy: req.body.updatedBy });
-    const employee = await Employee.findOne({where:{employeeNumber : user.userNumber}});
-    if (!employee) return res.status(404).json({ error: "Employee not found" });
+    await user.update({ status: 'inactive', updatedBy });
 
-    await employee.update({ status: 'inactive', updatedBy: req.body.updatedBy });
-    res.json({ message: "Employee deleted" });
+    const employee = await Employee.findOne({ where: { employeeNumber: userNumber } });
+    if (employee) await employee.update({ status: 'inactive', updatedBy });
+
+    res.json({ message: "User & Employee marked inactive" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
+// ------------------ GET LAST EMPLOYEE NUMBER ------------------
+
+// Generate next user number with uniqueness check
 exports.getLastEmpNumber = async (req, res) => {
   try {
-    const { departmentId } = req.params;
-    const {role} = req.body;
+    const { role, companyId, departmentId } = req.body;
 
-    // Find the department to get its acronym/prefix
-    const dept = await Department.findByPk(departmentId);
-    if (!dept) return res.status(404).json({ message: "Department not found" });
+    let prefix = "";
+    let filter = {};
 
-    const deptPrefix = dept.departmentAckr
-    var lastEmp=''
-    // Find the latest employee in this department by empNumber
-    if(role==='Department Admin'){
-       lastEmp = await User.findOne({
-        where: { departmentId ,userNumber: {
-        [Op.like]: `AD%`,   // ✅ only numbers starting with AD
-      },/*check if this starts with AD*/},
-        order: [["createdAt", "DESC"]],
-      });
-    }
-    else{
-       lastEmp = await User.findOne({
-        where: { departmentId },
-        order: [["createdAt", "DESC"]],
-      });
-    }
-    console.log(lastEmp)
-    let nextNumber;
-    // console.log(lastEmp.userNumber.startsWith(`${deptPrefix}`)+" "+lastEmp.userNumber.startsWith(`AD${deptPrefix}`)+" "+lastEmp.userNumber.startsWith(`AD`)+" "+req.body.data);    
-    if (lastEmp && (lastEmp.userNumber.startsWith(`${deptPrefix}`) || lastEmp.userNumber.startsWith(`AD${deptPrefix}`) || lastEmp.userNumber.startsWith(`AD`))) {
-      // Extract the numeric part
-      const lastNum = parseInt(lastEmp.userNumber.replace(/\D/g, ""), 10);
-      if(role=="Staff")
-        nextNumber = `${deptPrefix}${lastNum + 1}`;
-      else if(role=="Admin")
-        nextNumber = `AD${lastNum + 1}`;
-      else
-        nextNumber = `AD${deptPrefix}${lastNum + 1}`;
-
-
+    // Handle role-specific filters
+    if (role === "Super Admin") {
+      prefix = "SAD";
+      filter = { role: "Super Admin" };
+    } else if (role === "Admin") {
+      prefix = `AD${companyId}`;
+      filter = { role: "Admin", companyId };
+    } else if (role === "Department Admin") {
+      const dept = await Department.findByPk(departmentId);
+      if (!dept) return res.status(404).json({ message: "Department not found" });
+      prefix = `AD${dept.departmentAckr}${companyId}`;
+      filter = { role: "Department Admin", companyId, departmentId };
+    } else if (role === "Staff") {
+      const dept = await Department.findByPk(departmentId);
+      if (!dept) return res.status(404).json({ message: "Department not found" });
+      prefix = `${dept.departmentAckr}${companyId}`;
+      filter = { role: "Staff", companyId, departmentId };
     } else {
-      // First employee in this department
-      if(role=="Staff")
-        nextNumber = `${deptPrefix}1`;
-      else if(role=="Admin")
-        nextNumber = `AD1`;
-      else
-        nextNumber = `AD${deptPrefix}1`;
+      return res.status(400).json({ message: "Invalid role" });
     }
-    console.log(nextNumber);  
-    res.json({ lastEmpNumber: nextNumber,message:lastEmp,dept:deptPrefix });
+
+    // Find the last user matching the filter
+    const lastUser = await User.findOne({
+      where: {
+        ...filter,
+        userNumber: { [Op.like]: `${prefix}%` },
+      },
+      order: [["createdAt", "DESC"]],
+    });
+
+    let nextNum = 1;
+
+    if (lastUser) {
+      const lastNum = parseInt(lastUser.userNumber.replace(/\D/g, ""), 10);
+      nextNum = lastNum + 1;
+    }
+
+    let newUserNumber = `${prefix}${nextNum}`;
+
+    // Ensure uniqueness: increment until number not present
+    let exists = await User.findOne({ where: { userNumber: newUserNumber } });
+    while (exists) {
+      nextNum++;
+      newUserNumber = `${prefix}${nextNum}`;
+      exists = await User.findOne({ where: { userNumber: newUserNumber } });
+    }
+
+    res.json({ lastEmpNumber: newUserNumber });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
@@ -175,9 +183,10 @@ exports.getLastEmpNumber = async (req, res) => {
 };
 
 
+// ------------------ UPDATE PASSWORD ------------------
 exports.updatePassword = async (req, res) => {
   try {
-    const { userNumber } = req.params; // linked to employeeNumber
+    const { userNumber } = req.params;
     const { password, updatedBy } = req.body;
 
     if (!password) return res.status(400).json({ error: "Password is required" });
@@ -188,7 +197,24 @@ exports.updatePassword = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     await user.update({ password: hashedPassword, updatedBy });
 
+    const employee = await Employee.findOne({ where: { employeeNumber: userNumber } });
+    if (employee) await employee.update({ password: hashedPassword, updatedBy });
+
     res.json({ message: "Password updated successfully" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// ------------------ GET COMPANY ID ------------------
+exports.getCompanyId = async (req, res) => {
+  try {
+    const { userNumber } = req.params;
+    const user = await User.findOne({ where: { userNumber } });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const company = await Company.findOne({ where: { companyId: user.companyId } });
+    res.status(200).json({ companyId: user.companyId, companyName: company.companyName });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

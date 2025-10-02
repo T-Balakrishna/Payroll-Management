@@ -8,6 +8,7 @@ const Designation = sequelize.define("Designation", {
   status: { type: DataTypes.ENUM("active", "inactive"), defaultValue: "active", allowNull: false },
   createdBy: { type: DataTypes.STRING, allowNull: true },
   updatedBy: { type: DataTypes.STRING, allowNull: true },
+  companyId: { type: DataTypes.INTEGER, allowNull: false },
 }, {
   timestamps: true,
   tableName: "Designation",

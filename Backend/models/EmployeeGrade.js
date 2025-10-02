@@ -1,5 +1,4 @@
-// teaching non teACHING
-
+//Teachiing and Non-Teaching
 const { DataTypes } = require('sequelize');
 const seq = require('../config/db');
 
@@ -8,8 +7,9 @@ const EmployeeGrade = seq.define('EmployeeGrade', {
     employeeGradeName: { type: DataTypes.STRING, allowNull: false, unique: true },
     employeeGradeAckr: { type: DataTypes.STRING, allowNull: false, unique: true },
     status: { type: DataTypes.ENUM('active', 'inactive'), defaultValue: 'active', allowNull: false },
-    createdBy: { type: DataTypes.STRING },
-    updatedBy: { type: DataTypes.STRING }
+    createdBy: { type: DataTypes.STRING, allowNull: true },
+    updatedBy: { type: DataTypes.STRING, allowNull: true },
+    companyId: { type: DataTypes.INTEGER, allowNull: false },
 }, {
     tableName: 'EmployeeGrade',
     timestamps: true

@@ -1,7 +1,7 @@
 const { Op } = require("sequelize");
 const Punch = require("../models/Punch");
 const ZKLib = require("node-zklib");
-const Biometric = require("../models/Biometric"); // import your model
+const Employee = require("../models/Employee")
 
 // Fetch from biometric & save
 exports.fetchPunches = async (req, res) => {
@@ -25,7 +25,7 @@ exports.fetchPunches = async (req, res) => {
 
       if (!exists){
         // find employeeNumber from Biometric table using biometricNumber
-        const bioRecord = await Biometric.findOne({
+        const bioRecord = await Employee.findOne({
           where: { biometricNumber: log.deviceUserId }
         });
 

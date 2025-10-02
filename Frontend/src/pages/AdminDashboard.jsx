@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { jwtDecode } from 'jwt-decode';
+import axios from 'axios';
+// Masters
 import BusMaster from './BusMaster.jsx';
-import BiometricMaster from './BiometricMaster.jsx';
 import BiometricDeviceMaster from './BiometricDeviceMaster.jsx';
 import CasteMaster from './CasteMaster.jsx';
+import CompanyMaster from './CompanyMaster.jsx';
 import DepartmentMaster from './DepartmentMaster.jsx';
 import DesignationMaster from './DesignationMaster.jsx';
 import EmployeeGradeMaster from './EmployeeGradeMaster.jsx';
@@ -15,75 +18,139 @@ import ReligionMaster from './ReligionMaster.jsx';
 import ShiftMaster from './ShiftMaster.jsx';
 import AddUser from './AddUser.jsx';
 import ShiftAllocationMaster from './ShiftAllocationMaster.jsx';
-import LeaveApproval from './LeaveApproval.jsx';
-
-import { 
-  Users, 
-  Bus, 
-  Building, 
-  Building2, 
-  Award, 
-  UserCheck, 
-  Clock, 
-  Calendar, 
-  LogOut, 
-  Home, 
-  ChevronLeft, 
+import AttendanceMaster from './AttendanceMaster.jsx';
+import ReportGenerator from './ReportGenerator.jsx';
+// Icons
+import {
+  Users,
+  Bus,
+  Building,
+  Building2,
+  Award,
+  UserCheck,
+  Clock,
+  Calendar,
+  LogOut,
+  Home,
+  ChevronLeft,
   ChevronRight,
-  X,
-  Settings,
+  ChevronUp,
+  ChevronDown,
   Plus,
-  Activity,
-  Menu,
+  Settings,
   ComputerIcon,
   LucideComputer,
-  Badge
+  Badge,
+  WormIcon,
+  Activity,
+  Menu,
+  X
 } from 'lucide-react';
 
-const Admin = () => {
+const AdminDashboard = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activePage, setActivePage] = useState("dashboard");
+  const [role, setRole] = useState(null);
+  const [companyId, setCompanyId] = useState(null);
+  const [companyName, setCompanyName] = useState("");
+  const [companies, setCompanies] = useState([]);
+  const navRef = useRef(null);
+
+  
+
+  // Decode JWT and fetch company data
+  // Add inside AdminDashboard
+const fetchCompanies = async () => {
+  const token = sessionStorage.getItem("token");
+  if (!token) return;
+  try {
+    const res = await axios.get("http://localhost:5000/api/companies", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setCompanies(res.data || []);
+  } catch (err) {
+    console.error("Error fetching companies:", err);
+  }
+};
+
+// Replace useEffect for Super Admin
+useEffect(() => {
+    const token = sessionStorage.getItem("token");
+    if (token) {
+      try {
+        const decoded = jwtDecode(token);
+        setRole(decoded.role);
+        const userNumber = decoded.userNumber;
+
+        if (decoded.role === "Admin") {
+          axios
+            .get(`http://localhost:5000/api/users/getCompany/${userNumber}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            })
+            .then((res) => {
+              const { companyId, companyName } = res.data;
+              setCompanyId(companyId || null);
+              setCompanyName(companyName || "Unknown Company");
+            })
+            .catch((err) => {
+              console.error("Error fetching user company:", err);
+              setCompanyName("Error fetching company");
+            });
+        }
+
+        if (decoded.role === "Super Admin") {
+          fetchCompanies();
+        }
+      } catch (err) {
+        console.error("Invalid token:", err);
+      }
+    }
+  }, []);
+
+
+  // Update companyName when companyId changes for Super Admin
+  // useEffect(() => {
+  //   if (role === "Super Admin" && companyId) {
+  //     const selectedCompany = companies.find(c => c.companyId === companyId);
+  //     setCompanyName(selectedCompany ? selectedCompany.companyName : "");
+  //   }
+  // }, [companyId, companies, role]);
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Home, color: 'text-blue-600' },
     { id: 'users', label: 'Add User', icon: Users, color: 'text-green-600' },
     { id: 'bus', label: 'Bus Master', icon: Bus, color: 'text-purple-600' },
-    { id: 'biometric', label: 'Biometric Master', icon: ComputerIcon, color: 'text-green-600' },
     { id: 'biometricDevice', label: 'Biometric Device Master', icon: ComputerIcon, color: 'text-purple-600' },
-    { id: 'caste', label: 'Caste Master', icon: Building, color: 'text-orange-600' },
+    { id: 'caste', label: 'Caste Master', icon: WormIcon, color: 'text-orange-600' },
+    ...(role === "Super Admin" ? [{ id: 'company', label: 'Company Master', icon: Building, color: 'text-red-600' }] : []),
     { id: 'department', label: 'Department Master', icon: Building2, color: 'text-indigo-600' },
     { id: 'designation', label: 'Designation Master', icon: Award, color: 'text-pink-600' },
     { id: 'employeeGrade', label: 'Employee Grade Master', icon: Users, color: 'text-amber-600' },
     { id: 'employeeType', label: 'Employee Type Master', icon: Users, color: 'text-cyan-600' },
+    { id: 'attendance', label: 'Attendance Master', icon: Activity, color: 'text-emerald-600'},
     { id: 'holiday', label: 'Holiday Master', icon: Calendar, color: 'text-yellow-600' },
     { id: 'leave', label: 'Leave Approval Master', icon: Badge, color: 'text-lime-600' },
     { id: 'leaveType', label: 'Leave Type Master', icon: Clock, color: 'text-lime-600' },
-    { id: 'leaveAllocation', label: 'Leave Allocation ', icon: Clock, color: 'text-lime-600' },
-    { id: 'punches', label: 'Punch Details ', icon: LucideComputer, color: 'text-indigo-600' },
+    { id: 'leaveAllocation', label: 'Leave Allocation', icon: Clock, color: 'text-lime-600' },
+    { id: 'punches', label: 'Punch Details', icon: LucideComputer, color: 'text-indigo-600' },
     { id: 'religion', label: 'Religion Master', icon: Building, color: 'text-amber-600' },
     { id: 'shift', label: 'Shift Master', icon: Activity, color: 'text-emerald-600' },
-    { id : 'shiftallocation', label :'Shift Allocation Master' ,icon: Activity,color :'text-emerald-600'}
+    { id: 'shiftallocation', label: 'Shift Allocation Master', icon: Activity, color: 'text-emerald-600'},
+    { id: 'reportgenerator', label: 'Report Generator', icon: Settings, color: 'text-gray-600' },
   ];
 
   const authItems = [
-    { id: 'login', label: 'Logout', icon: LogOut, color: 'text-gray-600' },
-  ];
-
-  const stats = [
-    { title: 'Total Users', value: '2,847', change: '+12%', icon: Users, color: 'bg-blue-500' },
-    { title: 'Active Employees', value: '1,234', change: '+5%', icon: UserCheck, color: 'bg-green-500' },
-    { title: 'Departments', value: '15', change: '+2', icon: Building2, color: 'bg-purple-500' },
-    { title: 'Bus Routes', value: '8', change: '0%', icon: Bus, color: 'bg-orange-500' },
+    { id: 'logout', label: 'Logout', icon: LogOut, color: 'text-gray-600' },
   ];
 
   const pageTitles = {
     dashboard: "Dashboard Overview",
     users: "Add User",
     bus: "Bus Master",
-    biometric: "Biometric Master",
     biometricDevice: "Biometric Device Master",
     caste: "Caste Master",
+    company: "Company Master",
     department: "Department Master",
     designation: "Designation Master",
     employeeGrade: "Employee Grade Master",
@@ -95,177 +162,116 @@ const Admin = () => {
     punches: "Punch Details",
     religion: "Religion Master",
     shift: "Shift Master",
-    shiftallocation:"Shift Allocation Master"
+    shiftallocation: "Shift Allocation Master",
+    attendance: "Attendance Master",
+    reportgenerator: "Report Generator"
   };
 
-  const renderDashboard = () => (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
-          <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center space-x-2 transition-colors">
-            <Plus className="w-4 h-4" />
-            <span>Add New</span>
-          </button>
-          <button className="border border-gray-300 hover:bg-gray-50 px-4 py-2 rounded-lg flex items-center justify-center space-x-2 transition-colors">
-            <Settings className="w-4 h-4" />
-            <span>Settings</span>
-          </button>
-        </div>
-      </div>
+  const handleNavigateUp = () => {
+    const idx = menuItems.findIndex(item => item.id === activePage);
+    if (idx > 0) setActivePage(menuItems[idx - 1].id);
+  };
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        {stats.map((stat, index) => (
-          <div key={index} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 hover:shadow-md transition-shadow">
-            <div className="flex justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-600 truncate">{stat.title}</p>
-                <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-2">{stat.value}</p>
-                <p className="text-sm text-green-600 mt-1">{stat.change} from last month</p>
-              </div>
-              <div className={`${stat.color} p-2 sm:p-3 rounded-lg flex-shrink-0`}>
-                <stat.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  const handleNavigateDown = () => {
+    const idx = menuItems.findIndex(item => item.id === activePage);
+    if (idx < menuItems.length - 1) setActivePage(menuItems[idx + 1].id);
+  };
 
   const renderPage = () => {
-    switch (activePage) {
-      case "dashboard": return renderDashboard();
-      case "bus": return <BusMaster />;
-      case "biometric": return <BiometricMaster />;
-      case "biometricDevice": return <BiometricDeviceMaster />;
-      case "caste": return <CasteMaster />;
-      case "department": return <DepartmentMaster />;
-      case "designation": return <DesignationMaster />;
-      case "employeeGrade": return <EmployeeGradeMaster/>;
-      case "employeeType": return <EmployeeTypeMaster />;
-      case "holiday": return <HolidayMaster />;
-      case "leave": return <LeaveApproval />;
-      case "leaveType": return <LeaveTypeMaster />;
-      case "leaveAllocation": return <LeaveAllocation />;
-      case "punches": return <Punches />;
-      case "religion": return <ReligionMaster />;
-      case "shift": return <ShiftMaster />;
-      case "shiftallocation":return <ShiftAllocationMaster />;
-      case "users": return <AddUser />;
-      default: return renderDashboard();
+    switch(activePage) {
+      case "dashboard": return <p>Welcome to Dashboard</p>;
+      case "bus": return <BusMaster selectedCompanyId={companyId} selectedCompanyName={companyName} />;
+      case "biometricDevice": return <BiometricDeviceMaster selectedCompanyId={companyId} selectedCompanyName={companyName} />;
+      case "caste": return <CasteMaster selectedCompanyId={companyId} selectedCompanyName={companyName} />;
+      case "company": return (<CompanyMaster selectedCompanyId={companyId} selectedCompanyName={companyName} refreshCompanies={fetchCompanies}/> );
+      case "department": return <DepartmentMaster selectedCompanyId={companyId} selectedCompanyName={companyName} userRole={role} />;
+      case "designation": return <DesignationMaster selectedCompanyId={companyId} selectedCompanyName={companyName} />;
+      case "employeeGrade": return <EmployeeGradeMaster selectedCompanyId={companyId} selectedCompanyName={companyName} />;
+      case "employeeType": return <EmployeeTypeMaster selectedCompanyId={companyId} selectedCompanyName={companyName} />;
+      case "holiday": return <HolidayMaster selectedCompanyId={companyId} selectedCompanyName={companyName} />;
+      case "leave": return <LeaveAllocation selectedCompanyId={companyId} selectedCompanyName={companyName} />;
+      case "leaveType": return <LeaveTypeMaster selectedCompanyId={companyId} selectedCompanyName={companyName} />;
+      case "leaveAllocation": return <LeaveAllocation selectedCompanyId={companyId} selectedCompanyName={companyName} />;
+      case "punches": return <Punches selectedCompanyId={companyId} selectedCompanyName={companyName} />;
+      case "religion": return <ReligionMaster selectedCompanyId={companyId} selectedCompanyName={companyName} />;
+      case "shift": return <ShiftMaster selectedCompanyId={companyId} selectedCompanyName={companyName} />;
+      case "shiftallocation": return <ShiftAllocationMaster selectedCompanyId={companyId} selectedCompanyName={companyName} />;
+      case "users": return <AddUser selectedCompanyId={companyId} selectedCompanyName={companyName} />;
+      case "attendance": return <AttendanceMaster selectedCompanyId={companyId} selectedCompanyName={companyName} />;
+      case "reportgenerator": return <ReportGenerator selectedCompanyId={companyId} selectedCompanyName={companyName} />;
+      default: return <p>Welcome to Dashboard</p>;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Mobile Header */}
-      <div className="lg:hidden bg-white shadow-sm border-b border-gray-200 px-4 py-3 sticky top-0 z-30">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => setMobileMenuOpen(true)}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            <Menu className="w-6 h-6 text-gray-600" />
-          </button>
-          <h1 className="text-lg font-semibold text-gray-900 truncate px-2">
-            {pageTitles[activePage]}
-          </h1>
-          <div className="w-10"></div> {/* Spacer for balance */}
+    <div className="min-h-screen bg-gray-50 flex">
+      <aside className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-white border-r border-gray-200 transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
+        <div className="flex items-center justify-between h-14 px-4 border-b border-gray-200">
+          {!sidebarCollapsed && <span className="font-bold text-lg">Admin Panel</span>}
+          <div className="flex items-center space-x-2">
+            {/* <button onClick={handleNavigateUp} disabled={menuItems.findIndex(item => item.id === activePage) === 0}>
+              <ChevronUp />
+            </button>
+            <button onClick={handleNavigateDown} disabled={menuItems.findIndex(item => item.id === activePage) === menuItems.length - 1}>
+              <ChevronDown />
+            </button> */}
+            <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>
+              {sidebarCollapsed ? <ChevronRight /> : <ChevronLeft />}
+            </button>
+          </div>
         </div>
-      </div>
-
-      {/* Mobile Overlay */}
-      {mobileMenuOpen && (
-        <div
-          onClick={() => setMobileMenuOpen(false)}
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-        />
-      )}
-
-      {/* Sidebar */}
-        <div
-        className={`fixed inset-y-0 left-0 z-50
-        ${sidebarCollapsed ? 'w-16' : 'w-64'}
-        bg-white shadow-lg transition-all duration-300 transform
-        ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-        lg:translate-x-0 flex flex-col`}
-      >
-        {/* Header (logo + collapse buttons) */}
-        <div className="flex items-center justify-between h-14 lg:h-16 px-4 border-b border-gray-200">
-          {!sidebarCollapsed && <h1 className="text-lg lg:text-xl font-bold text-gray-900 truncate">Admin Panel</h1>}
-          <button
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="hidden lg:block p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            {sidebarCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
-          </button>
-          <button
-            onClick={() => setMobileMenuOpen(false)}
-            className="lg:hidden p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Menu (scrollable) */}
-        <nav className="flex-1 overflow-y-auto px-2 py-4 space-y-1">
+        <nav ref={navRef} className="flex-1 overflow-y-auto py-2">
           {menuItems.map(item => (
             <button
               key={item.id}
-              onClick={() => {
-                setActivePage(item.id);
-                setMobileMenuOpen(false);
-              }}
-              className={`relative w-full flex items-center px-2 py-2.5 text-sm font-medium rounded-lg transition-colors
-                ${activePage === item.id 
-                  ? 'bg-blue-50 text-blue-700 font-semibold border-l-4 border-blue-600' 
-                  : 'text-gray-700 hover:bg-gray-50'}`}
+              onClick={() => setActivePage(item.id)}
+              className={`flex items-center w-full px-4 py-2 space-x-3 text-left transition-colors hover:bg-gray-100 ${
+                activePage === item.id ? 'bg-gray-200 font-semibold' : ''
+              }`}
             >
-              <item.icon className={`${sidebarCollapsed ? 'mx-auto' : 'mr-3'} w-5 h-5 ${item.color} flex-shrink-0`} />
-              {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+              <item.icon className={`w-5 h-5 ${item.color}`} />
+              {!sidebarCollapsed && <span>{item.label}</span>}
             </button>
           ))}
-
-          {/* Auth Items (Logout) */}
           <div className="pt-4 mt-4 border-t border-gray-200">
             {authItems.map(item => (
               <button
                 key={item.id}
                 onClick={() => {
-                  sessionStorage.removeItem("token");
-                  sessionStorage.removeItem("userNumber");
+                  sessionStorage.clear();
                   window.location.href = "/";
                 }}
-                className={`relative w-full flex items-center px-2 py-2.5 text-sm font-medium rounded-lg transition-colors
-                  ${activePage === item.id 
-                    ? 'bg-blue-50 text-blue-700 font-semibold border-l-4 border-blue-600' 
-                    : 'text-gray-700 hover:bg-gray-50'}`}
+                className="flex items-center w-full px-4 py-2 space-x-3 text-left hover:bg-gray-100"
               >
-                <item.icon className={`${sidebarCollapsed ? 'mx-auto' : 'mr-3'} w-5 h-5 ${item.color} flex-shrink-0`} />
-                {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+                <item.icon className={`w-5 h-5 ${item.color}`} />
+                {!sidebarCollapsed && <span>{item.label}</span>}
               </button>
             ))}
           </div>
         </nav>
-      </div>
-
-      {/* Main Content */}
-      <div className={`${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'} transition-all duration-200`}>
-        <div className="p-4 sm:p-6 lg:p-8 pt-4 lg:pt-8">
-          {/* Page Header (Hidden on mobile as it's in mobile header) */}
-          <h1 className="hidden lg:block text-2xl font-bold text-gray-900 mb-6">
-            {pageTitles[activePage]}
-          </h1>
-
-          {/* Page Content */}
-          <div className="w-full overflow-x-auto">
-            {renderPage()}
-          </div>
+      </aside>
+      <main className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-64'} p-6`}>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">{pageTitles[activePage]}</h1>
+          {role === "Super Admin" && (
+            <select value={companyId || ""} 
+              onChange={(e) => {
+                const selected = companies.find(c => c.companyId === parseInt(e.target.value));
+                setCompanyId(selected?.companyId || null);
+                setCompanyName(selected?.companyName || "");
+              }}
+              className="border p-2 rounded"
+            >
+              <option value="">-- Select Company --</option>
+              {companies.map(c => <option key={c.companyId} value={c.companyId}>{c.companyName}</option>)}
+            </select>
+          )}
+          {role === "Admin" && <span className="text-gray-600">Company: {companyName}</span>}
         </div>
-      </div>
+        {renderPage()}
+      </main>
     </div>
   );
 };
 
-export default Admin;
+export default AdminDashboard;
