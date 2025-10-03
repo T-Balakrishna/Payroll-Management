@@ -5,6 +5,8 @@ import {jwtDecode} from "jwt-decode";
 let token     = sessionStorage.getItem("token");
 let decoded   = (token)?jwtDecode(token):"";
 let userNumber= decoded.userNumber;
+import Swal from 'sweetalert2'
+import { toast } from "react-toastify";
 
 
 // ✅ Modal Form Component
@@ -45,8 +47,8 @@ function AddOrEdit({ onSave, onCancel, editData, userRole, selectedCompanyId, se
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!departmentName || !departmentAckr) return alert("Please fill Department Name and Acronym");
-    if (userRole === "Super Admin" && !companyId) return alert("Please select a company");
+    if (!departmentName || !departmentAckr) return toast.error("Please fill Department Name and Acronym");
+    if (userRole === "Super Admin" && !companyId) return toast.error("Please select a company");
 
     const adminName = sessionStorage.getItem("userNumber");
     const departmentData = {
@@ -236,8 +238,21 @@ function DepartmentMaster({ userRole, selectedCompanyId, selectedCompanyName }) 
       await fetchDepartments();
       setShowForm(false);
       setEditData(null);
+      Swal.fire({
+            icon: "success",
+            title: departmentId ? "Updated" : "Added",
+            text: `Department ${departmentId ? "Updated" : "Added"} Successfully`,
+        });
     } catch (err) {
+      Swal.fire({
+            icon: "error",
+            title: `${departmentId ? "Update" : "Add"}Failed`,
+            // text: `Department ${departmentId ? "Updated" : "Added"} Successfully`,
+            text:`${err.response.data==="Error updating department: Validation error" || "Error creating department: Validation error"?"Department Already exists in the Company":err.response.data}`
+        });
+        setShowForm(false);
       console.error("Error saving department:", err);
+      
     }
   };
 

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { toast } from "react-toastify";
 import { Cpu, Pencil, Trash, Plus, X } from "lucide-react";
 import { jwtDecode } from "jwt-decode";
 import Swal from "sweetalert2";
+import { toast } from "react-toastify";
 
 let token = sessionStorage.getItem("token");
 let decoded = token ? jwtDecode(token) : {};
@@ -266,20 +266,33 @@ function BiometricDeviceMaster({ selectedCompanyId, selectedCompanyName }) {
   };
 
   const handleDelete = async (deviceId) => {
-    if (!window.confirm("Are you sure you want to delete this device?")) return;
-    try {
-      await axios.delete(
-        `http://localhost:5000/api/biometricDevices/${deviceId}`,
-        {
-          data: { updatedBy: userNumber },
-          headers: { Authorization: `Bearer ${token}` },
+      Swal.fire({
+        title: "Are you sure?",
+        text: "You won’t be able to revert this!",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#3085d6",
+        cancelButtonColor: "#d33",
+        confirmButtonText: "Yes, delete it!"
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          try {
+            await axios.delete(`http://localhost:5000/api/designations/${deviceId}`, {
+              data: { updatedBy: userNumber },
+              headers: { Authorization: `Bearer ${token}` },
+            });
+
+            Swal.fire("Deleted!", "Device has been deleted.", "success");
+            await fetchDevices();
+          } catch (err) {
+            console.error("Error deleting Device:", err);
+            Swal.fire("Error!", "Failed to delete Device.", "error");
+          }
         }
-      );
-      await fetchDevices();
-    } catch (err) {
-      console.error("Error deleting device:", err);
+      });
     }
-  };
+
+  
 
   return (
     <div className="h-full flex flex-col px-6">

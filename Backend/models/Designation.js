@@ -12,6 +12,16 @@ const Designation = sequelize.define("Designation", {
 }, {
   timestamps: true,
   tableName: "Designation",
+  indexes: [
+      {
+        unique: true,
+        fields: ["companyId", "designationName"], // designationName unique within company
+      },
+      {
+        unique: true,
+        fields: ["companyId", "designationAckr"], // designationAckr unique within company
+      },
+    ],
 });
 
 module.exports = Designation;

@@ -171,7 +171,7 @@ function DesignationMaster({selectedCompanyId, selectedCompanyName }) {
       }
     };
     fetchCompanies();
-    fetchDesignations();
+    // fetchDesignations();
   }, []);
 
   const fetchDesignations = async () => {
@@ -189,9 +189,13 @@ function DesignationMaster({selectedCompanyId, selectedCompanyName }) {
     }
   };
 
-  useEffect(() => {
-    if (selectedCompanyId || userRole === "Admin") fetchDesignations();
-  }, [selectedCompanyId, userRole]);
+  // useEffect(() => {
+  //   if (selectedCompanyId || userRole === "Admin") fetchDesignations();
+  // }, [selectedCompanyId, userRole]);
+
+    useEffect(() => {
+      fetchDesignations();
+    },[selectedCompanyId]);
 
   const getCompanyAcronym = (id) => {
     const company = companies.find(c => c.companyId === id);
@@ -208,13 +212,13 @@ function DesignationMaster({selectedCompanyId, selectedCompanyName }) {
   const handleSave = async (designationData, designationId) => {
     try {
       if (designationId) {
-        await axios.put(
+        const res = await axios.put(
           `http://localhost:5000/api/designations/${designationId}`,
           { ...designationData, updatedBy: userNumber },
           { headers: { Authorization: `Bearer ${token}` } }
         );
       } else {
-        await axios.post(
+        const res =await axios.post(
           "http://localhost:5000/api/designations",
           { ...designationData, createdBy: userNumber },
           { headers: { Authorization: `Bearer ${token}` } }
@@ -229,7 +233,14 @@ function DesignationMaster({selectedCompanyId, selectedCompanyName }) {
             text: `Designation ${designationId?"Updated":"Added"} Successfully`
           });
     } catch (err) {
-      console.error("Error saving designation:", err);
+      Swal.fire({
+            icon: "error",
+            title: `${designationId?"Update":"Add"} Failed`,
+            // text: `Designation ${designationId?"Updated":"Added"} Failed`
+            text:`${err.response.data==="Error updating designation: Validation error" || err.response.data==="Error creating designation: Validation error"?"Designation Already exists in the Company":err.response.data}`
+          });
+      setShowForm(false);
+      console.error("Error saving designation:", err.response.data);
     }
   };
 
@@ -246,18 +257,34 @@ function DesignationMaster({selectedCompanyId, selectedCompanyName }) {
     }
   };
 
-  const handleDelete = async (designationId) => {
-    if (!window.confirm("Are you sure you want to delete this designation?")) return;
-    try {
-      await axios.delete(`http://localhost:5000/api/designations/${designationId}`, {
-        data: { updatedBy: userNumber },
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      await fetchDesignations();
-    } catch (err) {
-      console.error("Error deleting designation:", err);
+
+const handleDelete = async (designationId) => {
+  Swal.fire({
+    title: "Are you sure?",
+    text: "You won’t be able to revert this!",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#3085d6",
+    cancelButtonColor: "#d33",
+    confirmButtonText: "Yes, delete it!"
+  }).then(async (result) => {
+    if (result.isConfirmed) {
+      try {
+        await axios.delete(`http://localhost:5000/api/designations/${designationId}`, {
+          data: { updatedBy: userNumber },
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        Swal.fire("Deleted!", "Designation has been deleted.", "success");
+        await fetchDesignations();
+      } catch (err) {
+        console.error("Error deleting designation:", err);
+        Swal.fire("Error!", "Failed to delete designation.", "error");
+      }
     }
-  };
+  });
+};
+
 
   return (
     <div className="h-full flex flex-col px-6">

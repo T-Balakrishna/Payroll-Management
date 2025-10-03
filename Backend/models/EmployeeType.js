@@ -14,6 +14,16 @@ const EmployeeType = sequelize.define("EmployeeType", {
 }, {
   timestamps: true,
   tableName: "EmployeeType",
+  indexes: [
+      {
+        unique: true,
+        fields: ["companyId", "employeeTypeName"], // employeeTypeName unique within company
+      },
+      {
+        unique: true,
+        fields: ["companyId", "employeeTypeAckr"], // employeeTypeAckr unique within company
+      },
+    ],
 });
 
 module.exports = EmployeeType;

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { User, Search, Plus, X, Trash, Pencil, Cpu } from "lucide-react";
-import { toast } from "react-toastify";
 import { jwtDecode } from "jwt-decode";
 import Swal from "sweetalert2";
+import { toast } from "react-toastify";
 
 let token = sessionStorage.getItem("token");
 let decoded = token ? jwtDecode(token) : "";
@@ -159,11 +159,13 @@ function AddOrEditUser({
                 className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               >
                 <option value="">Select Company</option>
-                {companies.map((c) => (
-                  <option key={c.companyId} value={c.companyId}>
-                    {c.companyName}
-                  </option>
-                ))}
+                {companies
+                  .filter(c => c.companyId !== 1)
+                  .map(c => (
+                    <option key={c.companyId} value={c.companyId}>
+                      {c.companyName}
+                    </option>
+                  ))}
               </select>
             ) : (
               <input
@@ -385,8 +387,12 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
       setShowForm(false);
       setRefreshFlag((prev)=>!prev);
     } catch (err) {
-      toast.error("Save error:", err);
-      toast.error("Failed to save user");
+      Swal.fire({
+              icon: "error",
+              title: isEdit ? "Update Failed" : "Add Failed" ,
+              text: `User ${isEdit ? "Update" : "Add"} Failed`,
+            });
+      setShowForm(false);
     }
   };
 
@@ -444,25 +450,50 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
                     <button
                       className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-md"
                       onClick={() => {
-                        setFormData(u);
-                        setAutoGenerate(false);
-                        setShowForm(true);
-                        setIsEdit(true);
-                      }}
-                    >
-                      <Pencil size={16} />
-                    </button>
-                    <button
-                      className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md"
-                      onClick={async () => {
-                        if (window.confirm("Delete this user?")) {
-                          await axios.delete(
-                            `http://localhost:5000/api/users/${u.userNumber}`,
-                            { headers: { Authorization: `Bearer ${token}` } }
-                          );
-                          window.location.reload();
-                        }
-                      }}
+                          setFormData(u);
+                          setAutoGenerate(false);
+                          setShowForm(true);
+                          setIsEdit(true);
+                        }}
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button
+                        className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md"
+                        onClick={() => {
+                            Swal.fire({
+                              title: "Are you sure?",
+                              text: "You won't be able to revert this!",
+                              icon: "warning",
+                              showCancelButton: true,
+                              confirmButtonColor: "#3085d6",
+                              cancelButtonColor: "#d33",
+                              confirmButtonText: "Yes, delete it!"
+                            }).then(async (result) => {
+                              if (result.isConfirmed) {
+                                try {
+                                  await axios.delete(
+                                    `http://localhost:5000/api/users/${u.userNumber}`,
+                                    { headers: { Authorization: `Bearer ${token}` } }
+                                  );
+
+                                  Swal.fire({
+                                    title: "Deleted!",
+                                    text: "User has been deleted.",
+                                    icon: "success",
+                                  });
+
+                                  window.location.reload(); // 🔄 keep your old reload
+                                } catch (err) {
+                                  Swal.fire({
+                                    title: "Error!",
+                                    text: "Failed to delete user.",
+                                    icon: "error",
+                                  });
+                                }
+                              }
+                            });
+                          }}
                     >
                       <Trash size={16} />
                     </button>

@@ -1,9 +1,10 @@
 // src/pages/BusMaster.jsx
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import toast, { Toaster } from "react-hot-toast";
 import { Bus, Pencil, Trash, Plus, X } from "lucide-react";
 import { jwtDecode } from "jwt-decode";
+import Swal from 'sweetalert2'
+import { toast } from "react-toastify";
 
 let token = sessionStorage.getItem("token");
 let decoded = token ? jwtDecode(token) : {};
@@ -170,6 +171,11 @@ function BusMaster({ selectedCompanyId, selectedCompanyName }) {
     try {
       if (busId) await axios.put(`http://localhost:5000/api/buses/${busId}`, busData, { headers: { Authorization: `Bearer ${token}` } });
       else await axios.post(`http://localhost:5000/api/buses`, busData, { headers: { Authorization: `Bearer ${token}` } });
+      Swal.fire({
+                    icon: "success",
+                    title: `${busId ? "Updated" : "Added"}`,
+                    text: `Bus ${busId ? "Updated" : "Added"} Successfully`,
+                  });
       fetchBuses();
       setShowForm(false);
       setEditData(null);
@@ -179,21 +185,38 @@ function BusMaster({ selectedCompanyId, selectedCompanyName }) {
   };
 
   const handleEdit = (bus) => { setEditData(bus); setShowForm(true); };
+
   const handleDelete = async (busId) => {
-    if (!window.confirm("Are you sure you want to delete this bus?")) return;
-    try {
-      await axios.delete(`http://localhost:5000/api/buses/${busId}`, { data: { updatedBy: userNumber }, headers: { Authorization: `Bearer ${token}` } });
-      fetchBuses();
-    } catch (err) {
-      console.error("Error deleting bus:", err);
-    }
-  };
+        Swal.fire({
+          title: "Are you sure?",
+          text: "This bus will be permanently deleted!",
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonColor: "#3085d6",
+          cancelButtonColor: "#d33",
+          confirmButtonText: "Yes, delete it!"
+        }).then(async (result) => {
+          if (result.isConfirmed) {
+            try {
+              await axios.delete(`http://localhost:5000/api/buses/${busId}`, {
+                data: { updatedBy: userNumber },
+                headers: { Authorization: `Bearer ${token}` },
+              });
+
+              Swal.fire("Deleted!", "Bus has been deleted.", "success");
+              fetchBuses(); // refresh list
+            } catch (err) {
+              console.error("Error deleting bus:", err);
+              Swal.fire("Error!", "Failed to delete bus.", "error");
+            }
+          }
+        });
+      };
+
 
 
   return (
     <div className="h-full flex flex-col px-6 bg-gray-50">
-      <Toaster position="top-right" reverseOrder={false} />
-
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
         <div className="relative w-full sm:w-80 mb-4 sm:mb-0">

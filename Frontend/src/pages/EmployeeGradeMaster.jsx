@@ -1,54 +1,83 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { Award, Pencil, Trash, Plus, X } from "lucide-react";
+import { jwtDecode } from "jwt-decode";
+import Swal from 'sweetalert2';
+import { toast } from "react-toastify";
+
+let token = sessionStorage.getItem("token");
+let decoded = token ? jwtDecode(token) : "";
+let userNumber = decoded?.userNumber || "system";
+let userRole = decoded?.role;
 
 // ✅ Modal Form Component
-function AddOrEditGrade({ onSave, onCancel, editData }) {
+function AddOrEditGrade({ onSave, onCancel, editData, userRole, selectedCompanyId, selectedCompanyName }) {
   const [employeeGradeName, setEmployeeGradeName] = useState(editData?.employeeGradeName || "");
   const [employeeGradeAckr, setEmployeeGradeAckr] = useState(editData?.employeeGradeAckr || "");
   const [status, setStatus] = useState(editData?.status || "active");
+  const [companies, setCompanies] = useState([]);
+  const [companyId, setCompanyId] = useState(editData?.companyId || selectedCompanyId || "");
+  const [companyName, setCompanyName] = useState(editData?.companyName || selectedCompanyName || "");
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchCompanies = async () => {
+      try {
+        const res = await axios.get("http://localhost:5000/api/companies", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!mounted) return;
+        setCompanies(res.data || []);
+        if (userRole === "Super Admin" && selectedCompanyId) {
+          setCompanyId(selectedCompanyId);
+          const selected = res.data.find(c => c.companyId === selectedCompanyId);
+          setCompanyName(selected ? selected.companyName : selectedCompanyName || "");
+        }
+      } catch (err) {
+        console.error("Error fetching companies:", err);
+      }
+    };
+    if (userRole === "Super Admin") fetchCompanies();
+    else if (userRole === "Admin" && selectedCompanyId) {
+      setCompanyId(selectedCompanyId);
+      setCompanyName(selectedCompanyName || "No company selected");
+    }
+    return () => { mounted = false; };
+  }, [userRole, selectedCompanyId, selectedCompanyName]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!employeeGradeName || !employeeGradeAckr) return alert("Please fill all fields");
-
-    const adminName = sessionStorage.getItem("userNumber");
+    if (!employeeGradeName || !employeeGradeAckr) return toast.error("Please fill Grade Name and Acronym");
+    if (userRole === "Super Admin" && !companyId) return toast.error("Please select a company");
 
     const gradeData = {
       employeeGradeName,
       employeeGradeAckr,
       status,
-      createdBy: editData ? editData.createdBy : adminName,
-      updatedBy: adminName,
+      companyId,
+      createdBy: editData ? editData.createdBy : userNumber,
+      updatedBy: userNumber,
     };
-
     onSave(gradeData, editData?.employeeGradeId);
   };
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm">
       <div className="relative max-w-xl w-full bg-white rounded-2xl shadow-xl p-8 border border-gray-200">
-        {/* Close Button */}
         <button
           onClick={onCancel}
           className="absolute top-4 right-4 text-gray-500 hover:text-gray-800"
         >
           <X size={22} />
         </button>
-
-        {/* Icon */}
         <div className="flex justify-center mb-6">
           <div className="bg-blue-100 p-4 rounded-full">
             <Award className="text-blue-600" size={40} />
           </div>
         </div>
-
-        {/* Title */}
         <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">
           {editData ? "Edit Employee Grade" : "Add New Employee Grade"}
         </h2>
-
-        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label className="block font-medium text-gray-700 mb-2">Grade Name</label>
@@ -60,7 +89,6 @@ function AddOrEditGrade({ onSave, onCancel, editData }) {
               className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
             />
           </div>
-
           <div>
             <label className="block font-medium text-gray-700 mb-2">Acronym</label>
             <input
@@ -71,7 +99,36 @@ function AddOrEditGrade({ onSave, onCancel, editData }) {
               className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
             />
           </div>
-          {/* Buttons */}
+          <div>
+            <label className="block font-medium text-gray-700 mb-2">Company</label>
+            {userRole === "Super Admin" ? (
+              <select
+                value={companyId}
+                onChange={(e) => {
+                  setCompanyId(e.target.value);
+                  const selected = companies.find((c) => c.companyId === e.target.value);
+                  setCompanyName(selected ? selected.companyName : "");
+                }}
+                className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              >
+                <option value="">Select Company</option>
+                {companies
+                  .filter((c) => c.companyId !== 1)
+                  .map((c) => (
+                    <option key={c.companyId} value={c.companyId}>
+                      {c.companyName}
+                    </option>
+                  ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={companyName || "No company selected"}
+                disabled
+                className="w-full border border-gray-300 rounded-lg p-3 bg-gray-100 cursor-not-allowed"
+              />
+            )}
+          </div>
           <div className="flex justify-end gap-3 pt-4">
             <button
               type="button"
@@ -94,16 +151,37 @@ function AddOrEditGrade({ onSave, onCancel, editData }) {
 }
 
 // ✅ Main Component
-function EmployeeGradeMaster() {
+function EmployeeGradeMaster({ selectedCompanyId, selectedCompanyName }) {
   const [grades, setGrades] = useState([]);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editData, setEditData] = useState(null);
+  const [companies, setCompanies] = useState([]);
+
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const res = await axios.get("http://localhost:5000/api/companies", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setCompanies(res.data || []);
+      } catch (err) {
+        console.error("Error fetching companies:", err);
+      }
+    };
+    fetchCompanies();
+  }, []);
 
   const fetchGrades = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/employeeGrades");
-      setGrades(res.data);
+      let url = "http://localhost:5000/api/employeeGrades";
+      if (selectedCompanyId) url += `?companyId=${selectedCompanyId}`;
+      const res = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
+      let data = res.data || [];
+      if (selectedCompanyId && Array.isArray(data)) {
+        data = data.filter((d) => String(d.companyId) === String(selectedCompanyId));
+      }
+      setGrades(data);
     } catch (err) {
       console.error("Error fetching grades:", err);
     }
@@ -111,43 +189,75 @@ function EmployeeGradeMaster() {
 
   useEffect(() => {
     fetchGrades();
-  }, []);
+  }, [selectedCompanyId]);
+
+  const getCompanyAcronym = (id) => {
+    const company = companies.find(c => c.companyId === id);
+    return company ? company.companyAcr : "";
+  };
 
   const filteredData = grades.filter(
-    (g) =>
-      g.employeeGradeName?.toLowerCase().includes(search.toLowerCase()) ||
-      g.employeeGradeAckr?.toLowerCase().includes(search.toLowerCase()) ||
-      g.status?.toLowerCase().includes(search.toLowerCase())
+    (d) =>
+      d.employeeGradeName?.toLowerCase().includes(search.trim().toLowerCase()) ||
+      d.employeeGradeAckr?.toLowerCase().includes(search.trim().toLowerCase()) ||
+      d.status?.toLowerCase().includes(search.trim().toLowerCase())
   );
 
   const handleSave = async (gradeData, gradeId) => {
     try {
       if (gradeId) {
-        await axios.put(`http://localhost:5000/api/employeeGrades/${gradeId}`, gradeData);
+        const res = await axios.put(
+          `http://localhost:5000/api/employeeGrades/${gradeId}`,
+          { ...gradeData, updatedBy: userNumber },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
       } else {
-        await axios.post("http://localhost:5000/api/employeeGrades", gradeData);
+        const res = await axios.post(
+          "http://localhost:5000/api/employeeGrades",
+          { ...gradeData, createdBy: userNumber },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
       }
-      fetchGrades();
+      await fetchGrades();
       setShowForm(false);
       setEditData(null);
+      Swal.fire({
+        icon: "success",
+        title: gradeId ? "Updated" : "Added",
+        text: `Employee Grade ${gradeId ? "Updated" : "Added"} Successfully`
+      });
     } catch (err) {
-      console.error("Error saving grade:", err);
+      Swal.fire({
+        icon: "error",
+        title: `${gradeId ? "Update" : "Add"} Failed`,
+        text:`${err.response.data==="Error updating employee grade: Validation error" || "Error creating employee grade: Validation error"?"Employee Grade Already exists in the Company":err.response.data}`
+      });
+      setShowForm(false);
+      console.error("Error saving grade:", err.response?.data);
     }
   };
 
-  const handleEdit = (grade) => {
-    setEditData(grade);
-    setShowForm(true);
+  const handleEdit = async (grade) => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/companies", { headers: { Authorization: `Bearer ${token}` } });
+      const company = res.data.find((c) => c.companyId === grade.companyId);
+      setEditData({ ...grade, companyName: company ? company.companyName : selectedCompanyName || "" });
+      setShowForm(true);
+    } catch (err) {
+      console.error("Error fetching company for edit:", err);
+      setEditData({ ...grade, companyName: selectedCompanyName || "" });
+      setShowForm(true);
+    }
   };
 
   const handleDelete = async (gradeId) => {
     if (!window.confirm("Are you sure you want to delete this grade?")) return;
     try {
-      const updatedBy = sessionStorage.getItem("userNumber");
       await axios.delete(`http://localhost:5000/api/employeeGrades/${gradeId}`, {
-        data: { updatedBy },
+        data: { updatedBy: userNumber },
+        headers: { Authorization: `Bearer ${token}` },
       });
-      fetchGrades();
+      await fetchGrades();
     } catch (err) {
       console.error("Error deleting grade:", err);
     }
@@ -166,10 +276,7 @@ function EmployeeGradeMaster() {
         />
         <button
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md"
-          onClick={() => {
-            setShowForm(true);
-            setEditData(null);
-          }}
+          onClick={() => { setShowForm(true); setEditData(null); }}
         >
           <Plus size={18} /> Add Grade
         </button>
@@ -180,29 +287,25 @@ function EmployeeGradeMaster() {
         <table className="w-full text-left text-sm">
           <thead className="sticky top-0">
             <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-              <th className="py-3 px-4">ID</th>
+              {/* <th className="py-3 px-4">ID</th> */}
               <th className="py-3 px-4">Name</th>
               <th className="py-3 px-4">Acronym</th>
+              {!selectedCompanyId && <th className="py-3 px-4">Company</th>}
               <th className="py-3 px-4">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filteredData.map((g) => (
-              <tr key={g.employeeGradeId} className="border-t hover:bg-gray-50">
-                <td className="py-2 px-4">{g.employeeGradeId}</td>
-                <td className="py-2 px-4">{g.employeeGradeName}</td>
-                <td className="py-2 px-4">{g.employeeGradeAckr}</td>
+            {filteredData.map((d) => (
+              <tr key={d.employeeGradeId} className="border-t hover:bg-gray-50">
+                {/* <td className="py-2 px-4">{d.employeeGradeId}</td> */}
+                <td className="py-2 px-4">{d.employeeGradeName}</td>
+                <td className="py-2 px-4">{d.employeeGradeAckr}</td>
+                {!selectedCompanyId && <td>{getCompanyAcronym(d.companyId)}</td>}
                 <td className="py-2 px-4 flex gap-2">
-                  <button
-                    className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-md"
-                    onClick={() => handleEdit(g)}
-                  >
+                  <button className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-md" onClick={() => handleEdit(d)}>
                     <Pencil size={16} />
                   </button>
-                  <button
-                    className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md"
-                    onClick={() => handleDelete(g.employeeGradeId)}
-                  >
+                  <button className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md" onClick={() => handleDelete(d.employeeGradeId)}>
                     <Trash size={16} />
                   </button>
                 </td>
@@ -223,11 +326,11 @@ function EmployeeGradeMaster() {
       {showForm && (
         <AddOrEditGrade
           onSave={handleSave}
-          onCancel={() => {
-            setShowForm(false);
-            setEditData(null);
-          }}
+          onCancel={() => { setShowForm(false); setEditData(null); }}
           editData={editData}
+          userRole={userRole}
+          selectedCompanyId={selectedCompanyId}
+          selectedCompanyName={selectedCompanyName}
         />
       )}
     </div>
