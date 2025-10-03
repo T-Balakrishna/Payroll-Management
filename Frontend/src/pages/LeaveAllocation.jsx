@@ -211,7 +211,7 @@ const LeaveAllocation = () => {
 
     if (exists) {
       // --- UPDATE existing allocation ---
-      await axios.put(`http://localhost:5000/api/leaveAllocations`, {
+      await axios.put("http://localhost:5000/api/leaveAllocations", {
         employeeNumber: empNum,
         leaveTypeId,
         startYear,
