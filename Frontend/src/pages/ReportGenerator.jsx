@@ -22,12 +22,12 @@ const ReportGenerator = () => {
       { name: 'attendanceDate', label: 'Date' },
       { name: 'attendanceStatus', label: 'Status' },
     ],
-    Biometric: [
+    biometrics: [
       { name: 'biometricId', label: 'Biometric ID' },
       { name: 'biometricNumber', label: 'Biometric Number' },
       { name: 'employeeNumber', label: 'Employee Number' },
     ],
-    Leave: [
+    leaves: [
       { name: 'leaveId', label: 'Leave ID' },
       { name: 'employeeNumber', label: 'Employee Number' },
       { name: 'leaveTypeId', label: 'Leave Type ID' },
@@ -149,7 +149,7 @@ const ReportGenerator = () => {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        {['Attendance', 'Biometric', 'Leave'].map((model) => (
+        {['attendance', 'biometrics', 'leaves'].map((model) => (
           <div
             key={model}
             className={`p-6 bg-white shadow-md rounded-lg cursor-pointer hover:bg-indigo-50 ${
