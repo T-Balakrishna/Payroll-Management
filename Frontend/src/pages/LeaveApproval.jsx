@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
-const LeaveApproval = () => {
+const LeaveApproval = (selectedCompanyId,selectedCompanyName) => {
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -68,7 +68,7 @@ const LeaveApproval = () => {
 
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Leave Management</h1>
+      {/* <h1 className="text-2xl font-bold mb-4">Leave Management</h1> */}
 
       {/* Tabs */}
       <div className="flex mb-4 border-b">

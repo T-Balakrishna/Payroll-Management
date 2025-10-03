@@ -12,6 +12,7 @@ import EmployeeGradeMaster from './EmployeeGradeMaster.jsx';
 import EmployeeTypeMaster from './EmployeeTypeMaster.jsx';
 import HolidayMaster from './HolidayMaster.jsx';
 import LeaveAllocation from './LeaveAllocation.jsx';
+import LeaveApproval from './LeaveApproval.jsx';
 import LeaveTypeMaster from './LeaveTypeMaster.jsx';
 import Punches from './Punches.jsx';
 import ReligionMaster from './ReligionMaster.jsx';
@@ -130,7 +131,7 @@ useEffect(() => {
     { id: 'employeeType', label: 'Employee Type Master', icon: Users, color: 'text-cyan-600' },
     { id: 'attendance', label: 'Attendance Master', icon: Activity, color: 'text-emerald-600'},
     { id: 'holiday', label: 'Holiday Master', icon: Calendar, color: 'text-yellow-600' },
-    { id: 'leave', label: 'Leave Approval Master', icon: Badge, color: 'text-lime-600' },
+    { id: 'leaveApproval', label: 'Leave Approval Master', icon: Badge, color: 'text-lime-600' },
     { id: 'leaveType', label: 'Leave Type Master', icon: Clock, color: 'text-lime-600' },
     { id: 'leaveAllocation', label: 'Leave Allocation', icon: Clock, color: 'text-lime-600' },
     { id: 'punches', label: 'Punch Details', icon: LucideComputer, color: 'text-indigo-600' },
@@ -156,7 +157,7 @@ useEffect(() => {
     employeeGrade: "Employee Grade Master",
     employeeType: "Employee Type Master",
     holiday: "Holiday Master",
-    leave: "Leave Approval Master",
+    leaveApproval: "Leave Approval Master",
     leaveType: "Leave Type Master",
     leaveAllocation: "Leave Allocation",
     punches: "Punch Details",
@@ -189,7 +190,7 @@ useEffect(() => {
       case "employeeGrade": return <EmployeeGradeMaster selectedCompanyId={companyId} selectedCompanyName={companyName} />;
       case "employeeType": return <EmployeeTypeMaster selectedCompanyId={companyId} selectedCompanyName={companyName} />;
       case "holiday": return <HolidayMaster selectedCompanyId={companyId} selectedCompanyName={companyName} />;
-      case "leave": return <LeaveAllocation selectedCompanyId={companyId} selectedCompanyName={companyName} />;
+      case "leaveApproval": return <LeaveApproval selectedCompanyId={companyId} selectedCompanyName={companyName} />;
       case "leaveType": return <LeaveTypeMaster selectedCompanyId={companyId} selectedCompanyName={companyName} />;
       case "leaveAllocation": return <LeaveAllocation selectedCompanyId={companyId} selectedCompanyName={companyName} />;
       case "punches": return <Punches selectedCompanyId={companyId} selectedCompanyName={companyName} />;
@@ -204,9 +205,10 @@ useEffect(() => {
   };
 
   return (
+    
     <div className="min-h-screen bg-gray-50 flex">
       <aside className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-white border-r border-gray-200 transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
-        <div className="flex items-center justify-between h-14 px-4 border-b border-gray-200">
+        <div className="flex items-center justify-between h-14 px-4 border-b border-gray-200">          
           {!sidebarCollapsed && <span className="font-bold text-lg">Admin Panel</span>}
           <div className="flex items-center space-x-2">
             {/* <button onClick={handleNavigateUp} disabled={menuItems.findIndex(item => item.id === activePage) === 0}>

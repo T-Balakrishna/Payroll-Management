@@ -3,6 +3,8 @@ import { GoogleLogin } from "@react-oauth/google";
 import { useState } from "react";
 import API from "../api";
 import {jwtDecode} from "jwt-decode";
+import Swal from "sweetalert2";
+import { toast } from "react-toastify";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -12,7 +14,7 @@ export default function LoginPage() {
   const adminRoles = ["Admin", "Super Admin", "Department Admin"];
 
   const handleLogin = async () => {
-    if (!identifier || !password) return alert("Enter email/userNumber & password");
+    if (!identifier || !password) return toast.error("Enter email/userNumber & password");
 
     try {
       const res = await API.post("/auth/login", { identifier, password });
@@ -22,14 +24,15 @@ export default function LoginPage() {
 
       const role = jwtDecode(token).role;
       navigate(adminRoles.includes(role) ? "/adminDashboard" : "/userDashboard");
+      toast.success("Login Success")
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.msg || "Login failed");
+      toast.error(err.response?.data?.msg || "Login failed");
     }
   };
 
   const handleGoogleSuccess = async (res) => {
-    if (!res?.credential) return alert("Google login failed");
+    if (!res?.credential) return toast.error("Google login failed");
 
     try {
       const apiRes = await API.post("/auth/google-login", { token: res.credential });
@@ -38,9 +41,10 @@ export default function LoginPage() {
       sessionStorage.setItem("token", token);
       const role = jwtDecode(token).role;
       navigate(adminRoles.includes(role) ? "/adminDashboard" : "/userDashboard");
+      toast.success("Login Success")
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.msg || "Google login failed");
+      toast.error(err.response?.data?.msg || "Google login failed");
     }
   };
 

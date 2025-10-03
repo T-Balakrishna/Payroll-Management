@@ -1,4 +1,5 @@
 const Department = require('../models/Department'); // Sequelize model
+const Company = require("../models/Company")
 
 // Create
 exports.createDepartment = async (req, res) => {
@@ -19,12 +20,32 @@ exports.createDepartment = async (req, res) => {
 };
 
 // Read All (only active)
+// Read All (active, with optional companyId filter)
 exports.getAllDepartments = async (req, res) => {
   try {
-    const departments = await Department.findAll({ where: { status: 'active' } });
-    res.json(departments);
+    const { companyId } = req.query;
+    const whereClause = { status: 'active' };
+
+    // Add companyId filter if provided
+    if (companyId) {
+      whereClause.companyId = companyId;
+
+      // Optional: Validate if company exists
+      const companyExists = await Company.findOne({ where: { companyId } });
+      if (!companyExists) {
+        return res.status(404).json({ message: 'Company not found' });
+      }
+    }
+
+    const departments = await Department.findAll({
+      where: whereClause,
+      // attributes: ['departmentId', 'departmentAckr', 'companyId'], // Match frontend expectations
+    });
+
+    res.status(200).json(departments);
   } catch (error) {
-    res.status(500).send("Error fetching departments: " + error.message);
+    console.error('❌ Error fetching departments:', error);
+    res.status(500).json({ message: 'Error fetching departments: ' + error.message });
   }
 };
 

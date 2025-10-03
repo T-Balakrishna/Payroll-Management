@@ -24,6 +24,7 @@ function AddOrEditUser({
   handleAutoGenerate,
   isEdit,
 }) {
+  
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -48,6 +49,24 @@ function AddOrEditUser({
       setFormData({ ...formData, [name]: value });
     }
   };
+
+  // Update departments when company changes
+  // useEffect(() => {
+  //   const fetchDepartments = async () => {
+  //     if (!formData.companyId) return setDepartments([]);
+  //     try {
+  //       const res = await axios.get(
+  //         `http://localhost:5000/api/departments?companyId=${formData.companyId}`,
+  //         { headers: { Authorization: `Bearer ${token}` } }
+  //       );
+  //       setDepartments(res.data);
+  //     } catch (err) {
+  //       toast.error("Error fetching departments");
+  //     }
+  //   };
+  //   fetchDepartments();
+  // }, [formData.companyId, token]);
+
 
   const showCompanyField = () => {
     if (userRole === "Super Admin") {
@@ -154,6 +173,7 @@ function AddOrEditUser({
                   setFormData({
                     ...formData,
                     companyId: e.target.value,
+                    departmentId: "", 
                   });
                 }}
                 className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
@@ -303,6 +323,24 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
     };
     fetchData();
   }, [selectedCompanyId, token,refreshFlag]);
+
+    useEffect(() => {
+    const fetchDepartments = async () => {
+      if (!formData.companyId) return setDepartments([]);
+      try {
+        const res = await axios.get(
+          `http://localhost:5000/api/departments?companyId=${formData.companyId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setDepartments(res.data);
+      } catch (err) {
+        toast.error("Error fetching departments");
+      }
+    };
+
+    fetchDepartments();
+  }, [formData.companyId, token]);
+
 
   useEffect(() => {
     if (token) {

@@ -3,11 +3,17 @@ const EmployeeType = require('../models/EmployeeType'); // Sequelize model
 // Create
 exports.createEmployeeType = async (req, res) => {
   try {
-    const { employeeTypeName, employeeTypeAckr, createdBy } = req.body;
+    const { employeeTypeName, employeeTypeAckr, companyId, createdBy } = req.body;
+    if (!employeeTypeName || !employeeTypeAckr || !companyId || !createdBy) {
+      return res.status(400).send("Missing required fields: employeeTypeName, employeeTypeAckr, companyId, or createdBy");
+    }
+
     const newEmployeeType = await EmployeeType.create({
       employeeTypeName,
       employeeTypeAckr,
-      createdBy
+      companyId,
+      createdBy,
+      status: 'active', // Default status
     });
 
     res.status(201).json(newEmployeeType);
@@ -17,10 +23,14 @@ exports.createEmployeeType = async (req, res) => {
   }
 };
 
-// Read All (only active)
+// Read All (only active, with optional companyId filter)
 exports.getAllEmployeeTypes = async (req, res) => {
   try {
-    const types = await EmployeeType.findAll({ where: { status: 'active' } });
+    const { companyId } = req.query;
+    const whereClause = { status: 'active' };
+    if (companyId) whereClause.companyId = companyId;
+
+    const types = await EmployeeType.findAll({ where: whereClause });
     res.json(types);
   } catch (error) {
     res.status(500).send("Error fetching employee types: " + error.message);
@@ -43,10 +53,17 @@ exports.getEmployeeTypeById = async (req, res) => {
 // Update
 exports.updateEmployeeType = async (req, res) => {
   try {
+    const { employeeTypeName, employeeTypeAckr, companyId, updatedBy } = req.body;
     const type = await EmployeeType.findOne({ where: { employeeTypeId: req.params.id, status: 'active' } });
     if (!type) return res.status(404).send("Employee type not found or inactive");
 
-    await type.update({ ...req.body, updatedBy: req.body.updatedBy });
+    await type.update({
+      employeeTypeName,
+      employeeTypeAckr,
+      companyId,
+      updatedBy,
+      updatedAt: new Date(), // Optional: Update timestamp
+    });
     res.json(type);
   } catch (error) {
     console.error("❌ Error updating employee type:", error);
