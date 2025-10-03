@@ -2,6 +2,12 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { Users2, Pencil, Trash, Search, Plus } from "lucide-react";
+import Swal from 'sweetalert2'
+import { toast } from "react-toastify";
+import {jwtDecode} from "jwt-decode";
+let token     = sessionStorage.getItem("token");
+let decoded   = (token)?jwtDecode(token):"";
+let userNumber= decoded.userNumber;
 
 function AddOrEdit({ onSave, onCancel, editData }) {
   const [casteName, setCasteName] = useState(editData?.casteName || "");
@@ -86,16 +92,16 @@ function CasteMaster() {
 
   const handleSave = async (casteData, casteId) => {
     try {
-      const adminName = sessionStorage.getItem("userNumber");
+      // const adminName = sessionStorage.getItem("userNumber");
       if (casteId) {
         await axios.put(`http://localhost:5000/api/castes/${casteId}`, {
           ...casteData,
-          updatedBy: adminName,
+          updatedBy: userNumber,
         });
       } else {
         await axios.post("http://localhost:5000/api/castes", {
           ...casteData,
-          createdBy: adminName,
+          createdBy: userNumber,
         });
       }
       fetchCastes();
@@ -111,17 +117,42 @@ function CasteMaster() {
     setShowForm(true);
   };
 
-  const handleDelete = async (casteId) => {
-    try {
-      const adminName = sessionStorage.getItem("userNumber");
-      await axios.delete(`http://localhost:5000/api/castes/${casteId}`, {
-        data: { updatedBy: adminName },
+
+const handleDelete = async (casteId) => {
+      Swal.fire({
+        title: "Are you sure?",
+        text: "This caste will be permanently deleted!",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#3085d6",
+        cancelButtonColor: "#d33",
+        confirmButtonText: "Yes, delete it!"
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          try {
+            const adminName = sessionStorage.getItem("userNumber");
+            await axios.delete(`http://localhost:5000/api/castes/${casteId}`, {
+              data: { updatedBy: adminName },
+              headers: { Authorization: `Bearer ${token}` },
+            });
+
+            Swal.fire({
+              title: "Deleted!",
+              text: "Caste has been deleted.",
+              icon: "success",
+              timer: 1500,
+              showConfirmButton: false
+            });
+
+            fetchCastes(); // refresh after delete
+          } catch (err) {
+            console.error("Error deleting caste:", err);
+            Swal.fire("Error!", "Failed to delete caste.", "error");
+          }
+        }
       });
-      fetchCastes();
-    } catch (err) {
-      console.error("Error deleting caste:", err);
-    }
-  };
+    };
+
 
   return showForm ? (
     <AddOrEdit

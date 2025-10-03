@@ -10,6 +10,7 @@ const Shift = seq.define('Shift', {
     shiftMinHours: { type: DataTypes.FLOAT, allowNull: false },
     shiftNextDay: { type: DataTypes.BOOLEAN, defaultValue: false },
     status: { type: DataTypes.ENUM('active', 'inactive'), defaultValue: 'active', allowNull: false },
+    companyId: { type: DataTypes.INTEGER, allowNull: false },
     createdBy: { type: DataTypes.STRING },
     updatedBy: { type: DataTypes.STRING }
 }, {

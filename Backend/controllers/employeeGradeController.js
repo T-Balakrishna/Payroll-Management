@@ -3,11 +3,17 @@ const EmployeeGrade = require('../models/EmployeeGrade'); // Sequelize model
 // Create
 exports.createEmployeeGrade = async (req, res) => {
   try {
-    const { employeeGradeName, employeeGradeAckr, createdBy } = req.body;
+    const { employeeGradeName, employeeGradeAckr, companyId, createdBy } = req.body;
+    if (!employeeGradeName || !employeeGradeAckr || !companyId || !createdBy) {
+      return res.status(400).send("Missing required fields: employeeGradeName, employeeGradeAckr, companyId, or createdBy");
+    }
+
     const newEmployeeGrade = await EmployeeGrade.create({
       employeeGradeName,
       employeeGradeAckr,
-      createdBy
+      companyId,
+      createdBy,
+      status: 'active', // Default status
     });
 
     res.status(201).json(newEmployeeGrade);
@@ -17,10 +23,14 @@ exports.createEmployeeGrade = async (req, res) => {
   }
 };
 
-// Read All (only active)
+// Read All (only active, with optional companyId filter)
 exports.getAllEmployeeGrades = async (req, res) => {
   try {
-    const grades = await EmployeeGrade.findAll({ where: { status: 'active' } });
+    const { companyId } = req.query;
+    const whereClause = { status: 'active' };
+    if (companyId) whereClause.companyId = companyId;
+
+    const grades = await EmployeeGrade.findAll({ where: whereClause });
     res.json(grades);
   } catch (error) {
     res.status(500).send("Error fetching employee grades: " + error.message);
@@ -43,10 +53,17 @@ exports.getEmployeeGradeById = async (req, res) => {
 // Update
 exports.updateEmployeeGrade = async (req, res) => {
   try {
+    const { employeeGradeName, employeeGradeAckr, companyId, updatedBy } = req.body;
     const grade = await EmployeeGrade.findOne({ where: { employeeGradeId: req.params.id, status: 'active' } });
     if (!grade) return res.status(404).send("Employee grade not found or inactive");
 
-    await grade.update({ ...req.body, updatedBy: req.body.updatedBy });
+    await grade.update({
+      employeeGradeName,
+      employeeGradeAckr,
+      companyId,
+      updatedBy,
+      updatedAt: new Date(), // Optional: Update timestamp
+    });
     res.json(grade);
   } catch (error) {
     console.error("❌ Error updating employee grade:", error);
