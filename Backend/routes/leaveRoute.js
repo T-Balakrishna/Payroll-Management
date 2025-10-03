@@ -14,4 +14,5 @@ router.get("/status/:status", leaveController.getLeavesByStatus);
 // Admin: Update leave status (approve/reject)
 router.put("/:leaveId/status", leaveController.updateLeaveStatus);
 
+router.get("/employee/:employeeNumber", leaveController.getLeavesByEmployee);
 module.exports = router;

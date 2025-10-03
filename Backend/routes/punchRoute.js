@@ -10,6 +10,6 @@ router.get("/get", punchController.getPunches);
 router.get("/today", punchController.getTodayPunches);
 
 // Get all punches for a user by biometricId
-router.get("/user/:id", punchController.getPunchesById);
+router.get("/user/:bioNumber", punchController.getPunchesById);
 
 module.exports = router;

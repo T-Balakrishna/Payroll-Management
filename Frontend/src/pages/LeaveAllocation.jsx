@@ -228,7 +228,7 @@ const LeaveAllocation = () => {
       });
     } else {
       // --- CREATE new allocation ---
-      await axios.post(`http://localhost:5000/api/leaveAllocations`, {
+      await axios.post("http://localhost:5000/api/leaveAllocations", {
         employeeNumber: empNum,
         leaveTypeId,
         startYear,
@@ -272,7 +272,7 @@ const LeaveAllocation = () => {
             <option value="">Select Leave Type</option>
             {leaveTypes.map(type => (
               <option key={type.leaveTypeId} value={type.leaveTypeId}>
-                {type.leaveTypeName} {type.maxAllocation ? `(max ${type.maxAllocation})` : ""}
+                {type.leaveTypeName} {type.maxAllocation ? (`max ${type.maxAllocation}`) : ""}
               </option>
             ))}
           </select>

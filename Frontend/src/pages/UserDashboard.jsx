@@ -13,6 +13,9 @@ export default function DashboardPage() {
   const [tableType, setTableType] = useState("biometric");
   const [userName, setUserName] = useState("New User");
   const [photoUrl, setPhotoUrl] = useState(null);
+  const [punches, setPunches] = useState([]);
+  const [biometricId, setBiometricId] = useState(null);
+  const [leaves, setLeaves] = useState([]); // <--- ADDED
 
   const userNumber = sessionStorage.getItem("userNumber");
   const hasFetchedRef = useRef(false);
@@ -22,6 +25,7 @@ export default function DashboardPage() {
   const openCalendarModal = () => setModalContent("calendar");
   const closeModal = () => setModalContent(null);
 
+  // Fetch employee info
   useEffect(() => {
     if (!userNumber) {
       console.error("No userNumber found in sessionStorage");
@@ -31,42 +35,29 @@ export default function DashboardPage() {
     }
 
     if (hasFetchedRef.current) return;
-
     abortControllerRef.current = new AbortController();
 
     const fetchUserData = async () => {
       try {
-        console.log('Fetching user data for userNumber:', userNumber);
         const res = await axios.get(`http://localhost:5000/api/employees/full/${userNumber}`, {
           signal: abortControllerRef.current.signal,
           timeout: 10000,
         });
         const employee = res.data;
 
-        console.log("Employee data:", employee);
-
-        // Update name
         const fullName = `${employee.firstName || employee.employeeName || ''} ${employee.lastName || ''}`.trim() || 'New User';
         setUserName(fullName);
 
-        // Handle photo
         if (employee.photo) {
-          const photoPath = employee.photo.startsWith("/uploads/")
-            ? employee.photo
-            : `/uploads/${employee.photo}`;
-          setPhotoUrl(photoPath); // ✅ leave it relative, Vite proxy will handle it
-          // Set URL directly without preload
+          const photoPath = employee.photo.startsWith("/uploads/") ? employee.photo : `/uploads/${employee.photo}`;
+          setPhotoUrl(photoPath);
         } else {
-          console.log("No photo found in employee data, using placeholder");
           setPhotoUrl(null);
         }
 
         hasFetchedRef.current = true;
       } catch (err) {
-        if (err.name === 'AbortError') {
-          console.log("Fetch aborted for userNumber:", userNumber);
-          return;
-        }
+        if (err.name === 'AbortError') return;
         console.error("Error fetching user data:", err.response?.data?.error || err.message);
         setUserName("New User");
         setPhotoUrl(null);
@@ -78,22 +69,84 @@ export default function DashboardPage() {
 
     return () => {
       if (abortControllerRef.current && !hasFetchedRef.current) {
-        console.log("Aborting fetch for userNumber:", userNumber);
         abortControllerRef.current.abort();
       }
     };
   }, [userNumber]);
 
-  // Sample Data (unchanged)
-  const biometricData = [
-    { time_stamp: "2025-01-10 09:01", location: "Main Gate" },
-    { time_stamp: "2025-01-10 17:45", location: "Main Gate" },
-  ];
+  // Fetch biometricId using employeeNumber
+  useEffect(() => {
+    const fetchBiometricId = async () => {
+      try {
+        const res = await axios.get("http://localhost:5000/api/biometrics");
+        const allBiometrics = res.data;
+        const bio = allBiometrics.find(b => b.employeeNumber === userNumber);
+        if (bio) {
+          setBiometricId(bio.biometricNumber);
+        } else {
+          console.warn("No biometric linked to employeeNumber:", userNumber);
+        }
+      } catch (err) {
+        console.error("Error fetching biometrics:", err.message);
+      }
+    };
+    if (userNumber) fetchBiometricId();
+  }, [userNumber]);
 
-  const leaveHistoryData = [
-    { from_date: "2024-12-20", to_date: "2024-12-22", description: "Medical", status: "Approved" },
-    { from_date: "2024-11-05", to_date: "2024-11-06", description: "Personal", status: "Rejected" },
-  ];
+  // Fetch device info by IP
+  const fetchDeviceByIp = async (ip) => {
+    try {
+      const res = await axios.get(`http://localhost:5000/api/biometricDevices/ip/${ip}`);
+      return res.data.location || null;
+    } catch (err) {
+      console.error("Error fetching device by IP:", err.message);
+      return null;
+    }
+  };
+
+  // Fetch punches using biometricId
+  useEffect(() => {
+    const fetchPunches = async () => {
+      if (!biometricId) return;
+      try {
+        const res = await axios.get(`http://localhost:5000/api/punches/user/${Number(biometricId)}`);
+        const punchesData = await Promise.all(
+          res.data.map(async (row) => {
+            // If location missing, fetch from device IP
+            if (!row.location && row.deviceIp) {
+              row.location = await fetchDeviceByIp(row.deviceIp);
+            }
+            return row;
+          })
+        );
+        setPunches(punchesData);
+      } catch (err) {
+        console.error("Error fetching punches:", err.message);
+      }
+    };
+    fetchPunches();
+  }, [biometricId]);
+
+  // Fetch leaves for this employee <--- ADDED
+  useEffect(() => {
+    const fetchLeaves = async () => {
+      if (!userNumber) return;
+      try {
+        const res = await axios.get(`http://localhost:5000/api/leaves/employee/${userNumber}`);
+        const leaveData = res.data.map(l => ({
+          from_date: l.startDate,
+          to_date: l.endDate,
+          description: l.reason || l.LeaveType?.leaveTypeName || "N/A",
+          status: l.status
+        }));
+        setLeaves(leaveData);
+      } catch (err) {
+        console.error("Error fetching leaves:", err.message);
+        setLeaves([]);
+      }
+    };
+    fetchLeaves();
+  }, [userNumber]);
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -123,20 +176,23 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {leaveHistoryData.map((row, idx) => (
+                {leaves.length > 0 ? leaves.map((row, idx) => (
                   <tr key={idx} className="hover:bg-gray-50 transition-colors duration-150">
                     <td className="py-4 px-6 border-b border-gray-100">{row.from_date}</td>
                     <td className="py-4 px-6 border-b border-gray-100">{row.to_date}</td>
                     <td className="py-4 px-6 border-b border-gray-100">{row.description}</td>
                     <td className="py-4 px-6 border-b border-gray-100 flex items-center gap-2">
                       {getStatusIcon(row.status)}
-                      <span className={`font-medium ${
-                        row.status === "Approved" ? "text-green-700" :
-                        row.status === "Rejected" ? "text-red-700" : "text-yellow-700"
-                      }`}>{row.status}</span>
+                      <span className={`font-medium ${row.status === "Approved" ? "text-green-700" : row.status === "Rejected" ? "text-red-700" : "text-yellow-700"}`}>
+                        {row.status}
+                      </span>
                     </td>
                   </tr>
-                ))}
+                )) : (
+                  <tr>
+                    <td colSpan="4" className="text-center py-6 text-gray-500">No leave data available</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -154,20 +210,28 @@ export default function DashboardPage() {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="text-left py-4 px-6 font-semibold text-gray-700">Time Stamp</th>
+                  <th className="text-left py-4 px-6 font-semibold text-gray-700">Time</th>
                   <th className="text-left py-4 px-6 font-semibold text-gray-700">Location</th>
+                  <th className="text-left py-4 px-6 font-semibold text-gray-700">Date</th>
                 </tr>
               </thead>
               <tbody>
-                {biometricData.map((row, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50 transition-colors duration-150">
-                    <td className="py-4 px-6 border-b border-gray-100 flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-blue-600" />
-                      {row.time_stamp}
-                    </td>
-                    <td className="py-4 px-6 border-b border-gray-100">{row.location}</td>
+                {punches.length > 0 ? punches.map((row, idx) => {
+                  const dateObj = new Date(row.punchTimestamp);
+                  const time = dateObj.toLocaleTimeString();
+                  const date = dateObj.toLocaleDateString();
+                  return (
+                    <tr key={idx} className="hover:bg-gray-50 transition-colors duration-150">
+                      <td className="py-4 px-6 border-b border-gray-100">{time}</td>
+                      <td className="py-4 px-6 border-b border-gray-100">{row.location}</td>
+                      <td className="py-4 px-6 border-b border-gray-100">{date}</td>
+                    </tr>
+                  );
+                }) : (
+                  <tr>
+                    <td colSpan="3" className="text-center py-6 text-gray-500">No punch data available</td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
@@ -195,11 +259,7 @@ export default function DashboardPage() {
                 src={photoUrl || "/placeholder-image.jpg"}
                 alt="Profile"
                 className="w-full h-full object-cover"
-                onError={(e) => {
-                  console.error("Image failed to load in img tag:", e.currentTarget.src, e);
-                  e.currentTarget.src = "/placeholder-image.jpg";
-                }}
-                onLoad={() => console.log("Image loaded successfully in img tag:", photoUrl)}
+                onError={(e) => { e.currentTarget.src = "/placeholder-image.jpg"; }}
               />
             </button>
 

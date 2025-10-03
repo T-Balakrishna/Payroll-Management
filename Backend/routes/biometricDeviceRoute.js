@@ -6,6 +6,7 @@ const biometricDeviceController = require("../controllers/biometricDeviceControl
 router.post("/", biometricDeviceController.createBiometricDevice);
 router.get("/", biometricDeviceController.getAllBiometricDevices);
 router.get("/:deviceId", biometricDeviceController.getBiometricDeviceById);
+router.get("/ip/:deviceIp", biometricDeviceController.getBiometricDeviceByIp);
 router.put("/:deviceId", biometricDeviceController.updateBiometricDevice);
 router.delete("/:deviceId", biometricDeviceController.deleteBiometricDevice);
 

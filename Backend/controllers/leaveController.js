@@ -150,3 +150,16 @@ exports.getLeavesByStatus = async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch leaves.' });
   }
 };
+// Employee: Get leaves for specific employee
+exports.getLeavesByEmployee = async (req, res) => {
+  try {
+    const { employeeNumber } = req.params;
+    const leaves = await Leave.findAll({
+      where: { employeeNumber },
+      order: [["createdAt", "DESC"]],
+    });
+    res.json(leaves);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};

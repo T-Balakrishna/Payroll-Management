@@ -4,21 +4,20 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const seq = require('./config/db');
 const cron = require("node-cron");
-const path = require("path");
+
 const app = express();
 
-// Middlewares
+// ✅ Middlewares
 app.use(helmet());
 app.use(morgan('dev'));
 app.use(cors({
-  origin: "http://localhost:5173",
+  origin: "http://localhost:5173", // your React frontend
   credentials: true,
 }));
-app.use("/uploads", express.static(path.join(__dirname, "uploads/employees"))); // Use lowercase /uploads
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Routes
+// ✅ Routes
 const attendanceRoute = require('./routes/attendanceRoute');
 const biometricDeviceRoute = require('./routes/biometricDeviceRoute');
 const busRoute = require('./routes/busRoute');
@@ -37,8 +36,8 @@ const leaveRoute = require('./routes/leaveRoute');
 const punchRoute = require('./routes/punchRoute');
 const religionRoute = require('./routes/religionRoute');
 const shiftRoute = require('./routes/shiftRoute');
-const userRoute = require('./routes/userRoute');
-const authRoute = require('./routes/authRoute');
+const userRoute = require('./routes/userRoute');  
+const authRoute = require('./routes/authRoute');  
 const shiftAllocationRoutes = require("./routes/shiftAllocationRoutes");
 const attendanceRoutes = require("./routes/attendanceRoute");
 
@@ -91,7 +90,7 @@ require('./models/Religion');
 require('./models/Shift');
 require('./models/User');
 
-// Start server
+// ✅ Start server
 const startServer = async () => {
   try {
     await seq.authenticate();
@@ -105,9 +104,10 @@ const startServer = async () => {
       console.log("🚀 Listening at http://localhost:5000");
     });
 
+    // 🕛 Hourly biometric fetch
     cron.schedule("* * * * *", async () => {
       try {
-        console.log("⏱ Running hourly biometric fetch...");
+        console.log("🕛 Running hourly biometric fetch...");
         await fetchBiometrics();
       } catch (err) {
         console.error("❌ Error fetching biometrics:", err.message);

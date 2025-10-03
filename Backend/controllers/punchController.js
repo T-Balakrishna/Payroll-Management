@@ -10,31 +10,29 @@ exports.fetchPunches = async (req, res) => {
     await zk.createSocket();
 
     const logs = await zk.getAttendances();
-    // const logs=[{deviceUserId:"111",recordTime:"2025-09-15 16:52:00",ip:"172.17.1.5"},{deviceUserId:"222",recordTime:"2025-09-15 16:52:00",ip:"172.17.1.6"}]
     const newLogs = [];
 
     for (const log of logs.data) {
-      const recordTime = new Date(log.recordTime); // Sequelize already handles IST
+      const recordTime = new Date(log.recordTime); 
 
       const exists = await Punch.findOne({
         where: {
-          biometricNumber: log.deviceUserId,
+          biometricNumber: parseInt(log.deviceUserId, 10), // 👈 typecast to INT
           punchTimestamp: recordTime
         }
       });
 
-      if (!exists){
+      if (!exists) {
         // find employeeNumber from Biometric table using biometricNumber
         const bioRecord = await Employee.findOne({
           where: { biometricNumber: log.deviceUserId }
         });
 
-        const employeeNum = bioRecord ? bioRecord.employeeNumber : null; // or handle missing
-        console.log(bioRecord,employeeNum);
-        
+        const employeeNum = bioRecord ? bioRecord.employeeNumber : null;
+
         const saved = await Punch.create({
-          biometricNumber: log.deviceUserId,
-          employeeNumber: employeeNum,   // use fetched value
+          biometricNumber: parseInt(log.deviceUserId, 10), // 👈 typecast to INT
+          employeeNumber: employeeNum,
           punchTimestamp: recordTime,
           deviceIp: log.ip
         });
@@ -77,9 +75,9 @@ exports.getTodayPunches = async (req, res) => {
 // Get all punches of a specific biometricNumber
 exports.getPunchesById = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { bioNumber } = req.params;
     const punches = await Punch.findAll({
-      where: { biometricNumber: id },
+      where: { biometricNumber: parseInt(bioNumber, 10) }, // 👈 typecast to INT
       order: [["punchTimestamp", "DESC"]]
     });
 
