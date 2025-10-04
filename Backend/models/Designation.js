@@ -13,7 +13,7 @@ const Designation = sequelize.define("Designation", {
   timestamps: true,
   tableName: "Designation",
   indexes: [
-      {
+      { 
         unique: true,
         fields: ["companyId", "designationName"], // designationName unique within company
       },

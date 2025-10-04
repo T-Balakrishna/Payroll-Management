@@ -2,6 +2,13 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import axios from "axios";
+import { jwtDecode } from "jwt-decode";
+import Swal from "sweetalert2";
+import { toast } from "react-toastify";
+
+let token = sessionStorage.getItem("token");
+let decoded = token ? jwtDecode(token) : "";
+let userNumber = decoded?.userNumber || "system";
 
 const EmployeeProfilePage = () => {
   const navigate = useNavigate();
@@ -117,7 +124,6 @@ const EmployeeProfilePage = () => {
   useEffect(() => {
     const fetchUserMappedData = async () => {
       try {
-        const userNumber = sessionStorage.getItem("userNumber");
         if (!userNumber) {
           setErrorMessage("User number not found. Please log in again.");
           return;
@@ -142,7 +148,7 @@ const EmployeeProfilePage = () => {
   useEffect(() => {
     const fetchExistingEmployeeData = async () => {
       try {
-        const employeeNumber = sessionStorage.getItem("userNumber");
+        const employeeNumber = userNumber
         if (!employeeNumber) {
           setErrorMessage("User number not found. Please log in again.");
           return;
@@ -290,7 +296,7 @@ const EmployeeProfilePage = () => {
     }
 
     try {
-      const employeeNumber = sessionStorage.getItem("userNumber");
+      const employeeNumber = userNumber
       if (!employeeNumber) {
         setErrorMessage("User number not found. Please log in again.");
         return;

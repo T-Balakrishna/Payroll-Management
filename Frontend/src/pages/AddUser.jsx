@@ -273,6 +273,7 @@ function AddOrEditUser({
 export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
   const token = sessionStorage.getItem("token");
   const [departments, setDepartments] = useState([]);
+  const [allDepartments, setAllDepartments] = useState([]);
   const [users, setUsers] = useState([]);
   const [refreshFlag, setRefreshFlag] = useState(false);
   const [formData, setFormData] = useState({
@@ -295,6 +296,13 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
     return company ? company.companyAcr : "";
   };
 
+  const getDepartmentAcronym = (id) => {
+    // console.log(id,allDepartments);
+    
+    const dept = allDepartments.find((d) => d.departmentId === id);
+    return dept ? dept.departmentAckr : "";
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -303,10 +311,19 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
         });
         setCompanies(companyRes.data);
 
-        const deptRes = await axios.get(
-          `http://localhost:5000/api/departments?companyId=${selectedCompanyId}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        let deptRes;
+        if(selectedCompanyId){
+            deptRes = await axios.get(
+              `http://localhost:5000/api/departments?companyId=${selectedCompanyId}`,
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+         }
+         else{
+            deptRes = await axios.get(
+              `http://localhost:5000/api/departments`,
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+         }
         setDepartments(deptRes.data);
 
         let url = "http://localhost:5000/api/users";
@@ -317,6 +334,12 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
           headers: { Authorization: `Bearer ${token}` },
         });
         setUsers(res.data);
+
+        const allDept = await axios.get(
+              `http://localhost:5000/api/departments`,
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+        setAllDepartments(allDept.data);
       } catch (err) {
         toast.error("Error fetching data:", err);
       }
@@ -372,7 +395,7 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
         `http://localhost:5000/api/users/lastEmpNumber/${departmentId}`,
         { 
           role: formData.role,
-          companyId: formData.companyId ? formData.companyId : 1,
+          companyId: formData.companyId ? formData.companyId : (formData.role==="Super Admin"?1:selectedCompanyId),
           departmentId: formData.departmentId ? formData.departmentId : 1,
         },
         { headers: { Authorization: `Bearer ${token}` } }
@@ -391,7 +414,7 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
       companyId:
         formData.companyId == null // null or undefined
           ? (currentUserRole === "Super Admin" && formData.role === "Super Admin" ? 1 : selectedCompanyId)
-          : formData.companyId,
+          : selectedCompanyId,
       departmentId:
         formData.departmentId == null // null or undefined
           ? ((currentUserRole === "Super Admin" && (formData.role === "Super Admin" || formData.role === "Admin")) ||
@@ -483,7 +506,7 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
                   {!selectedCompanyId && (
                     <td className="py-2 px-4">{getCompanyAcronym(u.companyId)}</td>
                   )}
-                  <td className="py-2 px-4">{u.departmentId}</td>
+                  <td className="py-2 px-4">{getDepartmentAcronym(u.departmentId)}</td>
                   <td className="py-2 px-4 flex gap-2">
                     <button
                       className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-md"
