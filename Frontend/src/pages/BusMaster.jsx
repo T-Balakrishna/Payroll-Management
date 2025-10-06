@@ -180,7 +180,12 @@ function BusMaster({ selectedCompanyId, selectedCompanyName }) {
       setShowForm(false);
       setEditData(null);
     } catch (err) {
-      toast.error("Error saving bus: " + (err.response?.data?.message || err.message));
+      Swal.fire({
+              icon: "error",
+              title: `${busId ? "Update" : "Add"}Failed`,
+              // text: `Department ${departmentId ? "Updated" : "Added"} Successfully`,
+              text:`${err.response.data}`
+          });
     }
   };
 
