@@ -3,6 +3,12 @@ import axios from "axios";
 import { Building2, Pencil, Trash, Plus, X } from "lucide-react";
 import Swal from 'sweetalert2'
 import { toast } from "react-toastify";
+import { jwtDecode } from "jwt-decode";
+
+let token = sessionStorage.getItem("token");
+let decoded = token ? jwtDecode(token) : {};
+let userNumber = decoded.userNumber;
+let userRole = decoded.role;
 
 
 // ✅ Modal Form Component
@@ -15,7 +21,7 @@ function AddOrEditCompany({ onSave, onCancel, editData }) {
     e.preventDefault();
     if (!companyName || !companyAcr) return alert("Please fill all fields");
 
-    const adminName = sessionStorage.getItem("userNumber");
+    const adminName = userNumber
 
     const companyData = {
       companyName,
@@ -120,6 +126,11 @@ function CompanyMaster({ refreshCompanies }) {
           headers: { Authorization: `Bearer ${sessionStorage.getItem("token")}` },
         });
       }
+      Swal.fire({
+            icon: "success",
+            title: `${companyId ? "Updated" : "Added"}`,
+            text: `Company ${companyId ? "Updated" : "Added"} Successfully`,
+          });
 
       // ✅ Refresh local and parent data
       fetchCompanies();
@@ -128,7 +139,13 @@ function CompanyMaster({ refreshCompanies }) {
       setShowForm(false);
       setEditData(null);
     } catch (err) {
-      alert("Error saving company:", err.message);
+      Swal.fire({
+            icon: "error",
+            title: `${companyId ? "Update" : "Add"}Failed`,
+            // text: `Department ${departmentId ? "Updated" : "Added"} Successfully`,
+            text:`${err.response.data}`
+        });
+      // alert("Error saving company:", err.message);
     }
   };
 

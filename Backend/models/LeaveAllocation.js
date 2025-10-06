@@ -12,7 +12,7 @@ const LeaveAllocation = sequelize.define("LeaveAllocation", {
   balance: { type: DataTypes.INTEGER, defaultValue: 0 },
   createdBy: { type: DataTypes.STRING, allowNull: false },
   updatedBy: { type: DataTypes.STRING, allowNull: true },
-  companyId: { type: DataTypes.INTEGER, allowNull: false },
+  // companyId: { type: DataTypes.INTEGER, allowNull: false },
 }, {
   tableName: 'LeaveAllocation',
   timestamps: true

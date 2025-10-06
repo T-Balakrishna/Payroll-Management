@@ -1,46 +1,87 @@
 // LeaveApproval.jsx
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { jwtDecode } from "jwt-decode";
+import Swal from "sweetalert2";
+import { toast } from "react-toastify";
 
-const LeaveApproval = (selectedCompanyId,selectedCompanyName) => {
+let token = sessionStorage.getItem("token");
+let decoded = token ? jwtDecode(token) : "";
+let userNumber = decoded?.userNumber || "system";
+
+const LeaveApproval = ({ selectedCompanyId, selectedCompanyName }) => {
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [activeTab, setActiveTab] = useState("Pending"); // tabs: all, pending, approved, rejected
-  const [leaveTypes,setLeaveTypes] = useState([]);
+  const [leaveTypes, setLeaveTypes] = useState([]);
+  const [userRole, setUserRole] = useState("");
+  const [userDepartmentId, setUserDepartmentId] = useState(null);
 
-  
-    const getLeaveTypeName = (id) => {
-        const type = leaveTypes.find(t => t.leaveTypeId === id);
-        return type ? type.leaveTypeName : "Unknown";
+  // Get leave type name by ID
+  const getLeaveTypeName = (id) => {
+    const type = leaveTypes.find((t) => t.leaveTypeId === id);
+    return type ? type.leaveTypeName : "Unknown";
+  };
+
+  // Fetch user role and department (if applicable)
+  useEffect(() => {
+    const fetchUserDetails = async () => {
+      try {
+        // const userNumber = sessionStorage.getItem("userNumber");        
+        const res = await axios.get(`http://localhost:5000/api/users/byNumber/${userNumber}`);
+        setUserRole(res.data.role); // Assuming role is returned (e.g., "Super Admin", "Admin", "Department Admin")
+        setUserDepartmentId(res.data.departmentId || null); // Department ID for Department Admin
+      } catch (err) {
+        console.error("Failed to fetch user details", err);
+        toast.error("Failed to fetch user details.");
+      }
     };
+    fetchUserDetails();
+  }, []);
 
+  // Fetch leave types
+  useEffect(() => {
+    axios
+      .get("http://localhost:5000/api/leaveTypes")
+      .then((res) => setLeaveTypes(res.data))
+      .catch((err) => console.error("Failed to fetch leave types", err));
+  }, []);
 
-  // Fetch leaves based on active tab
+  // Fetch leaves based on active tab and user role
   const fetchLeaves = async (status) => {
     setLoading(true);
     try {
       let url = "http://localhost:5000/api/leaves";
-      if (status !== "all") url += `/status/${status}`;
-      const res = await axios.get(url);
+      const params = {};
+
+      if (status !== "all") {
+        params.status = status;
+      }
+
+      // Role-based filtering
+      if (userRole === "Admin" && selectedCompanyId) {
+        params.companyId = selectedCompanyId; // Filter by Admin's company
+      } else if (userRole === "Department Admin" && selectedCompanyId && userDepartmentId) {
+        params.companyId = selectedCompanyId;
+        params.departmentId = userDepartmentId; // Filter by Department Admin's company and department
+      }
+      // Super Admin sees all leaves, no additional filters needed
+
+      const res = await axios.get(url, { params });
       setLeaves(res.data);
     } catch (err) {
       console.error(err);
-      alert("Failed to fetch leaves.");
+      toast.error("Failed to fetch leaves.");
     }
     setLoading(false);
   };
 
-    useEffect(() => {
-    axios.get("http://localhost:5000/api/leaveTypes")
-        .then(res => setLeaveTypes(res.data))
-        .catch(err => console.error("Failed to fetch leave types", err));
-    }, []);
-
-
   useEffect(() => {
-    fetchLeaves(activeTab);
-  }, [activeTab]);
+    if (userRole) {
+      fetchLeaves(activeTab);
+    }
+  }, [activeTab, userRole, selectedCompanyId, userDepartmentId]);
 
   // Handle Approve/Reject action
   const handleAction = async (leaveId, action) => {
@@ -48,13 +89,22 @@ const LeaveApproval = (selectedCompanyId,selectedCompanyName) => {
     try {
       await axios.put(`http://localhost:5000/api/leaves/${leaveId}/status`, {
         status: action,
-        updatedBy: sessionStorage.getItem("userNumber"),
+        updatedBy: userNumber
       });
-      alert(`Leave ${action} successfully!`);
+      // alert(`Leave ${action} successfully!`);
+      Swal.fire({
+            icon: "info",
+            title: action==="Approved" ? "Approved" : "Rejected",
+            text: `Leave ${action} successfully!`
+          });
       fetchLeaves(activeTab);
     } catch (err) {
       console.error(err);
-      alert(`Failed to ${action} leave.`);
+      Swal.fire({
+            icon: "error",
+            title: action==="Approved" ? "Approval Failed" : "Rejection Failed",
+            text: err.response.data.message
+          });
     }
     setUpdating(false);
   };
@@ -68,7 +118,9 @@ const LeaveApproval = (selectedCompanyId,selectedCompanyName) => {
 
   return (
     <div className="p-4">
-      {/* <h1 className="text-2xl font-bold mb-4">Leave Management</h1> */}
+      <h1 className="text-2xl font-bold mb-4">
+        {/* Leave Management {selectedCompanyName ? `- ${selectedCompanyName}` : ""} */}
+      </h1>
 
       {/* Tabs */}
       <div className="flex mb-4 border-b">

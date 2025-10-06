@@ -7,6 +7,13 @@ import {
 import EmployeeProfile from './EmployeeProfilePage';
 import CalendarPage from './CalendarPage';
 import TakeLeavePage from './TakeLeavePage';
+import { jwtDecode } from "jwt-decode";
+import Swal from "sweetalert2";
+import { toast } from "react-toastify";
+
+let token = sessionStorage.getItem("token");
+let decoded = token ? jwtDecode(token) : "";
+let userNumber = decoded?.userNumber || "system";
 
 export default function DashboardPage() {
   const [modalContent, setModalContent] = useState(null);
@@ -17,7 +24,6 @@ export default function DashboardPage() {
   const [biometricId, setBiometricId] = useState(null);
   const [leaves, setLeaves] = useState([]); // <--- ADDED
 
-  const userNumber = sessionStorage.getItem("userNumber");
   const hasFetchedRef = useRef(false);
   const abortControllerRef = useRef(null);
 
@@ -266,7 +272,7 @@ export default function DashboardPage() {
             <button
               onClick={() => {
                 sessionStorage.removeItem("token");
-                sessionStorage.removeItem("userNumber");
+                // sessionStorage.removeItem("userNumber");
                 window.location.href = "/";
               }}
               className="w-12 h-12 bg-red-100 hover:bg-red-200 rounded-xl flex items-center justify-center"

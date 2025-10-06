@@ -12,6 +12,7 @@ const Leave = seq.define('Leave', {
   createdBy: { type: DataTypes.STRING, allowNull: true },
   updatedBy: { type: DataTypes.STRING, allowNull: true },
   companyId: { type: DataTypes.INTEGER, allowNull: false },
+  departmentId: { type: DataTypes.INTEGER, allowNull: false },
 }, {
   tableName: 'Leave',
   timestamps: true

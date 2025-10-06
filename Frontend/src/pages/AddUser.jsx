@@ -10,12 +10,14 @@ let decoded = token ? jwtDecode(token) : "";
 let userNumber = decoded?.userNumber || "system";
 
 // 🔹 Modal Component
+// 🔹 Modal Component
 function AddOrEditUser({
   formData,
   setFormData,
   onSave,
   onCancel,
   departments,
+  setDepartments, // ✅ added this prop
   selectedCompanyName,
   selectedCompanyId,
   userRole,
@@ -24,24 +26,14 @@ function AddOrEditUser({
   handleAutoGenerate,
   isEdit,
 }) {
-  
   const handleChange = (e) => {
     const { name, value } = e.target;
 
     if (name === "role") {
       if (value === "Admin" && userRole === "Super Admin") {
-        setFormData({
-          ...formData,
-          role: value,
-          departmentId: 1,
-        });
+        setFormData({ ...formData, role: value, departmentId: 1 });
       } else if (value === "Super Admin") {
-        setFormData({
-          ...formData,
-          role: value,
-          companyId: 1,
-          departmentId: 1,
-        });
+        setFormData({ ...formData, role: value, companyId: 1, departmentId: 1 });
       } else {
         setFormData({ ...formData, role: value, departmentId: "" });
       }
@@ -50,38 +42,32 @@ function AddOrEditUser({
     }
   };
 
-  // Update departments when company changes
-  // useEffect(() => {
-  //   const fetchDepartments = async () => {
-  //     if (!formData.companyId) return setDepartments([]);
-  //     try {
-  //       const res = await axios.get(
-  //         `http://localhost:5000/api/departments?companyId=${formData.companyId}`,
-  //         { headers: { Authorization: `Bearer ${token}` } }
-  //       );
-  //       setDepartments(res.data);
-  //     } catch (err) {
-  //       toast.error("Error fetching departments");
-  //     }
-  //   };
-  //   fetchDepartments();
-  // }, [formData.companyId, token]);
-
+  // ✅ Fetch departments dynamically when company changes
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      if (!formData.companyId) return setDepartments([]);
+      try {
+        const res = await axios.get(
+          `http://localhost:5000/api/departments?companyId=${formData.companyId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setDepartments(res.data);
+      } catch (err) {
+        toast.error("Error fetching departments");
+      }
+    };
+    fetchDepartments();
+  }, [formData.companyId]);
 
   const showCompanyField = () => {
     if (userRole === "Super Admin") {
-      // Case 1: Super Admin creating another Super Admin → no dropdown
       if (formData.role === "Super Admin") return false;
-      // Case 2: Super Admin creating Admin → show dropdown
       return true;
     }
-
     if (userRole === "Admin") {
-      // Case 3: Admin creating Admin → no dropdown
       if (formData.role === "Admin") return false;
     }
-
-    return false; // default safeguard
+    return false;
   };
 
   const showDepartmentField = () => {
@@ -89,190 +75,192 @@ function AddOrEditUser({
   };
 
   return (
-  <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm">
-    <div className="max-w-xl w-full bg-white rounded-2xl shadow-xl p-8 py-2 relative">
-      <button
-        onClick={onCancel}
-        className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-100 transition"
-      >
-        <X size={20} />
-      </button>
+    <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm">
+      <div className="max-w-xl w-full bg-white rounded-2xl shadow-xl p-8 py-2 relative">
+        <button
+          onClick={onCancel}
+          className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-100 transition"
+        >
+          <X size={20} />
+        </button>
 
-      <div className="flex justify-center mb-6">
-        <div className="bg-blue-100  rounded-full">
-          <Cpu className="text-blue-600" size={40} />
-        </div>
-      </div>
-
-      <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">
-        {isEdit ? "Edit User" : "Add New User"}
-      </h2>
-
-      <form onSubmit={onSave} className="space-y-0.5">
-        {/* Email */}
-        <div>
-          <label className="block font-medium text-gray-700 mb-1">Email</label>
-          <input
-            type="email"
-            name="userMail"
-            placeholder="Email"
-            value={formData.userMail}
-            onChange={handleChange}
-            className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-            required
-          />
-        </div>
-
-        {/* Password */}
-        <div>
-          <label className="block font-medium text-gray-700 mb-1">Password</label>
-          <input
-            type="password"
-            name="password"
-            placeholder="Password"
-            value={formData.password}
-            onChange={handleChange}
-            className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-            required={!formData.userNumber}
-          />
-        </div>
-
-        {/* Role */}
-        <div>
-          <label className="block font-medium text-gray-700 mb-1">Role</label>
-          <select
-            name="role"
-            value={formData.role}
-            onChange={handleChange}
-            className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-            required
-          >
-            <option value="">Select Role</option>
-            {(() => {
-              let availableRoles = ["Super Admin", "Admin", "Department Admin", "Staff"];
-              if (userRole === "Admin") {
-                availableRoles = ["Admin", "Department Admin", "Staff"];
-              }
-              return availableRoles.map((role) => (
-                <option key={role} value={role}>
-                  {role}
-                </option>
-              ));
-            })()}
-          </select>
-        </div>
-
-        {/* Company */}
-        {showCompanyField() && (
-          <div>
-            <label className="block font-medium text-gray-700 mb-1">Company</label>
-            {userRole === "Super Admin" ? (
-              <select
-                value={formData.companyId || ""}
-                onChange={(e) => {
-                  setFormData({
-                    ...formData,
-                    companyId: e.target.value,
-                    departmentId: "", 
-                  });
-                }}
-                className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-              >
-                <option value="">Select Company</option>
-                {companies
-                  .filter(c => c.companyId !== 1)
-                  .map(c => (
-                    <option key={c.companyId} value={c.companyId}>
-                      {c.companyName}
-                    </option>
-                  ))}
-              </select>
-            ) : (
-              <input
-                type="text"
-                value={selectedCompanyName || "No company selected"}
-                className="w-full border border-gray-300 rounded-lg p-3 bg-gray-100 cursor-not-allowed"
-                readOnly
-              />
-            )}
+        <div className="flex justify-center mb-6">
+          <div className="bg-blue-100 rounded-full">
+            <Cpu className="text-blue-600" size={40} />
           </div>
-        )}
+        </div>
 
-        {/* Department */}
-        {showDepartmentField() && (
+        <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">
+          {isEdit ? "Edit User" : "Add New User"}
+        </h2>
+
+        <form onSubmit={onSave} className="space-y-2">
+          {/* Email */}
           <div>
-            <label className="block font-medium text-gray-700 mb-1">Department</label>
+            <label className="block font-medium text-gray-700 mb-1">Email</label>
+            <input
+              type="email"
+              name="userMail"
+              placeholder="Email"
+              value={formData.userMail}
+              onChange={handleChange}
+              className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              required
+            />
+          </div>
+
+          {/* Password */}
+          <div>
+            <label className="block font-medium text-gray-700 mb-1">Password</label>
+            <input
+              type="password"
+              name="password"
+              placeholder="Password"
+              value={formData.password}
+              onChange={handleChange}
+              className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              required={!formData.userNumber}
+            />
+          </div>
+
+          {/* Role */}
+          <div>
+            <label className="block font-medium text-gray-700 mb-1">Role</label>
             <select
-              name="departmentId"
-              value={formData.departmentId ?? ""}
+              name="role"
+              value={formData.role}
               onChange={handleChange}
               className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               required
             >
-              <option value="">Select Department</option>
-              {departments.map((d) => (
-                <option key={d.departmentId} value={d.departmentId}>
-                  {d.departmentAckr}
-                </option>
-              ))}
+              <option value="">Select Role</option>
+              {(() => {
+                let availableRoles = ["Super Admin", "Admin", "Department Admin", "Staff"];
+                if (userRole === "Admin") {
+                  availableRoles = ["Admin", "Department Admin", "Staff"];
+                }
+                return availableRoles.map((role) => (
+                  <option key={role} value={role}>
+                    {role}
+                  </option>
+                ));
+              })()}
             </select>
           </div>
-        )}
 
-        {/* User Number */}
-        <div>
-          <label className="block font-medium text-gray-700 mb-1">User Number</label>
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              name="userNumber"
-              placeholder="User Number"
-              value={formData.userNumber}
-              onChange={handleChange}
-              className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-              disabled={autoGenerate || isEdit}
-              required
-            />
-            <label className="flex items-center gap-1">
+          {/* Company */}
+          {showCompanyField() && (
+            <div>
+              <label className="block font-medium text-gray-700 mb-1">Company</label>
+              {userRole === "Super Admin" ? (
+                <select
+                  value={formData.companyId || ""}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      companyId: e.target.value,
+                      departmentId: "",
+                    })
+                  }
+                  className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                >
+                  <option value="">Select Company</option>
+                  {companies
+                    .filter((c) => c.companyId !== 1)
+                    .map((c) => (
+                      <option key={c.companyId} value={c.companyId}>
+                        {c.companyName}
+                      </option>
+                    ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={selectedCompanyName || "No company selected"}
+                  className="w-full border border-gray-300 rounded-lg p-3 bg-gray-100 cursor-not-allowed"
+                  readOnly
+                />
+              )}
+            </div>
+          )}
+
+          {/* Department */}
+          {showDepartmentField() && (
+            <div>
+              <label className="block font-medium text-gray-700 mb-1">Department</label>
+              <select
+                name="departmentId"
+                value={formData.departmentId ?? ""}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                required
+              >
+                <option value="">Select Department</option>
+                {departments.map((d) => (
+                  <option key={d.departmentId} value={d.departmentId}>
+                    {d.departmentAckr}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* User Number */}
+          <div>
+            <label className="block font-medium text-gray-700 mb-1">User Number</label>
+            <div className="flex items-center gap-2">
               <input
-                type="checkbox"
-                checked={autoGenerate}
-                onChange={(e) =>
-                  handleAutoGenerate(e.target.checked, formData.departmentId)
-                }
-                disabled={isEdit}
+                type="text"
+                name="userNumber"
+                placeholder="User Number"
+                value={formData.userNumber}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                disabled={autoGenerate || isEdit}
+                required
               />
-              Auto Generate
-            </label>
+              <label className="flex items-center gap-1">
+                <input
+                  type="checkbox"
+                  checked={autoGenerate}
+                  onChange={(e) =>
+                    handleAutoGenerate(e.target.checked, formData.departmentId)
+                  }
+                  disabled={isEdit}
+                />
+                Auto Generate
+              </label>
+            </div>
           </div>
-        </div>
 
-        {/* Buttons */}
-        <div className="flex justify-end gap-3 pt-4">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow-md transition"
-          >
-            {isEdit ? "Update" : "Save"}
-          </button>
-        </div>
-      </form>
+          {/* Buttons */}
+          <div className="flex justify-end gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow-md transition"
+            >
+              {isEdit ? "Update" : "Save"}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
-  </div>
-);
-    }
+  );
+}
+
 
 // 🔹 Main Component
 export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
   const token = sessionStorage.getItem("token");
   const [departments, setDepartments] = useState([]);
+  const [allDepartments, setAllDepartments] = useState([]);
   const [users, setUsers] = useState([]);
   const [refreshFlag, setRefreshFlag] = useState(false);
   const [formData, setFormData] = useState({
@@ -289,24 +277,41 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
   const [isEdit, setIsEdit] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState("");
   const [companies, setCompanies] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const getCompanyAcronym = (id) => {
     const company = companies.find((c) => c.companyId === id);
     return company ? company.companyAcr : "";
   };
 
+  const getDepartmentAcronym = (id) => {
+    // console.log(id,allDepartments);
+    
+    const dept = allDepartments.find((d) => d.departmentId === id);
+    return dept ? dept.departmentAckr : "";
+  };
+
+
   useEffect(() => {
     const fetchData = async () => {
+      setIsLoading(true);
       try {
         const companyRes = await axios.get("http://localhost:5000/api/companies", {
           headers: { Authorization: `Bearer ${token}` },
         });
         setCompanies(companyRes.data);
 
-        const deptRes = await axios.get(
-          `http://localhost:5000/api/departments?companyId=${selectedCompanyId}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        let deptRes;
+        if (selectedCompanyId) {
+          deptRes = await axios.get(
+            `http://localhost:5000/api/departments?companyId=${selectedCompanyId}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+        } else {
+          deptRes = await axios.get("http://localhost:5000/api/departments", {
+            headers: { Authorization: `Bearer ${token}` } }
+          );
+        }
         setDepartments(deptRes.data);
 
         let url = "http://localhost:5000/api/users";
@@ -317,30 +322,19 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
           headers: { Authorization: `Bearer ${token}` },
         });
         setUsers(res.data);
+
+        const allDept = await axios.get("http://localhost:5000/api/departments", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setAllDepartments(allDept.data);
       } catch (err) {
         toast.error("Error fetching data:", err);
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchData();
-  }, [selectedCompanyId, token,refreshFlag]);
-
-    useEffect(() => {
-    const fetchDepartments = async () => {
-      if (!formData.companyId) return setDepartments([]);
-      try {
-        const res = await axios.get(
-          `http://localhost:5000/api/departments?companyId=${formData.companyId}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        setDepartments(res.data);
-      } catch (err) {
-        toast.error("Error fetching departments");
-      }
-    };
-
-    fetchDepartments();
-  }, [formData.companyId, token]);
-
+  }, [selectedCompanyId, token, refreshFlag]);
 
   useEffect(() => {
     if (token) {
@@ -368,12 +362,16 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
     if (!checked) return setFormData((prev) => ({ ...prev, userNumber: "" }));
 
     try {
+      if(!departmentId){
+        departmentId=1;
+      }
+      console.log(departmentId);
       const res = await axios.post(
         `http://localhost:5000/api/users/lastEmpNumber/${departmentId}`,
         { 
           role: formData.role,
           companyId: formData.companyId ? formData.companyId : 1,
-          departmentId: formData.departmentId ? formData.departmentId : 1,
+          departmentId: departmentId ? departmentId : 1,
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -388,17 +386,19 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
 
     const payload = {
       ...formData,
-      companyId:
-        formData.companyId == null // null or undefined
-          ? (currentUserRole === "Super Admin" && formData.role === "Super Admin" ? 1 : selectedCompanyId)
-          : formData.companyId,
-      departmentId:
-        formData.departmentId == null // null or undefined
-          ? ((currentUserRole === "Super Admin" && (formData.role === "Super Admin" || formData.role === "Admin")) ||
-            (currentUserRole === "Admin" && formData.role === "Admin")
-            ? 1
-            : formData.departmentId)
-          : formData.departmentId,
+      createdBy:userNumber,
+      updatedBy:userNumber,
+      // companyId:
+      //   formData.companyId == null // null or undefined
+      //     ? (currentUserRole === "Super Admin" && formData.role === "Super Admin" ? 1 : selectedCompanyId)
+      //     : selectedCompanyId,
+      // departmentId:
+      //   formData.departmentId == null // null or undefined
+      //     ? ((currentUserRole === "Super Admin" && (formData.role === "Super Admin" || formData.role === "Admin")) ||
+      //       (currentUserRole === "Admin" && formData.role === "Admin")
+      //       ? 1
+      //       : formData.departmentId)
+      //     : formData.departmentId,
     };
 
 
@@ -483,7 +483,7 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
                   {!selectedCompanyId && (
                     <td className="py-2 px-4">{getCompanyAcronym(u.companyId)}</td>
                   )}
-                  <td className="py-2 px-4">{u.departmentId}</td>
+                  <td className="py-2 px-4">{getDepartmentAcronym(u.departmentId)}</td>
                   <td className="py-2 px-4 flex gap-2">
                     <button
                       className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-md"
@@ -510,19 +510,26 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
                             }).then(async (result) => {
                               if (result.isConfirmed) {
                                 try {
-                                  await axios.delete(
+                                  const res = await axios.delete(
                                     `http://localhost:5000/api/users/${u.userNumber}`,
-                                    { headers: { Authorization: `Bearer ${token}` } }
+                                    {  
+                                        data: {updatedBy:userNumber},
+                                        headers: { Authorization: `Bearer ${token}` } 
+                                    }
                                   );
+                                  console.log(res);
+                                  
 
                                   Swal.fire({
                                     title: "Deleted!",
                                     text: "User has been deleted.",
                                     icon: "success",
                                   });
-
-                                  window.location.reload(); // 🔄 keep your old reload
+                                  setRefreshFlag(prev=>!prev);
+                                  // fetchData();
+                                  // window.location.reload(); // 🔄 keep your old reload
                                 } catch (err) {
+                                  console.error("Delete error:", err.response?.data || err.message);
                                   Swal.fire({
                                     title: "Error!",
                                     text: "Failed to delete user.",
@@ -563,6 +570,7 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
           onSave={handleSave}
           onCancel={() => setShowForm(false)}
           departments={departments}
+          setDepartments={setDepartments}
           selectedCompanyName={selectedCompanyName}
           selectedCompanyId={selectedCompanyId}
           userRole={currentUserRole}
