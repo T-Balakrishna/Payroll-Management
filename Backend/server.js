@@ -97,7 +97,7 @@ const startServer = async () => {
     console.log("✅ DB Connected successfully");
 
     // ⚠️ safer: alter = keep data, adjust schema if needed
-    await seq.sync({ alter:false}); 
+    await seq.sync({ alter:true}); 
     console.log("✅ Tables synced");
 
     app.listen(5000, () => {
@@ -105,24 +105,24 @@ const startServer = async () => {
     });
 
     // 🕛 Hourly biometric fetch
-    cron.schedule("* * * * *", async () => {
-      try {
-        console.log("🕛 Running hourly biometric fetch...");
-        await fetchBiometrics();
-      } catch (err) {
-        console.error("❌ Error fetching biometrics:", err.message);
-      }
-    });
+    // cron.schedule("* * * * *", async () => {
+    //   try {
+    //     console.log("🕛 Running hourly biometric fetch...");
+    //     await fetchBiometrics();
+    //   } catch (err) {
+    //     console.error("❌ Error fetching biometrics:", err.message);
+    //   }
+    // });
 
-    // 🕛 Daily attendance processor at 12:00 AM
-    cron.schedule("* * * * *", async () => {
-      try {
-        console.log("🕛 Running daily attendance processor...");
-        await processAttendance();
-      } catch (err) {
-        console.error("❌ Error processing attendance:", err.message);
-      }
-    });
+    // // 🕛 Daily attendance processor at 12:00 AM
+    // cron.schedule("* * * * *", async () => {
+    //   try {
+    //     console.log("🕛 Running daily attendance processor...");
+    //     await processAttendance();
+    //   } catch (err) {
+    //     console.error("❌ Error processing attendance:", err.message);
+    //   }
+    // });
 
   } catch (error) {
     console.error("❌ Error starting server:", error.message);

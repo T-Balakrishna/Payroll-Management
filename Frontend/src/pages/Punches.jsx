@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { ClipboardList, X } from "lucide-react";
 
-function Punches() {
+function Punches({ userRole, selectedCompanyId, selectedCompanyName }) {
   const [punches, setPunches] = useState([]);
   const [devices, setDevices] = useState([]);
   const [filteredPunches, setFilteredPunches] = useState([]);
@@ -11,17 +11,27 @@ function Punches() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [selectedCompanyId]);
 
   useEffect(() => {
     handleSearch();
   }, [query, searchBy, punches, devices]);
 
   const fetchData = async () => {
+    if (userRole === "Super Admin" && !selectedCompanyId) {
+      setPunches([]);
+      setFilteredPunches([]);
+      setDevices([]);
+      return;
+    }
     try {
+      let punchUrl = "http://localhost:5000/api/punches/get";
+      if (selectedCompanyId) punchUrl += `?companyId=${selectedCompanyId}`;
+      let deviceUrl = "http://localhost:5000/api/biometricDevices";
+      if (selectedCompanyId) deviceUrl += `?companyId=${selectedCompanyId}`;
       const [punchRes, deviceRes] = await Promise.all([
-        axios.get("http://localhost:5000/api/punches/get"),
-        axios.get("http://localhost:5000/api/biometricDevices")
+        axios.get(punchUrl),
+        axios.get(deviceUrl)
       ]);
       setPunches(punchRes.data);
       setFilteredPunches(punchRes.data);
@@ -52,8 +62,20 @@ function Punches() {
     setFilteredPunches(results);
   };
 
+  if (userRole === "Super Admin" && !selectedCompanyId) {
+    return (
+      <div className="h-full flex flex-col px-6 py-4">
+        <h1 className="text-2xl font-bold mb-4">Punches</h1>
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-gray-500 text-center">Please select a company to view punches.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full px-6 py-4 flex flex-col">
+      <h1 className="text-2xl font-bold mb-4">Punches{selectedCompanyName ? ` - ${selectedCompanyName}` : ""}</h1>
       {/* Header */}
       <div className="flex flex-wrap justify-between items-center mb-6 gap-3">
         <div className="flex gap-2 items-center">
@@ -87,39 +109,38 @@ function Punches() {
       </div>
 
       {/* Punch Table */}      
-    <div className="border border-gray-200 rounded-lg shadow-sm overflow-y-auto" style={{ maxHeight: "500px" }}>
-      <table className="w-full text-left text-sm">
-        <thead className="sticky top-0 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-          <tr>
-            <th className="py-3 px-4">Employee Number</th>
-            <th className="py-3 px-4">Date</th>
-            <th className="py-3 px-4">Time</th>
-            <th className="py-3 px-4">Location</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredPunches.map((p) => {
-            const dateObj = new Date(p.punchTimestamp);
-            return (
-              <tr key={p.punchId} className="border-t hover:bg-gray-50">
-                <td className="py-2 px-4">{p.employeeNumber || "-"}</td>
-                <td className="py-2 px-4">{dateObj.toLocaleDateString("en-IN")}</td>
-                <td className="py-2 px-4">{dateObj.toLocaleTimeString("en-IN")}</td>
-                <td className="py-2 px-4">{getLocation(p.deviceIp)}</td>
-              </tr>
-            );
-          })}
-          {filteredPunches.length === 0 && (
+      <div className="border border-gray-200 rounded-lg shadow-sm overflow-y-auto" style={{ maxHeight: "500px" }}>
+        <table className="w-full text-left text-sm">
+          <thead className="sticky top-0 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
             <tr>
-              <td colSpan="4" className="text-center py-4 text-gray-500">
-                No punches found
-              </td>
+              <th className="py-3 px-4">Employee Number</th>
+              <th className="py-3 px-4">Date</th>
+              <th className="py-3 px-4">Time</th>
+              <th className="py-3 px-4">Location</th>
             </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-
+          </thead>
+          <tbody>
+            {filteredPunches.map((p) => {
+              const dateObj = new Date(p.punchTimestamp);
+              return (
+                <tr key={p.punchId} className="border-t hover:bg-gray-50">
+                  <td className="py-2 px-4">{p.employeeNumber || "-"}</td>
+                  <td className="py-2 px-4">{dateObj.toLocaleDateString("en-IN")}</td>
+                  <td className="py-2 px-4">{dateObj.toLocaleTimeString("en-IN")}</td>
+                  <td className="py-2 px-4">{getLocation(p.deviceIp)}</td>
+                </tr>
+              );
+            })}
+            {filteredPunches.length === 0 && (
+              <tr>
+                <td colSpan="4" className="text-center py-4 text-gray-500">
+                  No punches found
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

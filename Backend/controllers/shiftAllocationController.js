@@ -1,6 +1,7 @@
 const Shift  = require('../models/Shift');
 const Employee = require('../models/Employee');
 const Department=require('../models/Department');
+const { Op } = require('sequelize');
 
 const shiftAllocationController = {
   getShifts: async (req, res) => {
@@ -15,23 +16,47 @@ const shiftAllocationController = {
       res.status(500).json({ error: 'Failed to fetch shifts' });
     }
   },
-  getShiftAllocationData: async (req, res) => {
-  try {
-    const shifts = await Shift.findAll({
-      attributes: ['shiftId', 'shiftName'],
-      order: [['shiftName', 'ASC']],
-    });
-    const departments = await Department.findAll({
-      attributes: ['departmentId', 'departmentName'],
-      order: [['departmentName', 'ASC']],
-    });
-    res.json({ shifts, departments });
-  } catch (error) {
-    console.error('Error fetching shift allocation data:', error);
-    res.status(500).json({ error: 'Failed to fetch shift allocation data' });
-  }
-},
-
+  getDepartments: async (req, res) => {
+    try {
+      const { companyId } = req.query;
+      const where = {};
+      if (companyId) {
+        where.companyId = companyId;
+      }
+      const departments = await Department.findAll({
+        where,
+        attributes: ['departmentId', 'departmentName'],
+        order: [['departmentName', 'ASC']],
+      });
+      res.json(departments);
+    } catch (error) {
+      console.error('Error fetching departments:', error);
+      res.status(500).json({ error: 'Failed to fetch departments' });
+    }
+  },
+  getEmployeesByDepartments: async (req, res) => {
+    try {
+      const { departments, companyId } = req.body;
+      if (!departments || !Array.isArray(departments) || departments.length === 0) {
+        return res.json([]);
+      }
+      let where = {
+        departmentId: { [Op.in]: departments }
+      };
+      if (companyId) {
+        where.companyId = companyId;
+      }
+      const employees = await Employee.findAll({
+        where,
+        attributes: ['employeeNumber', 'employeeName', 'shiftId'],
+        order: [['employeeName', 'ASC']],
+      });
+      res.json(employees);
+    } catch (error) {
+      console.error('Error fetching employees by departments:', error);
+      res.status(500).json({ error: 'Failed to fetch employees' });
+    }
+  },
   allocateShifts: async (req, res) => {
     const { allocations } = req.body;
     if (!allocations || !Array.isArray(allocations) || allocations.length === 0) {
