@@ -22,7 +22,9 @@ export default function DashboardPage() {
   const [photoUrl, setPhotoUrl] = useState(null);
   const [punches, setPunches] = useState([]);
   const [biometricId, setBiometricId] = useState(null);
-  const [leaves, setLeaves] = useState([]); // <--- ADDED
+  const [leaves, setLeaves] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const hasFetchedRef = useRef(false);
   const abortControllerRef = useRef(null);
@@ -31,17 +33,34 @@ export default function DashboardPage() {
   const openCalendarModal = () => setModalContent("calendar");
   const closeModal = () => setModalContent(null);
 
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    } catch {
+      return "Invalid Date";
+    }
+  };
+
   // Fetch employee info
   useEffect(() => {
     if (!userNumber) {
-      console.error("No userNumber found in sessionStorage");
       setUserName("Guest");
       setPhotoUrl(null);
+      setError("No user number found. Please log in again.");
       return;
     }
 
     if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
     abortControllerRef.current = new AbortController();
+    setIsLoading(true);
 
     const fetchUserData = async () => {
       try {
@@ -56,25 +75,25 @@ export default function DashboardPage() {
 
         if (employee.photo) {
           const photoPath = employee.photo.startsWith("/uploads/") ? employee.photo : `/uploads/${employee.photo}`;
-          setPhotoUrl(photoPath);
+          setPhotoUrl(`http://localhost:5000${photoPath}`);
         } else {
           setPhotoUrl(null);
         }
-
-        hasFetchedRef.current = true;
       } catch (err) {
         if (err.name === 'AbortError') return;
         console.error("Error fetching user data:", err.response?.data?.error || err.message);
+        setError("Failed to fetch user data. Please try again.");
         setUserName("New User");
         setPhotoUrl(null);
-        hasFetchedRef.current = true;
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchUserData();
 
     return () => {
-      if (abortControllerRef.current && !hasFetchedRef.current) {
+      if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
     };
@@ -82,73 +101,102 @@ export default function DashboardPage() {
 
   // Fetch biometricId using employeeNumber
   useEffect(() => {
+    if (!userNumber) return;
+    setIsLoading(true);
+
     const fetchBiometricId = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/biometrics");
+        const res = await axios.get("http://localhost:5000/api/biometrics", {
+          timeout: 10000,
+        });
         const allBiometrics = res.data;
         const bio = allBiometrics.find(b => b.employeeNumber === userNumber);
         if (bio) {
           setBiometricId(bio.biometricNumber);
         } else {
           console.warn("No biometric linked to employeeNumber:", userNumber);
+          setError("No biometric data linked to your account.");
         }
       } catch (err) {
         console.error("Error fetching biometrics:", err.message);
+        setError("Failed to fetch biometric data.");
+      } finally {
+        setIsLoading(false);
       }
     };
-    if (userNumber) fetchBiometricId();
+    fetchBiometricId();
   }, [userNumber]);
 
   // Fetch device info by IP
   const fetchDeviceByIp = async (ip) => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/biometricDevices/ip/${ip}`);
-      return res.data.location || null;
+      const res = await axios.get(`http://localhost:5000/api/biometricDevices/ip/${ip}`, {
+        timeout: 5000,
+      });
+      return res.data.location || "Unknown Location";
     } catch (err) {
       console.error("Error fetching device by IP:", err.message);
-      return null;
+      return "Unknown Location";
     }
   };
 
   // Fetch punches using biometricId
   useEffect(() => {
+    if (!biometricId) return;
+    setIsLoading(true);
+
     const fetchPunches = async () => {
-      if (!biometricId) return;
       try {
-        const res = await axios.get(`http://localhost:5000/api/punches/user/${Number(biometricId)}`);
+        const res = await axios.get(`http://localhost:5000/api/punches/user/${Number(biometricId)}`, {
+          timeout: 10000,
+        });
         const punchesData = await Promise.all(
           res.data.map(async (row) => {
-            // If location missing, fetch from device IP
             if (!row.location && row.deviceIp) {
               row.location = await fetchDeviceByIp(row.deviceIp);
             }
-            return row;
+            return {
+              ...row,
+              punchTimestamp: row.punchTimestamp || new Date().toISOString(),
+              location: row.location || "Unknown",
+            };
           })
         );
-        setPunches(punchesData);
+        setPunches(punchesData.sort((a, b) => new Date(b.punchTimestamp) - new Date(a.punchTimestamp)));
       } catch (err) {
         console.error("Error fetching punches:", err.message);
+        setError("Failed to fetch attendance data.");
+        setPunches([]);
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchPunches();
   }, [biometricId]);
 
-  // Fetch leaves for this employee <--- ADDED
+  // Fetch leaves for this employee
   useEffect(() => {
+    if (!userNumber) return;
+    setIsLoading(true);
+
     const fetchLeaves = async () => {
-      if (!userNumber) return;
       try {
-        const res = await axios.get(`http://localhost:5000/api/leaves/employee/${userNumber}`);
+        const res = await axios.get(`http://localhost:5000/api/leaves/employee/${userNumber}`, {
+          timeout: 10000,
+        });
         const leaveData = res.data.map(l => ({
-          from_date: l.startDate,
-          to_date: l.endDate,
+          from_date: l.startDate ? formatDate(l.startDate) : "N/A",
+          to_date: l.endDate ? formatDate(l.endDate) : "N/A",
           description: l.reason || l.LeaveType?.leaveTypeName || "N/A",
-          status: l.status
+          status: l.status || "Pending",
         }));
-        setLeaves(leaveData);
+        setLeaves(leaveData.sort((a, b) => new Date(b.from_date) - new Date(a.from_date)));
       } catch (err) {
         console.error("Error fetching leaves:", err.message);
+        setError("Failed to fetch leave data.");
         setLeaves([]);
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchLeaves();
@@ -163,6 +211,22 @@ export default function DashboardPage() {
   };
 
   const renderTable = () => {
+    if (isLoading) {
+      return (
+        <div className="bg-white rounded-2xl border border-gray-100 p-6 text-center">
+          <p className="text-gray-600">Loading data...</p>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="bg-white rounded-2xl border border-gray-100 p-6 text-center">
+          <p className="text-red-600">{error}</p>
+        </div>
+      );
+    }
+
     if (tableType === "leave") {
       return (
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
@@ -171,7 +235,7 @@ export default function DashboardPage() {
               <FileText className="w-5 h-5 text-blue-600" /> Leave History
             </h3>
           </div>
-          <div className="overflow-x-auto max-h-110 overflow-y-auto">
+          <div className="overflow-x-auto max-h-96 overflow-y-auto">
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
@@ -212,7 +276,7 @@ export default function DashboardPage() {
               <Clock className="w-5 h-5 text-blue-600" /> Biometric History
             </h3>
           </div>
-          <div className="overflow-x-auto max-h-110 overflow-y-auto">
+          <div className="overflow-x-auto max-h-96 overflow-y-auto">
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
@@ -224,8 +288,8 @@ export default function DashboardPage() {
               <tbody>
                 {punches.length > 0 ? punches.map((row, idx) => {
                   const dateObj = new Date(row.punchTimestamp);
-                  const time = dateObj.toLocaleTimeString();
-                  const date = dateObj.toLocaleDateString();
+                  const time = dateObj.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+                  const date = formatDate(row.punchTimestamp);
                   return (
                     <tr key={idx} className="hover:bg-gray-50 transition-colors duration-150">
                       <td className="py-4 px-6 border-b border-gray-100">{time}</td>
@@ -250,7 +314,7 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button onClick={openCalendarModal} className="w-12 h-12 bg-gray-100 hover:bg-gray-200 rounded-xl flex items-center justify-center">
+          <button onClick={openCalendarModal} className="w-12 h-12 bg-gray-100 hover:bg-gray-200 rounded-xl flex items-center justify-center transition-colors duration-150">
             <Calendar className="w-6 h-6 text-gray-600" />
           </button>
 
@@ -260,7 +324,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            <button onClick={openProfileModal} className="w-15 h-15 bg-gray-100 hover:bg-gray-200 rounded-xl flex items-center justify-center overflow-hidden relative">
+            <button onClick={openProfileModal} className="w-12 h-12 bg-gray-100 hover:bg-gray-200 rounded-xl flex items-center justify-center overflow-hidden relative transition-colors duration-150">
               <img
                 src={photoUrl || "/placeholder-image.jpg"}
                 alt="Profile"
@@ -272,10 +336,9 @@ export default function DashboardPage() {
             <button
               onClick={() => {
                 sessionStorage.removeItem("token");
-                // sessionStorage.removeItem("userNumber");
                 window.location.href = "/";
               }}
-              className="w-12 h-12 bg-red-100 hover:bg-red-200 rounded-xl flex items-center justify-center"
+              className="w-12 h-12 bg-red-100 hover:bg-red-200 rounded-xl flex items-center justify-center transition-colors duration-150"
             >
               <LogOut className="w-6 h-6 text-red-600" />
             </button>
@@ -285,13 +348,13 @@ export default function DashboardPage() {
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="flex flex-wrap justify-center gap-4 mb-8">
-          <button onClick={() => setModalContent("takeleave")} className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl flex items-center gap-2">
+          <button onClick={() => setModalContent("takeleave")} className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl flex items-center gap-2 transition-colors duration-150">
             <Plus className="w-5 h-5" /> Apply Leave
           </button>
-          <button onClick={() => setTableType("biometric")} className={`px-6 py-3 font-semibold rounded-xl flex items-center gap-2 ${tableType === "biometric" ? "bg-blue-600 text-white" : "bg-white text-gray-700 border border-gray-200"}`}>
+          <button onClick={() => setTableType("biometric")} className={`px-6 py-3 font-semibold rounded-xl flex items-center gap-2 transition-colors duration-150 ${tableType === "biometric" ? "bg-blue-600 text-white" : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"}`}>
             <UserCheck className="w-5 h-5" /> Attendance History
           </button>
-          <button onClick={() => setTableType("leave")} className={`px-6 py-3 font-semibold rounded-xl flex items-center gap-2 ${tableType === "leave" ? "bg-blue-600 text-white" : "bg-white text-gray-700 border border-gray-200"}`}>
+          <button onClick={() => setTableType("leave")} className={`px-6 py-3 font-semibold rounded-xl flex items-center gap-2 transition-colors duration-150 ${tableType === "leave" ? "bg-blue-600 text-white" : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"}`}>
             <FileText className="w-5 h-5" /> Leave History
           </button>
         </div>
@@ -302,7 +365,7 @@ export default function DashboardPage() {
       {modalContent && (
         <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white w-full max-w-6xl h-full max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl relative">
-            <button className="absolute z-50 top-4 right-4 w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center" onClick={closeModal}>
+            <button className="absolute z-50 top-4 right-4 w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition-colors duration-150" onClick={closeModal}>
               <XCircle className="w-6 h-6 text-gray-600" />
             </button>
 

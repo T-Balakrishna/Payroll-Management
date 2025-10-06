@@ -18,7 +18,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ✅ Routes
-const attendanceRoute = require('./routes/attendanceRoute');
+const attendanceRoutes = require("./routes/attendanceRoute");
 const biometricDeviceRoute = require('./routes/biometricDeviceRoute');
 const busRoute = require('./routes/busRoute');
 const casteRoute = require('./routes/casteRoute');
@@ -39,14 +39,14 @@ const shiftRoute = require('./routes/shiftRoute');
 const userRoute = require('./routes/userRoute');  
 const authRoute = require('./routes/authRoute');  
 const shiftAllocationRoutes = require("./routes/shiftAllocationRoutes");
-const attendanceRoutes = require("./routes/attendanceRoute");
 
 // Services
+const autoEmailService = require("./services/autoEmailService");
 const processAttendance = require("./services/processAttendance");
 const fetchBiometrics = require("./services/fetchBiometrics");
 
 // Map routes
-app.use('/api/attendance', attendanceRoute);
+app.use("/api/attendance", attendanceRoutes);
 app.use('/api/biometricDevices', biometricDeviceRoute);
 app.use('/api/buses', busRoute);
 app.use('/api/castes', casteRoute);
@@ -67,7 +67,6 @@ app.use('/api/shifts', shiftRoute);
 app.use('/api/users', userRoute);
 app.use('/api/auth', authRoute);
 app.use("/api/shiftAllocation", shiftAllocationRoutes);
-app.use("/api/attendance", attendanceRoutes);
 
 // Import models for Sequelize
 require('./models/Attendance');
@@ -104,7 +103,7 @@ const startServer = async () => {
       console.log("🚀 Listening at http://localhost:5000");
     });
 
-    // 🕛 Hourly biometric fetch
+    // // 🕛 Hourly biometric fetch
     // cron.schedule("* * * * *", async () => {
     //   try {
     //     console.log("🕛 Running hourly biometric fetch...");
@@ -123,6 +122,19 @@ const startServer = async () => {
     //     console.error("❌ Error processing attendance:", err.message);
     //   }
     // });
+
+    // 🕛 Daily auto email service at 00:00 IST
+    cron.schedule('* * * * *', async () => {
+      try {
+        console.log("🕛 Running daily auto email service...");
+        await autoEmailService();
+      } catch (err) {
+        console.error("❌ Error in auto email service:", err.message);
+      }
+    }, {
+      scheduled: true,
+      timezone: 'Asia/Kolkata'
+    });
 
   } catch (error) {
     console.error("❌ Error starting server:", error.message);
