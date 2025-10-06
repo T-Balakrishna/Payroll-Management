@@ -155,18 +155,43 @@ function CompanyMaster({ refreshCompanies }) {
   };
 
   const handleDelete = async (companyId) => {
-    if (!window.confirm("Are you sure you want to deactivate this company?")) return;
-    try {
-      const updatedBy = sessionStorage.getItem("userNumber");
-      await axios.delete(`http://localhost:5000/api/companies/${companyId}`, {
-        data: { updatedBy },
-      });
-      fetchCompanies();
-      if (refreshCompanies) refreshCompanies();
-    } catch (err) {
-      console.error(err);
+  const updatedBy = userNumber;
+
+  Swal.fire({
+    title: "Are you sure?",
+    text: "You won't be able to revert this!",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#3085d6",
+    cancelButtonColor: "#d33",
+    confirmButtonText: "Yes, deactivate it!"
+  }).then(async (result) => {
+    if (result.isConfirmed) {
+      try {
+        await axios.delete(`http://localhost:5000/api/companies/${companyId}`, {
+          data: { updatedBy },
+        });
+
+        Swal.fire({
+          title: "Deactivated!",
+          text: "Company has been deactivated successfully.",
+          icon: "success",
+        });
+
+        fetchCompanies();
+        if (refreshCompanies) refreshCompanies();
+      } catch (err) {
+        console.error("Delete error:", err.response?.data || err.message);
+        Swal.fire({
+          title: "Error!",
+          text: "Failed to deactivate company.",
+          icon: "error",
+        });
+      }
     }
-  };
+  });
+};
+
 
   return (
     <div className="h-full flex flex-col px-6">

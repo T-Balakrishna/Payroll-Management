@@ -109,6 +109,7 @@ function AddOrEditEmployeeType({ onSave, onCancel, editData, userRole, selectedC
                   const selected = companies.find((c) => c.companyId === e.target.value);
                   setCompanyName(selected ? selected.companyName : "");
                 }}
+                // disabled
                 className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               >
                 <option value="">Select Company</option>

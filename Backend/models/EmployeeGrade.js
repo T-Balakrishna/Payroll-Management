@@ -4,8 +4,8 @@ const seq = require('../config/db');
 
 const EmployeeGrade = seq.define('EmployeeGrade', {
     employeeGradeId: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-    employeeGradeName: { type: DataTypes.STRING, allowNull: false, unique: true },
-    employeeGradeAckr: { type: DataTypes.STRING, allowNull: false, unique: true },
+    employeeGradeName: { type: DataTypes.STRING, allowNull: false,},
+    employeeGradeAckr: { type: DataTypes.STRING, allowNull: false,},
     status: { type: DataTypes.ENUM('active', 'inactive'), defaultValue: 'active', allowNull: false },
     createdBy: { type: DataTypes.STRING, allowNull: true },
     updatedBy: { type: DataTypes.STRING, allowNull: true },

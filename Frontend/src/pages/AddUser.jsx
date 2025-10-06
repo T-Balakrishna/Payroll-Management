@@ -10,14 +10,13 @@ let decoded = token ? jwtDecode(token) : "";
 let userNumber = decoded?.userNumber || "system";
 
 // 🔹 Modal Component
-// 🔹 Modal Component
 function AddOrEditUser({
   formData,
   setFormData,
   onSave,
   onCancel,
   departments,
-  setDepartments, // ✅ added this prop
+  setDepartments,
   selectedCompanyName,
   selectedCompanyId,
   userRole,
@@ -28,7 +27,6 @@ function AddOrEditUser({
 }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
-
     if (name === "role") {
       if (value === "Admin" && userRole === "Super Admin") {
         setFormData({ ...formData, role: value, departmentId: 1 });
@@ -37,37 +35,44 @@ function AddOrEditUser({
       } else {
         setFormData({ ...formData, role: value, departmentId: "" });
       }
+    } else if (name === "companyId") {
+      setFormData({ ...formData, companyId: value, departmentId: "" });
     } else {
       setFormData({ ...formData, [name]: value });
     }
   };
 
-  // ✅ Fetch departments dynamically when company changes
+  // Fetch departments dynamically when company changes
   useEffect(() => {
     const fetchDepartments = async () => {
-      if (!formData.companyId) return setDepartments([]);
+      // Use selectedCompanyId for non-Super Admins if companyId is not set
+      const companyIdToFetch = formData.companyId || selectedCompanyId;
+      if (!companyIdToFetch) {
+        setDepartments([]);
+        return;
+      }
       try {
         const res = await axios.get(
-          `http://localhost:5000/api/departments?companyId=${formData.companyId}`,
+          `http://localhost:5000/api/departments?companyId=${companyIdToFetch}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
-        setDepartments(res.data);
+        console.log("Fetched departments:", res.data); // Debug log
+        setDepartments(res.data || []);
       } catch (err) {
+        console.error("Error fetching departments:", err.response?.data || err.message);
         toast.error("Error fetching departments");
+        setDepartments([]);
       }
     };
     fetchDepartments();
-  }, [formData.companyId]);
+  }, [formData.companyId, selectedCompanyId, setDepartments]);
 
   const showCompanyField = () => {
     if (userRole === "Super Admin") {
       if (formData.role === "Super Admin") return false;
       return true;
     }
-    if (userRole === "Admin") {
-      if (formData.role === "Admin") return false;
-    }
-    return false;
+    return false; // Non-Super Admins don't see company field
   };
 
   const showDepartmentField = () => {
@@ -119,7 +124,7 @@ function AddOrEditUser({
               value={formData.password}
               onChange={handleChange}
               className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-              required={!formData.userNumber}
+              required={!isEdit}
             />
           </div>
 
@@ -152,35 +157,21 @@ function AddOrEditUser({
           {showCompanyField() && (
             <div>
               <label className="block font-medium text-gray-700 mb-1">Company</label>
-              {userRole === "Super Admin" ? (
-                <select
-                  value={formData.companyId || ""}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      companyId: e.target.value,
-                      departmentId: "",
-                    })
-                  }
-                  className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                >
-                  <option value="">Select Company</option>
-                  {companies
-                    .filter((c) => c.companyId !== 1)
-                    .map((c) => (
-                      <option key={c.companyId} value={c.companyId}>
-                        {c.companyName}
-                      </option>
-                    ))}
-                </select>
-              ) : (
-                <input
-                  type="text"
-                  value={selectedCompanyName || "No company selected"}
-                  className="w-full border border-gray-300 rounded-lg p-3 bg-gray-100 cursor-not-allowed"
-                  readOnly
-                />
-              )}
+              <select
+                name="companyId"
+                value={formData.companyId || ""}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              >
+                <option value="">Select Company</option>
+                {companies
+                  .filter((c) => c.companyId !== 1)
+                  .map((c) => (
+                    <option key={c.companyId} value={c.companyId}>
+                      {c.companyName}
+                    </option>
+                  ))}
+              </select>
             </div>
           )}
 
@@ -255,7 +246,6 @@ function AddOrEditUser({
   );
 }
 
-
 // 🔹 Main Component
 export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
   const token = sessionStorage.getItem("token");
@@ -268,7 +258,7 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
     userMail: "",
     role: "",
     departmentId: "",
-    companyId:"",
+    companyId: selectedCompanyId || "", // Initialize with selectedCompanyId
     password: "",
   });
   const [autoGenerate, setAutoGenerate] = useState(false);
@@ -285,12 +275,9 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
   };
 
   const getDepartmentAcronym = (id) => {
-    // console.log(id,allDepartments);
-    
     const dept = allDepartments.find((d) => d.departmentId === id);
     return dept ? dept.departmentAckr : "";
   };
-
 
   useEffect(() => {
     const fetchData = async () => {
@@ -312,6 +299,7 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
             headers: { Authorization: `Bearer ${token}` } }
           );
         }
+        console.log("Initial departments:", deptRes.data); // Debug log
         setDepartments(deptRes.data);
 
         let url = "http://localhost:5000/api/users";
@@ -328,7 +316,8 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
         });
         setAllDepartments(allDept.data);
       } catch (err) {
-        toast.error("Error fetching data:", err);
+        console.error("Error fetching data:", err.response?.data || err.message);
+        toast.error("Error fetching data");
       } finally {
         setIsLoading(false);
       }
@@ -349,8 +338,8 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
       userMail: "",
       role: "",
       departmentId: "",
+      companyId: selectedCompanyId || (currentUserRole === "Super Admin" ? "" : 1), // Set companyId for non-Super Admins
       password: "",
-      companyId:"",
     });
     setAutoGenerate(false);
     setIsEdit(false);
@@ -362,22 +351,21 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
     if (!checked) return setFormData((prev) => ({ ...prev, userNumber: "" }));
 
     try {
-      if(!departmentId){
-        departmentId=1;
-      }
-      console.log(departmentId);
+      const companyIdToUse = formData.companyId || selectedCompanyId || 1;
+      const departmentIdToUse = departmentId || 1;
       const res = await axios.post(
-        `http://localhost:5000/api/users/lastEmpNumber/${departmentId}`,
-        { 
+        `http://localhost:5000/api/users/lastEmpNumber/${departmentIdToUse}`,
+        {
           role: formData.role,
-          companyId: formData.companyId ? formData.companyId : 1,
-          departmentId: departmentId ? departmentId : 1,
+          companyId: companyIdToUse,
+          departmentId: departmentIdToUse,
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setFormData((prev) => ({ ...prev, userNumber: res.data.lastEmpNumber }));
     } catch (err) {
-      toast.error("Error generating userNumber:", err);
+      console.error("Error generating userNumber:", err.response?.data || err.message);
+      toast.error("Error generating user number");
     }
   };
 
@@ -386,26 +374,13 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
 
     const payload = {
       ...formData,
-      createdBy:userNumber,
-      updatedBy:userNumber,
-      // companyId:
-      //   formData.companyId == null // null or undefined
-      //     ? (currentUserRole === "Super Admin" && formData.role === "Super Admin" ? 1 : selectedCompanyId)
-      //     : selectedCompanyId,
-      // departmentId:
-      //   formData.departmentId == null // null or undefined
-      //     ? ((currentUserRole === "Super Admin" && (formData.role === "Super Admin" || formData.role === "Admin")) ||
-      //       (currentUserRole === "Admin" && formData.role === "Admin")
-      //       ? 1
-      //       : formData.departmentId)
-      //     : formData.departmentId,
+      createdBy: userNumber,
+      updatedBy: userNumber,
+      companyId: formData.companyId || selectedCompanyId || 1,
+      departmentId: formData.departmentId || 1,
     };
 
-
     try {
-      if (!payload.companyId) payload.companyId = 1;
-      if (!payload.departmentId) payload.departmentId = 1;
-
       if (isEdit) {
         await axios.put(
           `http://localhost:5000/api/users/${formData.userNumber}`,
@@ -418,25 +393,26 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
         });
       }
       Swal.fire({
-              icon: "success",
-              title: isEdit ? "Updated" : "Added",
-              text: `User ${isEdit ? "Updated" : "Added"} Successfully`,
-            });
+        icon: "success",
+        title: isEdit ? "Updated" : "Added",
+        text: `User ${isEdit ? "Updated" : "Added"} Successfully`,
+      });
       setShowForm(false);
-      setRefreshFlag((prev)=>!prev);
+      setRefreshFlag((prev) => !prev);
     } catch (err) {
+      console.error("Error saving user:", err.response?.data || err.message);
       Swal.fire({
-              icon: "error",
-              title: isEdit ? "Update Failed" : "Add Failed" ,
-              text: `User ${isEdit ? "Update" : "Add"} Failed`,
-            });
+        icon: "error",
+        title: isEdit ? "Update Failed" : "Add Failed",
+        text: `User ${isEdit ? "Update" : "Add"} Failed`,
+      });
       setShowForm(false);
     }
   };
 
   return (
     <div className="h-full flex flex-col px-6">
-      
+      {isLoading && <div>Loading...</div>}
       <div className="flex justify-between items-center mb-4">
         <input
           type="text"
@@ -488,57 +464,52 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
                     <button
                       className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-md"
                       onClick={() => {
-                          setFormData(u);
-                          setAutoGenerate(false);
-                          setShowForm(true);
-                          setIsEdit(true);
-                        }}
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button
-                        className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md"
-                        onClick={() => {
-                            Swal.fire({
-                              title: "Are you sure?",
-                              text: "You won't be able to revert this!",
-                              icon: "warning",
-                              showCancelButton: true,
-                              confirmButtonColor: "#3085d6",
-                              cancelButtonColor: "#d33",
-                              confirmButtonText: "Yes, delete it!"
-                            }).then(async (result) => {
-                              if (result.isConfirmed) {
-                                try {
-                                  const res = await axios.delete(
-                                    `http://localhost:5000/api/users/${u.userNumber}`,
-                                    {  
-                                        data: {updatedBy:userNumber},
-                                        headers: { Authorization: `Bearer ${token}` } 
-                                    }
-                                  );
-                                  console.log(res);
-                                  
-
-                                  Swal.fire({
-                                    title: "Deleted!",
-                                    text: "User has been deleted.",
-                                    icon: "success",
-                                  });
-                                  setRefreshFlag(prev=>!prev);
-                                  // fetchData();
-                                  // window.location.reload(); // 🔄 keep your old reload
-                                } catch (err) {
-                                  console.error("Delete error:", err.response?.data || err.message);
-                                  Swal.fire({
-                                    title: "Error!",
-                                    text: "Failed to delete user.",
-                                    icon: "error",
-                                  });
+                        setFormData(u);
+                        setAutoGenerate(false);
+                        setShowForm(true);
+                        setIsEdit(true);
+                      }}
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md"
+                      onClick={() => {
+                        Swal.fire({
+                          title: "Are you sure?",
+                          text: "You won't be able to revert this!",
+                          icon: "warning",
+                          showCancelButton: true,
+                          confirmButtonColor: "#3085d6",
+                          cancelButtonColor: "#d33",
+                          confirmButtonText: "Yes, delete it!",
+                        }).then(async (result) => {
+                          if (result.isConfirmed) {
+                            try {
+                              await axios.delete(
+                                `http://localhost:5000/api/users/${u.userNumber}`,
+                                {
+                                  data: { updatedBy: userNumber },
+                                  headers: { Authorization: `Bearer ${token}` },
                                 }
-                              }
-                            });
-                          }}
+                              );
+                              Swal.fire({
+                                title: "Deleted!",
+                                text: "User has been deleted.",
+                                icon: "success",
+                              });
+                              setRefreshFlag((prev) => !prev);
+                            } catch (err) {
+                              console.error("Delete error:", err.response?.data || err.message);
+                              Swal.fire({
+                                title: "Error!",
+                                text: "Failed to delete user.",
+                                icon: "error",
+                              });
+                            }
+                          }
+                        });
+                      }}
                     >
                       <Trash size={16} />
                     </button>

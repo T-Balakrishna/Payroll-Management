@@ -27,15 +27,18 @@ exports.createUser = async (req, res) => {
       createdBy
     });
 
-    await Employee.create({
-      employeeMail: userMail,
-      employeeName: userName,
-      employeeNumber: userNumber,
-      departmentId,
-      companyId,
-      password: hashedPassword,
-      createdBy
-    });
+    if(role==="Staff"){
+
+        await Employee.create({
+          employeeMail: userMail,
+          employeeName: userName,
+          employeeNumber: userNumber,
+          departmentId,
+          companyId,
+          password: hashedPassword,
+          createdBy
+        });
+    }
 
     res.status(201).json({ message: "User & Employee created", user: newUser });
   } catch (err) {
@@ -73,7 +76,7 @@ exports.getUserById = async (req, res) => {
 exports.getUserByNumber = async (req, res) => {
   try {
     const userNumber=req.params.userNumber;
-    console.log("hi");
+    // console.log("hi");
     
     const user = await User.findOne({where:{userNumber}});
     if (!user) return res.status(404).json({ error: "User hell not found" });
@@ -116,7 +119,7 @@ exports.deleteUser = async (req, res) => {
   try {
     const { userNumber } = req.params;
     const { updatedBy } = req.body;
-    console.log(userNumber,updatedBy);
+    // console.log(userNumber,updatedBy);
     
     const user = await User.findOne({ where: { userNumber } });
     if (!user) return res.status(404).json({ error: "User not found" });
@@ -138,13 +141,13 @@ exports.deleteUser = async (req, res) => {
 exports.getLastEmpNumber = async (req, res) => {
   try {
     const { role, companyId, departmentId } = req.body;
-    console.log( role, companyId, departmentId);
+    // console.log( role, companyId, departmentId);
     let prefix = "";
     let filter = {};
 
     // Handle role-specific filters
     if (role === "Super Admin") {
-      prefix = "SAD";
+      prefix = "SAD_";
       filter = { role: "Super Admin" };
     } 
     else if (role === "Admin") {
@@ -182,7 +185,7 @@ exports.getLastEmpNumber = async (req, res) => {
       const parts = lastUser.userNumber.split("_");  // split by underscore
       const lastNum = parseInt(parts[1], 10);        // convert second part to int
       nextNum = lastNum + 1;
-      console.log(parts,lastNum,nextNum);
+      // console.log(parts,lastNum,nextNum);
     }
 
 
@@ -198,7 +201,7 @@ exports.getLastEmpNumber = async (req, res) => {
 
     res.json({ lastEmpNumber: newUserNumber });
   } catch (err) {
-    console.error(err);
+    // console.error(err);
     res.status(500).json({ message: "Server error" });
   }
 };

@@ -23,6 +23,7 @@ function Punches() {
         axios.get("http://localhost:5000/api/punches/get"),
         axios.get("http://localhost:5000/api/biometricDevices")
       ]);
+
       setPunches(punchRes.data);
       setFilteredPunches(punchRes.data);
       setDevices(deviceRes.data);
@@ -34,15 +35,17 @@ function Punches() {
   const getLocation = (deviceIp) => {
     if (!deviceIp) return "?-?";
     const dev = devices.find(d => String(d.deviceIp).trim() === String(deviceIp).trim());
+    // console.log(devices,dev);
     return dev ? dev.location : "?-";
   };
 
   const handleSearch = () => {
+    // if(!query)return;
     const q = query.toLowerCase();
     let results = punches;
 
-    if (searchBy === "employeeNumber") {
-      results = punches.filter(p => p.employeeNumber?.toLowerCase().includes(q));
+    if (searchBy === "biometricNumber") {
+      results = punches.filter(p => p.biometricNumber?.toLowerCase().includes(q));
     } else if (searchBy === "location") {
       results = punches.filter(p => getLocation(p.deviceIp)?.toLowerCase().includes(q));
     } else if (searchBy === "date" && query) {
@@ -62,7 +65,7 @@ function Punches() {
             onChange={(e) => setSearchBy(e.target.value)}
             className="border border-gray-300 rounded-lg px-3 py-2"
           >
-            <option value="employeeNumber">Employee Number</option>
+            <option value="biometricNumber">Biometric  Number</option>
             <option value="location">Location</option>
             <option value="date">Date</option>
           </select>
@@ -91,7 +94,7 @@ function Punches() {
       <table className="w-full text-left text-sm">
         <thead className="sticky top-0 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
           <tr>
-            <th className="py-3 px-4">Employee Number</th>
+            <th className="py-3 px-4">Biometric Number</th>
             <th className="py-3 px-4">Date</th>
             <th className="py-3 px-4">Time</th>
             <th className="py-3 px-4">Location</th>
@@ -102,7 +105,7 @@ function Punches() {
             const dateObj = new Date(p.punchTimestamp);
             return (
               <tr key={p.punchId} className="border-t hover:bg-gray-50">
-                <td className="py-2 px-4">{p.employeeNumber || "-"}</td>
+                <td className="py-2 px-4">{p.biometricNumber || "-"}</td>
                 <td className="py-2 px-4">{dateObj.toLocaleDateString("en-IN")}</td>
                 <td className="py-2 px-4">{dateObj.toLocaleTimeString("en-IN")}</td>
                 <td className="py-2 px-4">{getLocation(p.deviceIp)}</td>

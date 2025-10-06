@@ -109,12 +109,13 @@ function AddOrEditGrade({ onSave, onCancel, editData, userRole, selectedCompanyI
                   const selected = companies.find((c) => c.companyId === e.target.value);
                   setCompanyName(selected ? selected.companyName : "");
                 }}
+                // disabled
                 className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               >
                 <option value="">Select Company</option>
                 {companies
-                  .filter((c) => c.companyId !== 1)
-                  .map((c) => (
+                  .filter(c => c.companyId !== 1)
+                  .map(c => (
                     <option key={c.companyId} value={c.companyId}>
                       {c.companyName}
                     </option>
@@ -250,18 +251,33 @@ function EmployeeGradeMaster({ selectedCompanyId, selectedCompanyName }) {
     }
   };
 
-  const handleDelete = async (gradeId) => {
-    if (!window.confirm("Are you sure you want to delete this grade?")) return;
-    try {
-      await axios.delete(`http://localhost:5000/api/employeeGrades/${gradeId}`, {
-        data: { updatedBy: userNumber },
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      await fetchGrades();
-    } catch (err) {
-      console.error("Error deleting grade:", err);
-    }
+  const handleDelete = async (employeeGradeId) => {
+    Swal.fire({
+      title: "Are you sure?",
+      text: "You won’t be able to revert this!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Yes, delete it!"
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          await axios.delete(`http://localhost:5000/api/employeeGrades/${employeeGradeId}`, {
+            data: { updatedBy: userNumber },
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          Swal.fire("Deleted!", "Employee Grade has been deleted.", "success");
+          await fetchGrades();
+        } catch (err) {
+          console.error("Error deleting employee Grade:", err);
+          Swal.fire("Error!", "Failed to delete employee Grade.", "error");
+        }
+      }
+    });
   };
+
 
   return (
     <div className="h-full flex-1 p-6 flex flex-col">

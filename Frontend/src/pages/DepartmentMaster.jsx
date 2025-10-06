@@ -2,11 +2,12 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { Building2, Pencil, Trash, Plus, X } from "lucide-react";
 import {jwtDecode} from "jwt-decode";
+import Swal from 'sweetalert2'
+import { toast } from "react-toastify";
+
 let token     = sessionStorage.getItem("token");
 let decoded   = (token)?jwtDecode(token):"";
 let userNumber= decoded.userNumber;
-import Swal from 'sweetalert2'
-import { toast } from "react-toastify";
 
 
 // ✅ Modal Form Component
@@ -272,18 +273,43 @@ function DepartmentMaster({ userRole, selectedCompanyId, selectedCompanyName }) 
   };
 
   const handleDelete = async (departmentId) => {
-    if (!window.confirm("Are you sure you want to delete this department?")) return;
-    try {
-      const updatedBy = sessionStorage.getItem("userNumber");
-      await axios.delete(`http://localhost:5000/api/departments/${departmentId}`, {
-        data: { updatedBy },
-        headers: { Authorization: `Bearer ${sessionStorage.getItem("token")}` },
+      const updatedBy = userNumber;
+
+      Swal.fire({
+        title: "Are you sure?",
+        text: "You won't be able to revert this!",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#3085d6",
+        cancelButtonColor: "#d33",
+        confirmButtonText: "Yes, delete it!"
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          try {
+            await axios.delete(`http://localhost:5000/api/departments/${departmentId}`, {
+              data: { updatedBy },
+              headers: { Authorization: `Bearer ${token}` },
+            });
+
+            Swal.fire({
+              title: "Deleted!",
+              text: "Department has been deleted successfully.",
+              icon: "success",
+            });
+
+            await fetchDepartments();
+          } catch (err) {
+            console.error("Error deleting department:", err.response?.data || err.message);
+            Swal.fire({
+              title: "Error!",
+              text: "Failed to delete department.",
+              icon: "error",
+            });
+          }
+        }
       });
-      await fetchDepartments();
-    } catch (err) {
-      console.error("Error deleting department:", err);
-    }
-  };
+    };
+
 
   return (
     <div className="h-full flex flex-col px-6">
