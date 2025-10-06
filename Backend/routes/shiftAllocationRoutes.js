@@ -1,11 +1,17 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const shiftController = require("../controllers/shiftAllocationController");
+const controller = require('../controllers/shiftAllocationController'); // Adjust path if needed
 
-// GET all data needed for shift allocation (departments, employees, shifts)
-router.get("/data", shiftController.getShiftAllocationData);
+// GET /api/shiftAllocation/shifts
+router.get('/shifts', controller.getShifts);
 
-// POST allocate shifts (updates employee table)
-router.post("/allocate", shiftController.allocateShifts);
+// GET /api/shiftAllocation/departments
+router.get('/departments', controller.getDepartments);
+
+// POST /api/shiftAllocation/employees/byDepartments
+router.post('/employees/byDepartments', controller.getEmployeesByDepartments);
+
+// POST /api/shiftAllocation/allocate
+router.post('/allocate', controller.allocateShifts);
 
 module.exports = router;

@@ -105,24 +105,24 @@ const startServer = async () => {
     });
 
     // 🕛 Hourly biometric fetch
-    cron.schedule("* * * * *", async () => {
-      try {
-        console.log("🕛 Running hourly biometric fetch...");
-        await fetchBiometrics();
-      } catch (err) {
-        console.error("❌ Error fetching biometrics:", err.message);
-      }
-    });
+    // cron.schedule("* * * * *", async () => {
+    //   try {
+    //     console.log("🕛 Running hourly biometric fetch...");
+    //     await fetchBiometrics();
+    //   } catch (err) {
+    //     console.error("❌ Error fetching biometrics:", err.message);
+    //   }
+    // });
 
-    // 🕛 Daily attendance processor at 12:00 AM
-    cron.schedule("* * * * *", async () => {
-      try {
-        console.log("🕛 Running daily attendance processor...");
-        await processAttendance();
-      } catch (err) {
-        console.error("❌ Error processing attendance:", err.message);
-      }
-    });
+    // // 🕛 Daily attendance processor at 12:00 AM
+    // cron.schedule("* * * * *", async () => {
+    //   try {
+    //     console.log("🕛 Running daily attendance processor...");
+    //     await processAttendance();
+    //   } catch (err) {
+    //     console.error("❌ Error processing attendance:", err.message);
+    //   }
+    // });
 
   } catch (error) {
     console.error("❌ Error starting server:", error.message);

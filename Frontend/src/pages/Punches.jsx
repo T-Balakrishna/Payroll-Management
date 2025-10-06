@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { ClipboardList, X } from "lucide-react";
 
-function Punches() {
+function Punches({ userRole, selectedCompanyId, selectedCompanyName }) {
   const [punches, setPunches] = useState([]);
   const [devices, setDevices] = useState([]);
   const [filteredPunches, setFilteredPunches] = useState([]);
@@ -11,17 +11,27 @@ function Punches() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [selectedCompanyId]);
 
   useEffect(() => {
     handleSearch();
   }, [query, searchBy, punches, devices]);
 
   const fetchData = async () => {
+    if (userRole === "Super Admin" && !selectedCompanyId) {
+      setPunches([]);
+      setFilteredPunches([]);
+      setDevices([]);
+      return;
+    }
     try {
+      let punchUrl = "http://localhost:5000/api/punches/get";
+      if (selectedCompanyId) punchUrl += `?companyId=${selectedCompanyId}`;
+      let deviceUrl = "http://localhost:5000/api/biometricDevices";
+      if (selectedCompanyId) deviceUrl += `?companyId=${selectedCompanyId}`;
       const [punchRes, deviceRes] = await Promise.all([
-        axios.get("http://localhost:5000/api/punches/get"),
-        axios.get("http://localhost:5000/api/biometricDevices")
+        axios.get(punchUrl),
+        axios.get(deviceUrl)
       ]);
 
       setPunches(punchRes.data);
@@ -55,8 +65,20 @@ function Punches() {
     setFilteredPunches(results);
   };
 
+  if (userRole === "Super Admin" && !selectedCompanyId) {
+    return (
+      <div className="h-full flex flex-col px-6 py-4">
+        <h1 className="text-2xl font-bold mb-4">Punches</h1>
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-gray-500 text-center">Please select a company to view punches.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full px-6 py-4 flex flex-col">
+      <h1 className="text-2xl font-bold mb-4">Punches{selectedCompanyName ? ` - ${selectedCompanyName}` : ""}</h1>
       {/* Header */}
       <div className="flex flex-wrap justify-between items-center mb-6 gap-3">
         <div className="flex gap-2 items-center">
