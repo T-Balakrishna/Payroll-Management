@@ -1,13 +1,15 @@
-const Employee = require('../models/Employee');
-const Department = require('../models/Department');
-const Designation = require('../models/Designation');
-const EmployeeGrade = require('../models/EmployeeGrade');
-const EmployeeType = require('../models/EmployeeType');
-const Shift = require('../models/Shift');
-const Religion = require('../models/Religion');
-const Caste = require('../models/Caste');
-const Bus = require('../models/Bus');
-const User = require('../models/User');
+const {
+  Employee,
+  Department,
+  Designation,
+  EmployeeGrade,
+  EmployeeType,
+  Shift,
+  Religion,
+  Caste,
+  Bus,
+  User
+} = require('../models'); // This pulls from index.js where associations are defined
 const { log } = require('node-zklib/helpers/errorLog');
 const { Op } = require('sequelize');
 const bcrypt = require("bcrypt");
@@ -33,11 +35,19 @@ exports.createEmployee = async (req, res) => {
 // ✅ Get all Employees with associations (referencePersonDetails removed as it's a string)
 exports.getEmployees = async (req, res) => {
   try {
+    const { companyId } = req.query;
+
+    // Debug log (remove after testing)
+    console.log('Association check:', !!Employee.associations.department ? 'OK' : 'MISSING');
+
+    const whereClause = companyId ? { companyId: parseInt(companyId) } : {};  // Direct filter on Employee.companyId
+
     const employees = await Employee.findAll({
+      where: whereClause,
       attributes: [
         'employeeId', 'employeeNumber', 'firstName', 'lastName', 'employeeMail',
         'salutation', 'gender', 'DOB', 'DOJ', 'departmentId', 'designationId',
-        'reportsTo', 'referencePerson', 'photo', 'status' // Essential fields; add more if needed
+        'reportsTo', 'referencePerson', 'photo', 'status', 'companyId'
       ],
       include: [
         { model: Department, as: 'department', required: false },
@@ -48,7 +58,6 @@ exports.getEmployees = async (req, res) => {
         { model: Caste, as: 'caste', required: false },
         { model: Bus, as: 'bus', required: false },
         { model: Employee, as: 'manager', required: false },
-        // referencePersonDetails removed: referencePerson is a STRING, not a foreign key
       ],
     });
     res.json(employees);
@@ -61,7 +70,6 @@ exports.getEmployees = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch employees", details: error.message });
   }
 };
-
 // ✅ Get Employee by ID (referencePersonDetails removed as it's a string) 
 exports.getEmployeeById = async (req, res) => {
   try {

@@ -51,7 +51,7 @@ const ShiftAllocationMaster = ({ userRole, selectedCompanyId, selectedCompanyNam
   // Fetch employees based on selected departments
   useEffect(() => {
     if (selectedDepts.length > 0) {
-      const payload = { departments: selectedDepts };
+      const payload = { departments: selectedDepts, active: true };
       if (selectedCompanyId) {
         payload.companyId = selectedCompanyId;
       }

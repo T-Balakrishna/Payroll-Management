@@ -1,9 +1,28 @@
 const defineAssociations = (models) => {
-  const { Attendance, Company, Employee, BiometricDevice, Bus, Caste, Department, Designation, EmployeeGrade, Shift, Religion, EmployeeType, Holiday, HolidayPlan, Leave, LeaveType, LeaveAllocation, Punch } = models;
+  const { 
+    Attendance, 
+    Company, 
+    Employee, 
+    BiometricDevice, 
+    Bus, 
+    Caste, 
+    Department, 
+    Designation, 
+    EmployeeGrade, 
+    Shift, 
+    Religion, 
+    EmployeeType, 
+    Holiday, 
+    HolidayPlan, 
+    Leave, 
+    LeaveType, 
+    LeaveAllocation, 
+    Punch, 
+    User 
+  } = models;
 
-  // Existing belongsTo associations
-  Attendance.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
-  Attendance.belongsTo(Employee, { foreignKey: 'employeeNumber', targetKey: 'employeeNumber', as: 'employee' });
+  // BelongsTo associations (many-to-one)
+  // Employee core associations
   Employee.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
   Employee.belongsTo(Designation, { foreignKey: 'designationId', as: 'designation' });
   Employee.belongsTo(EmployeeType, { foreignKey: 'employeeTypeId', as: 'employeeType' });
@@ -11,17 +30,62 @@ const defineAssociations = (models) => {
   Employee.belongsTo(Shift, { foreignKey: 'shiftId', as: 'shift' });
   Employee.belongsTo(Religion, { foreignKey: 'religionId', as: 'religion' });
   Employee.belongsTo(Caste, { foreignKey: 'casteId', as: 'caste' });
-  Employee.belongsTo(Employee, { foreignKey: 'reportsTo', as: 'manager' });
+  Employee.belongsTo(Employee, { foreignKey: 'reportsTo', targetKey: 'employeeId', as: 'manager' });  // INTEGER key
   Employee.belongsTo(Bus, { foreignKey: 'busId', as: 'bus' });
-  Employee.belongsTo(Attendance, { foreignKey: 'employeeNumber', targetKey: 'employeeNumber', as: 'attendances' });
-  Holiday.belongsTo(HolidayPlan, { foreignKey: 'holidayPlanId', as: 'holidayPlan', onDelete: 'CASCADE' });
+  Employee.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
+
+  // Attendance
+  Attendance.belongsTo(Employee, { foreignKey: 'employeeNumber', targetKey: 'employeeNumber', as: 'employee' });
+  Attendance.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
+
+  // Leave & Allocation
   Leave.belongsTo(Employee, { foreignKey: 'employeeNumber', targetKey: 'employeeNumber', as: 'employee' });
   Leave.belongsTo(LeaveType, { foreignKey: 'leaveTypeId', as: 'leaveType' });
+  Leave.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
   LeaveAllocation.belongsTo(Employee, { foreignKey: 'employeeNumber', targetKey: 'employeeNumber', as: 'employee' });
   LeaveAllocation.belongsTo(LeaveType, { foreignKey: 'leaveTypeId', as: 'leaveType' });
 
-  // Add missing hasMany associations (inverse sides)
+  // Punch (uses biometricNumber)
+  Punch.belongsTo(Employee, { foreignKey: 'biometricNumber', targetKey: 'biometricNumber', as: 'employee' });
+  Punch.belongsTo(BiometricDevice, { foreignKey: 'deviceIp', as: 'biometricDevice' });
+  Punch.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
+
+  // Holiday
+  Holiday.belongsTo(HolidayPlan, { foreignKey: 'holidayPlanId', as: 'holidayPlan', onDelete: 'CASCADE' });
+  Holiday.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
+
+  // User
+  User.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
+  User.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
+
+  // Company-scoped models
+  Department.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
+  Designation.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
+  EmployeeGrade.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
+  EmployeeType.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
+  Shift.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
+  BiometricDevice.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
+
+  // HasMany associations (one-to-many inverses)
+  // Company
+  Company.hasMany(Employee, { foreignKey: 'companyId', as: 'employees' });
+  Company.hasMany(Department, { foreignKey: 'companyId', as: 'departments' });
+  Company.hasMany(Designation, { foreignKey: 'companyId', as: 'designations' });
+  Company.hasMany(EmployeeGrade, { foreignKey: 'companyId', as: 'employeeGrades' });
+  Company.hasMany(EmployeeType, { foreignKey: 'companyId', as: 'employeeTypes' });
+  Company.hasMany(Shift, { foreignKey: 'companyId', as: 'shifts' });
+  Company.hasMany(BiometricDevice, { foreignKey: 'companyId', as: 'biometricDevices' });
+  Company.hasMany(Attendance, { foreignKey: 'companyId', as: 'attendances' });
+  Company.hasMany(Holiday, { foreignKey: 'companyId', as: 'holidays' });
+  Company.hasMany(Punch, { foreignKey: 'companyId', as: 'punches' });
+  Company.hasMany(User, { foreignKey: 'companyId', as: 'users' });
+
+  // Department
   Department.hasMany(Employee, { foreignKey: 'departmentId', as: 'employees' });
+  Department.hasMany(User, { foreignKey: 'departmentId', as: 'users' });
+  Department.hasMany(Leave, { foreignKey: 'departmentId', as: 'leaves' });
+
+  // Other Employee-scoped
   Designation.hasMany(Employee, { foreignKey: 'designationId', as: 'employees' });
   EmployeeType.hasMany(Employee, { foreignKey: 'employeeTypeId', as: 'employees' });
   EmployeeGrade.hasMany(Employee, { foreignKey: 'employeeGradeId', as: 'employees' });
@@ -29,19 +93,25 @@ const defineAssociations = (models) => {
   Religion.hasMany(Employee, { foreignKey: 'religionId', as: 'employees' });
   Caste.hasMany(Employee, { foreignKey: 'casteId', as: 'employees' });
   Bus.hasMany(Employee, { foreignKey: 'busId', as: 'employees' });
-  Employee.hasMany(Employee, { foreignKey: 'reportsTo', as: 'reportingEmployees' }); // Self-referential inverse
-  Attendance.hasMany(Employee, { foreignKey: 'employeeNumber', sourceKey: 'employeeNumber', as: 'employees' });
-  HolidayPlan.hasMany(Holiday, { foreignKey: 'holidayPlanId', as: 'holidays', onDelete: 'CASCADE' });
-  Employee.hasMany(Leave, { foreignKey: 'employeeNumber', sourceKey: 'employeeNumber', as: 'leaves' });
-  LeaveType.hasMany(Leave, { foreignKey: 'leaveTypeId', as: 'leaves' });
-  Employee.hasMany(LeaveAllocation, { foreignKey: 'employeeNumber', sourceKey: 'employeeNumber', as: 'leaveAllocations' });
-  LeaveType.hasMany(LeaveAllocation, { foreignKey: 'leaveTypeId', as: 'leaveAllocations' });
-  Employee.hasMany(Punch, { foreignKey: 'employeeNumber', sourceKey: 'employeeNumber', as: 'punches' });
-  BiometricDevice.hasMany(Punch, { foreignKey: 'deviceIp', as: 'punches' });
 
-  // Existing belongsTo for Punch and others
-  Punch.belongsTo(Employee, { foreignKey: 'employeeNumber', targetKey: 'employeeNumber', as: 'employee' });
-  Punch.belongsTo(BiometricDevice, { foreignKey: 'deviceIp', as: 'biometricDevice' });
+  // Self-referential
+  Employee.hasMany(Employee, { foreignKey: 'reportsTo', sourceKey: 'employeeId', as: 'reportingEmployees' });
+
+  // Employee one-to-many
+  Employee.hasMany(Attendance, { foreignKey: 'employeeNumber', sourceKey: 'employeeNumber', as: 'attendances' });
+  Employee.hasMany(Leave, { foreignKey: 'employeeNumber', sourceKey: 'employeeNumber', as: 'leaves' });
+  Employee.hasMany(LeaveAllocation, { foreignKey: 'employeeNumber', sourceKey: 'employeeNumber', as: 'leaveAllocations' });
+  Employee.hasMany(Punch, { foreignKey: 'biometricNumber', sourceKey: 'biometricNumber', as: 'punches' });
+
+  // LeaveType
+  LeaveType.hasMany(Leave, { foreignKey: 'leaveTypeId', as: 'leaves' });
+  LeaveType.hasMany(LeaveAllocation, { foreignKey: 'leaveTypeId', as: 'leaveAllocations' });
+
+  // HolidayPlan
+  HolidayPlan.hasMany(Holiday, { foreignKey: 'holidayPlanId', as: 'holidays', onDelete: 'CASCADE' });
+
+  // BiometricDevice
+  BiometricDevice.hasMany(Punch, { foreignKey: 'deviceIp', as: 'punches' });
 };
 
 module.exports = defineAssociations;

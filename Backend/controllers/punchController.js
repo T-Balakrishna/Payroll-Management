@@ -120,25 +120,76 @@ exports.getPunchesById = async (req, res) => {
 
 exports.getPunches = async (req, res) => {
   try {
-    const { companyId } = req.query;
+    const { 
+      companyId, 
+      employeeNumber, 
+      departmentId, 
+      date, 
+      startDate, 
+      endDate 
+    } = req.query;
 
-    let where = {};
-    if (companyId) {
-      where.companyId = companyId;
+    // Validate required param
+    if (!companyId) {
+      return res.status(400).json({ message: 'companyId is required' });
+    }
+
+    // Build where clause for Punch
+    let punchWhere = { companyId: parseInt(companyId) };
+
+    // Employee filter (single or array)
+    if (employeeNumber) {
+      if (Array.isArray(employeeNumber)) {
+        punchWhere.employeeNumber = { [Op.in]: employeeNumber };
+      } else {
+        punchWhere.employeeNumber = employeeNumber;
+      }
+    }
+
+    // Time filters on punchTimestamp
+    if (date) {
+      // For daily: full day range
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+      punchWhere.punchTimestamp = { [Op.between]: [startOfDay, endOfDay] };
+    } else if (startDate && endDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      punchWhere.punchTimestamp = { [Op.between]: [start, end] };
+    }
+
+    // Department filter: Include Employee and filter on departmentId
+    let include = [];
+    let employeeWhere = {};
+    if (departmentId) {
+      if (Array.isArray(departmentId)) {
+        employeeWhere.departmentId = { [Op.in]: departmentId.map(id => parseInt(id)) };
+      } else {
+        employeeWhere.departmentId = parseInt(departmentId);
+      }
+      include.push({
+        model: Employee,
+        required: true,  // INNER JOIN for filtering
+        where: employeeWhere,
+        attributes: []  // No need for extra attrs, just for filtering
+      });
     }
 
     const punches = await Punch.findAll({
-      where,
-      order: [["punchTimestamp", "DESC"]]
+      where: punchWhere,
+      include,
+      order: [["punchTimestamp", "DESC"]],
+      raw: true  // Serialize to plain objects
     });
 
-    if (!punches.length) {
-      return res.status(404).json({ message: "No punches found" });
-    }
-
+    // Always return array, even if empty
     res.json(punches);
   } catch (err) {
     console.error("❌ Error fetching punches:", err);
-    res.status(500).send("Error: " + err.message);
+    res.status(500).json({ message: err.message });
   }
 };
