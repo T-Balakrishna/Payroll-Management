@@ -277,7 +277,7 @@ function BiometricDeviceMaster({ selectedCompanyId, selectedCompanyName }) {
       }).then(async (result) => {
         if (result.isConfirmed) {
           try {
-            await axios.delete(`http://localhost:5000/api/designations/${deviceId}`, {
+            await axios.delete(`http://localhost:5000/api/biometricDevices/${deviceId}`, {
               data: { updatedBy: userNumber },
               headers: { Authorization: `Bearer ${token}` },
             });
