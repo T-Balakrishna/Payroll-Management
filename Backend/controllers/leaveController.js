@@ -20,7 +20,7 @@ function calculateLeaveDays(startDate, endDate) {
 // Employee apply leave
 exports.applyLeave = async (req, res) => {
   try {
-    const { employeeNumber, leaveTypeId, startDate, endDate, reason } = req.body;
+    const { employeeNumber, leaveTypeId, startDate, endDate, reason,companyId,departmentId } = req.body;
 
     const requestedDays = calculateLeaveDays(startDate, endDate);
 
@@ -48,7 +48,9 @@ exports.applyLeave = async (req, res) => {
       endDate,
       reason,
       status: "Pending",
-      createdBy: employeeNumber
+      createdBy: employeeNumber,
+      companyId,
+      departmentId,
     });
 
     res.status(201).json({ message: "Leave applied successfully", leave });
@@ -140,6 +142,8 @@ exports.getLeavesByStatus = async (req, res) => {
       endDate: leave.endDate,
       reason: leave.reason,
       status: leave.status,
+      companyId:leave.companyId,
+      departmentId:leave.departmentId,
     }));
 
 

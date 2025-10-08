@@ -245,3 +245,16 @@ exports.getCompanyId = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+exports.getBio = async (req, res) => {
+  try {
+    const userNumber=req.params.userNumber;
+    // console.log("hi");
+    
+    const user = await User.findOne({where:{userNumber}});
+    if (!user) return res.status(404).json({ error: "User hell not found" });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

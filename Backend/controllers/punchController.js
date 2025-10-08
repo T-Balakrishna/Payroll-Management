@@ -10,7 +10,7 @@ exports.fetchPunches = async (req, res) => {
     const { companyId } = req.query; // Optional companyId to filter devices
     let deviceQuery = {};
     if (companyId) {
-      deviceQuery.where = { companyId };
+      deviceQuery.where = { companyId,status:active };
     }
 
     const devices = await BiometricDevice.findAll(deviceQuery);

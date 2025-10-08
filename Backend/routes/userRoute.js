@@ -5,6 +5,7 @@ const userController = require('../controllers/userController');
 // CRUD Routes
 router.post('/', userController.createUser);
 router.get('/', userController.getAllUsers);
+router.get('/getBiometricNumber/:userNumber', userController.getBio);
 router.get('/:id', userController.getUserById);
 router.get('/byNumber/:userNumber', userController.getUserByNumber);
 router.put('/:userNumber', userController.updateUser);

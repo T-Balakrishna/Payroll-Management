@@ -8,7 +8,7 @@ import { toast } from "react-toastify";
 
 let token = sessionStorage.getItem("token");
 let decoded = token ? jwtDecode(token) : "";
-let userNumber = decoded?.userNumber || "system";
+let userNumber = decoded?.userNumber;
 
 const EmployeeProfilePage = () => {
   const navigate = useNavigate();

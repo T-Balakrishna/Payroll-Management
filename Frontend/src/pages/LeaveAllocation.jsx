@@ -1,14 +1,26 @@
 // LeaveAllocation.jsx
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { jwtDecode } from "jwt-decode";
 import Swal from "sweetalert2";
+import { toast } from "react-toastify";
+
+let token = sessionStorage.getItem("token");
+let decoded = token ? jwtDecode(token) : "";
+let userNumber = decoded?.userNumber;
+
 
 const LeaveAllocation = () => {
   const [leaveTypes, setLeaveTypes] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [filteredDepartments, setFilteredDepartments] = useState([]);
   const [designations, setDesignations] = useState([]);
+  const [filteredDesignations, setFilteredDesignations] = useState([]);
   const [employeeGrades, setEmployeeGrades] = useState([]);
+  const [filteredEmployeeGrades, setFilteredEmployeeGrades] = useState([]);
   const [employeeTypes, setEmployeeTypes] = useState([]);
+  const [filteredEmployeeTypes, setFilteredEmployeeTypes] = useState([]);
+  const [companies, setCompanies] = useState([]);
 
   const [employees, setEmployees] = useState([]);
   const [filteredEmployees, setFilteredEmployees] = useState([]);
@@ -29,19 +41,63 @@ const LeaveAllocation = () => {
   const [filterDesignation, setFilterDesignation] = useState("");
   const [filterGrade, setFilterGrade] = useState("");
   const [filterType, setFilterType] = useState("");
+  const [filterCompany, setFilterCompany] = useState("");
 
   const [bulkLeaves, setBulkLeaves] = useState("");
-  const userNumber = sessionStorage.getItem("userNumber") || "system";
 
   // ---------- Initial fetch ----------
   useEffect(() => {
     axios.get("http://localhost:5000/api/leaveTypes").then(r => setLeaveTypes(r.data)).catch(() => {});
-    axios.get("http://localhost:5000/api/departments").then(r => setDepartments(r.data)).catch(() => {});
-    axios.get("http://localhost:5000/api/designations").then(r => setDesignations(r.data)).catch(() => {});
-    axios.get("http://localhost:5000/api/employeeGrades").then(r => setEmployeeGrades(r.data)).catch(() => {});
-    axios.get("http://localhost:5000/api/employeeTypes").then(r => setEmployeeTypes(r.data)).catch(() => {});
+    axios.get("http://localhost:5000/api/departments").then(r => {
+      setDepartments(r.data || []);
+      setFilteredDepartments(r.data || []);
+    }).catch(() => {
+      setDepartments([]);
+      setFilteredDepartments([]);
+    });
+    axios.get("http://localhost:5000/api/designations").then(r => {
+      setDesignations(r.data || []);
+      setFilteredDesignations(r.data || []);
+    }).catch(() => {
+      setDesignations([]);
+      setFilteredDesignations([]);
+    });
+    axios.get("http://localhost:5000/api/employeeGrades").then(r => {
+      setEmployeeGrades(r.data || []);
+      setFilteredEmployeeGrades(r.data || []);
+    }).catch(() => {
+      setEmployeeGrades([]);
+      setFilteredEmployeeGrades([]);
+    });
+    axios.get("http://localhost:5000/api/employeeTypes").then(r => {
+      setEmployeeTypes(r.data || []);
+      setFilteredEmployeeTypes(r.data || []);
+    }).catch(() => {
+      setEmployeeTypes([]);
+      setFilteredEmployeeTypes([]);
+    });
+    axios.get("http://localhost:5000/api/companies").then(r => setCompanies(r.data || [])).catch(() => setCompanies([]));
     axios.get("http://localhost:5000/api/employees").then(r => setEmployees(r.data || [])).catch(() => setEmployees([]));
   }, []);
+
+  // ---------- Filter dropdowns by company ----------
+  useEffect(() => {
+    if (filterCompany) {
+      setFilteredDepartments(departments.filter(d => String(d.companyId) === String(filterCompany)));
+      setFilteredDesignations(designations.filter(d => String(d.companyId) === String(filterCompany)));
+      setFilteredEmployeeGrades(employeeGrades.filter(g => String(g.companyId) === String(filterCompany)));
+      setFilteredEmployeeTypes(employeeTypes.filter(t => String(t.companyId) === String(filterCompany)));
+      setFilterDept("");
+      setFilterDesignation("");
+      setFilterGrade("");
+      setFilterType("");
+    } else {
+      setFilteredDepartments(departments);
+      setFilteredDesignations(designations);
+      setFilteredEmployeeGrades(employeeGrades);
+      setFilteredEmployeeTypes(employeeTypes);
+    }
+  }, [filterCompany, departments, designations, employeeGrades, employeeTypes]);
 
   // ---------- Fetch employees by department ----------
   useEffect(() => {
@@ -64,63 +120,59 @@ const LeaveAllocation = () => {
     if (filterDesignation) list = list.filter(e => String(e.designationId) === String(filterDesignation));
     if (filterGrade) list = list.filter(e => String(e.employeeGradeId) === String(filterGrade));
     if (filterType) list = list.filter(e => String(e.employeeTypeId) === String(filterType));
+    if (filterCompany) list = list.filter(e => String(e.companyId) === String(filterCompany));
     setFilteredEmployees(list);
-  }, [employees, filterDept, filterDesignation, filterGrade, filterType]);
+  }, [employees, filterDept, filterDesignation, filterGrade, filterType, filterCompany]);
 
   const getLeaveType = () => leaveTypes.find(l => String(l.leaveTypeId) === String(leaveTypeId)) || null;
 
   // ---------- Fetch existing allocations ----------
   useEffect(() => {
-  if (!leaveTypeId || !startYear) {
-    setExistingLeaves({});
-    setPreviousLeaves({});
-    return;
-  }
+    if (!leaveTypeId || !startYear) {
+      setExistingLeaves({});
+      setPreviousLeaves({});
+      return;
+    }
 
-  const lt = getLeaveType();
-  if (!lt) return;
+    const lt = getLeaveType();
+    if (!lt) return;
 
-  // previous period for carry forward
-  if (lt.isCarryForward) {
-    const prevPeriod = `${Number(startYear) - 1}-${Number(endYear) - 1}`;
-    axios.get(`http://localhost:5000/api/leaveAllocations?leaveTypeId=${leaveTypeId}&leavePeriod=${prevPeriod}`)
-      .then(res => {
-        const prevMapping = {};
-        (res.data || []).forEach(r => prevMapping[r.employeeNumber] = r.balance || 0);
-        setPreviousLeaves(prevMapping);
+    if (lt.isCarryForward) {
+      const prevPeriod = `${Number(startYear) - 1}-${Number(endYear) - 1}`;
+      axios.get(`http://localhost:5000/api/leaveAllocations?leaveTypeId=${leaveTypeId}&leavePeriod=${prevPeriod}`)
+        .then(res => {
+          const prevMapping = {};
+          (res.data || []).forEach(r => prevMapping[r.employeeNumber] = r.balance || 0);
+          setPreviousLeaves(prevMapping);
 
-        // fetch current period allocations AFTER previous year fetched
-        axios.get(`http://localhost:5000/api/leaveAllocations?leaveTypeId=${leaveTypeId}&leavePeriod=${period}`)
-          .then(res2 => {
-            const mapping = {};
-            (res2.data || []).forEach(r => {
-              const prev = prevMapping[r.employeeNumber] ?? 0;
-              mapping[r.employeeNumber] = (r.allotedLeave || 0) - prev; // subtract carry-forward
-            });
-            setExistingLeaves(mapping);
-            setAllocatedLeaves({}); // reset input
-          })
-          .catch(() => setExistingLeaves({}));
-      })
-      .catch(() => {
-        setPreviousLeaves({});
-        setExistingLeaves({});
-      });
-  } else {
-    setPreviousLeaves({});
-    // fetch current period allocations for non-carry-forward
-    axios.get(`http://localhost:5000/api/leaveAllocations?leaveTypeId=${leaveTypeId}&leavePeriod=${period}`)
-      .then(res => {
-        const mapping = {};
-        (res.data || []).forEach(r => mapping[r.employeeNumber] = r.allotedLeave || 0);
-        setExistingLeaves(mapping);
-        setAllocatedLeaves({}); // reset input
-      })
-      .catch(() => setExistingLeaves({}));
-  }
-}, [leaveTypeId, startYear, endYear, period, leaveTypes]);
-
-
+          axios.get(`http://localhost:5000/api/leaveAllocations?leaveTypeId=${leaveTypeId}&leavePeriod=${period}`)
+            .then(res2 => {
+              const mapping = {};
+              (res2.data || []).forEach(r => {
+                const prev = prevMapping[r.employeeNumber] ?? 0;
+                mapping[r.employeeNumber] = (r.allotedLeave || 0) - prev;
+              });
+              setExistingLeaves(mapping);
+              setAllocatedLeaves({});
+            })
+            .catch(() => setExistingLeaves({}));
+        })
+        .catch(() => {
+          setPreviousLeaves({});
+          setExistingLeaves({});
+        });
+    } else {
+      setPreviousLeaves({});
+      axios.get(`http://localhost:5000/api/leaveAllocations?leaveTypeId=${leaveTypeId}&leavePeriod=${period}`)
+        .then(res => {
+          const mapping = {};
+          (res.data || []).forEach(r => mapping[r.employeeNumber] = r.allotedLeave || 0);
+          setExistingLeaves(mapping);
+          setAllocatedLeaves({});
+        })
+        .catch(() => setExistingLeaves({}));
+    }
+  }, [leaveTypeId, startYear, endYear, period, leaveTypes]);
 
   // ---------- Toggle employee ----------
   const toggleEmp = (empNum) => {
@@ -133,15 +185,10 @@ const LeaveAllocation = () => {
       });
     } else {
       setSelectedEmps(prev => [...prev, empNum]);
-
-      // Use only current period allocation, no subtraction of previous
       const currentAlloc = existingLeaves[empNum] ?? 0;
       setAllocatedLeaves(prev => ({ ...prev, [empNum]: currentAlloc }));
     }
   };
-
-
-
 
   // ---------- Select all ----------
   const handleSelectAll = () => {
@@ -152,24 +199,52 @@ const LeaveAllocation = () => {
     } else {
       const allIds = filteredEmployees.map(e => e.employeeNumber);
       setSelectedEmps(allIds);
-
       const mapping = {};
       allIds.forEach(id => {
-        mapping[id] = existingLeaves[id] ?? 0; // only current period
+        mapping[id] = existingLeaves[id] ?? 0;
       });
       setAllocatedLeaves(mapping);
       setSelectAllChecked(true);
     }
   };
 
-
-
-
   // ---------- Bulk apply ----------
   const applyBulkLeaves = () => {
     if (!bulkLeaves) return;
+
+    const parsed = Number(bulkLeaves);
+    if (isNaN(parsed)) {
+      Swal.fire({
+        icon: "error",
+        title: "Invalid Input",
+        text: "Please enter a valid number for bulk leaves.",
+      });
+      return;
+    }
+
+    const lt = getLeaveType();
+    if (lt?.maxAllocationPertype != null && parsed > Number(lt.maxAllocationPertype)) {
+      Swal.fire({
+        icon: "error",
+        title: "Invalid Allocation",
+        text: `Bulk allocation cannot exceed ${lt.maxAllocationPertype} for ${lt.leaveTypeName}.`,
+      });
+      setBulkLeaves(lt.maxAllocationPertype);
+      return;
+    }
+
+    if (parsed < 0) {
+      Swal.fire({
+        icon: "error",
+        title: "Invalid Allocation",
+        text: "Bulk allocation cannot be negative.",
+      });
+      setBulkLeaves("");
+      return;
+    }
+
     const updated = {};
-    selectedEmps.forEach(empId => updated[empId] = Number(bulkLeaves));
+    selectedEmps.forEach(empId => updated[empId] = parsed);
     setAllocatedLeaves(prev => ({ ...prev, ...updated }));
   };
 
@@ -182,16 +257,24 @@ const LeaveAllocation = () => {
     }
 
     const lt = getLeaveType();
-    if (lt?.maxAllocation != null) {
-      if (parsed > Number(lt.maxAllocation)) {
-        alert(`Max allocation for ${lt.leaveTypeName} is ${lt.maxAllocation}.`);
-        setAllocatedLeaves(prev => ({ ...prev, [empNum]: Number(lt.maxAllocation) }));
-        return;
-      }
-      if (parsed < 0) {
-        setAllocatedLeaves(prev => ({ ...prev, [empNum]: 0 }));
-        return;
-      }
+    if (lt?.maxAllocationPertype != null && parsed > Number(lt.maxAllocationPertype)) {
+      Swal.fire({
+        icon: "error",
+        title: "Invalid Allocation",
+        text: `Allocation cannot exceed ${lt.maxAllocationPertype} for ${lt.leaveTypeName}.`,
+      });
+      setAllocatedLeaves(prev => ({ ...prev, [empNum]: Number(lt.maxAllocationPertype) }));
+      return;
+    }
+
+    if (parsed < 0) {
+      Swal.fire({
+        icon: "error",
+        title: "Invalid Allocation",
+        text: "Allocation cannot be negative.",
+      });
+      setAllocatedLeaves(prev => ({ ...prev, [empNum]: 0 }));
+      return;
     }
 
     setAllocatedLeaves(prev => ({ ...prev, [empNum]: parsed }));
@@ -199,66 +282,87 @@ const LeaveAllocation = () => {
 
   // ---------- Save allocations ----------
   const handleSave = async () => {
-  const lt = getLeaveType();
-
-  for (let empNum of selectedEmps) {
-    const newAlloc = Number(allocatedLeaves[empNum] ?? 0);
-    const oldAlloc = Number(previousLeaves[empNum] ?? 0);
-    const totalToStore = lt.isCarryForward ? newAlloc + oldAlloc : newAlloc;
-
-    // Check if allocation already exists for this employee + leave type + period
-    const exists = existingLeaves[empNum] !== undefined;
-
-    if (exists) {
-      // --- UPDATE existing allocation ---
-      await axios.put("http://localhost:5000/api/leaveAllocations", {
-        employeeNumber: empNum,
-        leaveTypeId,
-        startYear,
-        endYear,
-        leavePeriod: period,
-        allotedLeave: totalToStore,
-        previousBalance: oldAlloc,
-        updatedBy: userNumber
-      });
+    const lt = getLeaveType();
+    if (!lt || !leaveTypeId || !startYear) {
       Swal.fire({
-        icon: "success",
-        title: "Updated",
-        text: `Allocation updated for ${empNum}`
+        icon: "error",
+        title: "Missing Data",
+        text: "Please select a leave type and start year.",
       });
-    } else {
-      // --- CREATE new allocation ---
-      await axios.post("http://localhost:5000/api/leaveAllocations", {
-        employeeNumber: empNum,
-        leaveTypeId,
-        startYear,
-        endYear,
-        leavePeriod: period,
-        allotedLeave: totalToStore,
-        previousBalance: oldAlloc,
-        createdBy: userNumber
-      });
-      Swal.fire({
-        icon: "success",
-        title: "Added",
-        text: `Allocation created for ${empNum}`
-      });
+      return;
     }
-    
-  }
 
-  // Refresh current period allocations (only current allocation)
-  const res = await axios.get(`http://localhost:5000/api/leaveAllocations?leaveTypeId=${leaveTypeId}&leavePeriod=${period}`);
-  const mapping = {};
-  (res.data || []).forEach(r => {
-    const prev = lt.isCarryForward ? previousLeaves[r.employeeNumber] ?? 0 : 0;
-    mapping[r.employeeNumber] = (r.allotedLeave || 0) - prev;
-  });
+    for (let empNum of selectedEmps) {
+      const newAlloc = Number(allocatedLeaves[empNum] ?? 0);
+      const oldAlloc = Number(previousLeaves[empNum] ?? 0);
 
-  setExistingLeaves(mapping);
-  setAllocatedLeaves({});
-};
+      if (lt.maxAllocationPertype != null && newAlloc > Number(lt.maxAllocationPertype)) {
+        Swal.fire({
+          icon: "error",
+          title: "Invalid Allocation",
+          text: `Allocation for ${empNum} cannot exceed ${lt.maxAllocationPertype} for ${lt.leaveTypeName}.`,
+        });
+        continue;
+      }
 
+      if (newAlloc < 0) {
+        Swal.fire({
+          icon: "error",
+          title: "Invalid Allocation",
+          text: `Allocation for ${empNum} cannot be negative.`,
+        });
+        continue;
+      }
+
+      const totalToStore = lt.isCarryForward ? newAlloc + oldAlloc : newAlloc;
+      const exists = existingLeaves[empNum] !== undefined;
+
+      if (exists) {
+        await axios.put("http://localhost:5000/api/leaveAllocations", {
+          employeeNumber: empNum,
+          leaveTypeId,
+          startYear,
+          endYear,
+          leavePeriod: period,
+          allotedLeave: totalToStore,
+          previousBalance: oldAlloc,
+          updatedBy: userNumber,
+        });
+        Swal.fire({
+          icon: "success",
+          title: "Updated",
+          text: `Allocation updated for ${empNum}`,
+        });
+      } else {
+        await axios.post("http://localhost:5000/api/leaveAllocations", {
+          employeeNumber: empNum,
+          leaveTypeId,
+          startYear,
+          endYear,
+          leavePeriod: period,
+          allotedLeave: totalToStore,
+          previousBalance: oldAlloc,
+          createdBy: userNumber,
+        });
+        Swal.fire({
+          icon: "success",
+          title: "Added",
+          text: `Allocation created for ${empNum}`,
+        });
+      }
+    }
+
+    const res = await axios.get(`http://localhost:5000/api/leaveAllocations?leaveTypeId=${leaveTypeId}&leavePeriod=${period}`);
+    const mapping = {};
+    (res.data || []).forEach(r => {
+      const prev = lt.isCarryForward ? previousLeaves[r.employeeNumber] ?? 0 : 0;
+      mapping[r.employeeNumber] = (r.allotedLeave || 0) - prev;
+    });
+
+    setExistingLeaves(mapping);
+    setAllocatedLeaves({});
+    // setSelectAllChecked(false);
+  };
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
@@ -272,7 +376,7 @@ const LeaveAllocation = () => {
             <option value="">Select Leave Type</option>
             {leaveTypes.map(type => (
               <option key={type.leaveTypeId} value={type.leaveTypeId}>
-                {type.leaveTypeName} {type.maxAllocation ? (`max ${type.maxAllocation}`) : ""}
+                {type.leaveTypeName} {type.maxAllocationPertype ? (`max ${type.maxAllocationPertype}`) : ""}
               </option>
             ))}
           </select>
@@ -299,22 +403,27 @@ const LeaveAllocation = () => {
       <div className="flex gap-4 mb-4">
         <select value={filterDept} onChange={e => setFilterDept(e.target.value)} className="border rounded p-2">
           <option value="">All Departments</option>
-          {departments.map(d => <option key={d.departmentId} value={d.departmentId}>{d.departmentName}</option>)}
+          {filteredDepartments.map(d => <option key={d.departmentId} value={d.departmentId}>{d.departmentName}</option>)}
         </select>
 
         <select value={filterDesignation} onChange={e => setFilterDesignation(e.target.value)} className="border rounded p-2">
           <option value="">All Designations</option>
-          {designations.map(d => <option key={d.designationId} value={d.designationId}>{d.designationAckr}</option>)}
+          {filteredDesignations.map(d => <option key={d.designationId} value={d.designationId}>{d.designationAckr}</option>)}
         </select>
 
         <select value={filterGrade} onChange={e => setFilterGrade(e.target.value)} className="border rounded p-2">
           <option value="">All Grades</option>
-          {employeeGrades.map(g => <option key={g.employeeGradeId} value={g.employeeGradeId}>{g.employeeGradeAckr}</option>)}
+          {filteredEmployeeGrades.map(g => <option key={g.employeeGradeId} value={g.employeeGradeId}>{g.employeeGradeAckr}</option>)}
         </select>
 
         <select value={filterType} onChange={e => setFilterType(e.target.value)} className="border rounded p-2">
           <option value="">All Types</option>
-          {employeeTypes.map(t => <option key={t.employeeTypeId} value={t.employeeTypeId}>{t.employeeTypeAckr}</option>)}
+          {filteredEmployeeTypes.map(t => <option key={t.employeeTypeId} value={t.employeeTypeId}>{t.employeeTypeAckr}</option>)}
+        </select>
+
+        <select value={filterCompany} onChange={e => setFilterCompany(e.target.value)} className="border rounded p-2">
+          <option value="">All Companies</option>
+          {companies.filter(c => c.companyId !== 1).map(c => <option key={c.companyId} value={c.companyId}>{c.companyName}</option>)}
         </select>
       </div>
 
@@ -328,8 +437,21 @@ const LeaveAllocation = () => {
               Select All
             </label>
             <div className="flex items-center gap-2">
-              <input type="number" value={bulkLeaves} onChange={e => setBulkLeaves(e.target.value)} placeholder="Set leaves for selected" className="border rounded px-2 py-1 w-44"/>
-              <button onClick={applyBulkLeaves} className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded">Apply</button>
+              <input
+                type="number"
+                value={bulkLeaves}
+                onChange={e => {
+                  const val = e.target.value;
+                  setBulkLeaves(val);
+                  // applyBulkLeaves(val);
+                }}
+
+                placeholder="Set leaves for selected"
+                className="border rounded px-2 py-1 w-44"
+              />
+              <button onClick={applyBulkLeaves} className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded">
+                Apply
+              </button>
             </div>
           </div>
         </div>
@@ -349,55 +471,45 @@ const LeaveAllocation = () => {
               </tr>
             </thead>
             <tbody>
-  {filteredEmployees.length === 0 ? (
-    <tr>
-      <td colSpan="8" className="text-center py-4">No employees found</td>
-    </tr>
-  ) : (
-    filteredEmployees.map(emp => {
-      const empNum = emp.employeeNumber;
-      const currentAlloc = allocatedLeaves[empNum] ?? existingLeaves[empNum] ?? 0; 
-      const prevYear = previousLeaves[empNum] ?? 0;
+              {filteredEmployees.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="text-center py-4">No employees found</td>
+                </tr>
+              ) : (
+                filteredEmployees.map(emp => {
+                  const empNum = emp.employeeNumber;
+                  const currentAlloc = allocatedLeaves[empNum] ?? existingLeaves[empNum] ?? 0;
+                  const prevYear = previousLeaves[empNum] ?? 0;
 
-      return (
-        <tr key={empNum} className="border-t">
-          {/* Select */}
-          <td className="py-2 px-3">
-            <input
-              type="checkbox"
-              checked={selectedEmps.includes(empNum)}
-              onChange={() => toggleEmp(empNum)}
-            />
-          </td>
-
-          {/* Employee Info */}
-          <td className="py-2 px-3">{emp.employeeNumber}</td>
-          <td className="py-2 px-3">{emp.department?.departmentName || "-"}</td>
-          <td className="py-2 px-3">{emp.designation?.designationName || "-"}</td>
-          <td className="py-2 px-3">{emp.grade?.gradeName || "-"}</td>
-          <td className="py-2 px-3">{emp.type?.typeName || "-"}</td>
-
-          {/* Current Allocation (editable) */}
-          <td className="py-2 px-3">
-            <input
-              type="number"
-              className="border rounded px-2 py-1 w-24"
-              value={currentAlloc}
-              onChange={(e) => handleAllocatedChange(empNum, e.target.value)}
-              disabled={!selectedEmps.includes(empNum)}
-            />
-          </td>
-
-          {/* Previous Year Balance (read-only) */}
-          <td className="py-2 px-3 text-gray-600">
-            {prevYear}
-          </td>
-        </tr>
-      );
-    })
-  )}
-</tbody>
-
+                  return (
+                    <tr key={empNum} className="border-t">
+                      <td className="py-2 px-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedEmps.includes(empNum)}
+                          onChange={() => toggleEmp(empNum)}
+                        />
+                      </td>
+                      <td className="py-2 px-3">{emp.employeeNumber}</td>
+                      <td className="py-2 px-3">{emp.department?.departmentName || "-"}</td>
+                      <td className="py-2 px-3">{emp.designation?.designationName || "-"}</td>
+                      <td className="py-2 px-3">{emp.grade?.gradeName || "-"}</td>
+                      <td className="py-2 px-3">{emp.type?.typeName || "-"}</td>
+                      <td className="py-2 px-3">
+                        <input
+                          type="number"
+                          className="border rounded px-2 py-1 w-24"
+                          value={currentAlloc}
+                          onChange={(e) => handleAllocatedChange(empNum, e.target.value)}
+                          disabled={!selectedEmps.includes(empNum)}
+                        />
+                      </td>
+                      <td className="py-2 px-3 text-gray-600">{prevYear}</td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
           </table>
         </div>
 

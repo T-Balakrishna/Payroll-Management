@@ -22,7 +22,9 @@ export default function DashboardPage() {
   const [photoUrl, setPhotoUrl] = useState(null);
   const [punches, setPunches] = useState([]);
   const [biometricId, setBiometricId] = useState(null);
-  const [leaves, setLeaves] = useState([]); // <--- ADDED
+  const [leaves, setLeaves] = useState([]);
+  const [companyId, setCompanyId] = useState(null); // Added
+  const [departmentId, setDepartmentId] = useState(null); // Added
 
   const hasFetchedRef = useRef(false);
   const abortControllerRef = useRef(null);
@@ -37,6 +39,8 @@ export default function DashboardPage() {
       console.error("No userNumber found in sessionStorage");
       setUserName("Guest");
       setPhotoUrl(null);
+      setCompanyId(null); // Added
+      setDepartmentId(null); // Added
       return;
     }
 
@@ -50,16 +54,21 @@ export default function DashboardPage() {
           timeout: 10000,
         });
         const employee = res.data;
-
-        const fullName = `${employee.firstName || employee.employeeName || ''} ${employee.lastName || ''}`.trim() || 'New User';
-        setUserName(fullName);
+        if (employee.firstName && employee.lastName) {
+          const fullName = `${employee.firstName || employee.employeeName || ''} ${employee.lastName || ''}`.trim() || 'New User';
+          setUserName(fullName);
+        }
 
         if (employee.photo) {
-          const photoPath = employee.photo.startsWith("/uploads/") ? employee.photo : `/uploads/${employee.photo}`;
+          const photoPath = employee.photo.startsWith("/Uploads/") ? employee.photo : `/Uploads/${employee.photo}`;
           setPhotoUrl(photoPath);
         } else {
           setPhotoUrl(null);
         }
+
+        // Set companyId and departmentId
+        setCompanyId(employee.companyId || null);
+        setDepartmentId(employee.departmentId || null);
 
         hasFetchedRef.current = true;
       } catch (err) {
@@ -67,6 +76,8 @@ export default function DashboardPage() {
         console.error("Error fetching user data:", err.response?.data?.error || err.message);
         setUserName("New User");
         setPhotoUrl(null);
+        setCompanyId(null); // Added
+        setDepartmentId(null); // Added
         hasFetchedRef.current = true;
       }
     };
@@ -84,11 +95,10 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchBiometricId = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/biometrics");
-        const allBiometrics = res.data;
-        const bio = allBiometrics.find(b => b.employeeNumber === userNumber);
+        const res = await axios.get(`http://localhost:5000/api/users/getBiometricNumber/${userNumber}`);        
+        const bio = res.data.biometricNumber;
         if (bio) {
-          setBiometricId(bio.biometricNumber);
+          setBiometricId(bio);
         } else {
           console.warn("No biometric linked to employeeNumber:", userNumber);
         }
@@ -133,7 +143,7 @@ export default function DashboardPage() {
     fetchPunches();
   }, [biometricId]);
 
-  // Fetch leaves for this employee <--- ADDED
+  // Fetch leaves for this employee
   useEffect(() => {
     const fetchLeaves = async () => {
       if (!userNumber) return;
@@ -272,7 +282,6 @@ export default function DashboardPage() {
             <button
               onClick={() => {
                 sessionStorage.removeItem("token");
-                // sessionStorage.removeItem("userNumber");
                 window.location.href = "/";
               }}
               className="w-12 h-12 bg-red-100 hover:bg-red-200 rounded-xl flex items-center justify-center"
@@ -309,7 +318,13 @@ export default function DashboardPage() {
             <div className="h-full overflow-y-auto">
               {modalContent === "profile" && <EmployeeProfile />}
               {modalContent === "calendar" && <CalendarPage />}
-              {modalContent === "takeleave" && <TakeLeavePage empId={userNumber} />}
+              {modalContent === "takeleave" && (
+                <TakeLeavePage
+                  empId={userNumber}
+                  companyId={companyId}
+                  departmentId={departmentId}
+                />
+              )}
             </div>
           </div>
         </div>
