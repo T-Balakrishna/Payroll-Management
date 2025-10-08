@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 import Swal from 'sweetalert2';
-import {jwtDecode} from "jwt-decode";
+import { jwtDecode } from "jwt-decode";
 
 // Enhanced Toast implementation with stacking
 let toastCounter = 0;
@@ -103,13 +103,14 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
   const [yearFilter, setYearFilter] = useState(new Date().getFullYear().toString());
   const [departments, setDepartments] = useState([]);
   const [allEmployees, setAllEmployees] = useState([]);
-  const [employees, setEmployees] = useState([]);  // Filtered employees based on selected departments
+  const [employees, setEmployees] = useState([]);
   const [selectedDepartments, setSelectedDepartments] = useState([]);
   const [selectedEmployees, setSelectedEmployees] = useState([]);
   const [employeeSearch, setEmployeeSearch] = useState('');
   const [numberToName, setNumberToName] = useState({});
   const [nameToNumber, setNameToNumber] = useState({});
   const [numberToDepartment, setNumberToDepartment] = useState({});
+  const [biometricToEmployee, setBiometricToEmployee] = useState({});
   const [showDeptDropdown, setShowDeptDropdown] = useState(false);
   const [departmentsLoaded, setDepartmentsLoaded] = useState(false);
   const [employeesLoaded, setEmployeesLoaded] = useState(false);
@@ -117,9 +118,9 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
   const dropdownRef = useRef(null);
   const dropdownContentRef = useRef(null);
 
-  let token     = sessionStorage.getItem("token");
-  let decoded   = (token)?jwtDecode(token):"";
-  let userNumber= decoded.userNumber;
+  let token = sessionStorage.getItem("token");
+  let decoded = (token) ? jwtDecode(token) : "";
+  let userNumber = decoded.userNumber;
   const headers = { headers: { Authorization: `Bearer ${token}` } };
 
   // Define fields for each model with user-friendly labels
@@ -172,6 +173,7 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
     setNumberToName({});
     setNameToNumber({});
     setNumberToDepartment({});
+    setBiometricToEmployee({});
   }, [selectedCompanyId]);
 
   // Fetch data only when selectedCompanyId is present
@@ -186,7 +188,7 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
   useEffect(() => {
     let filtered = allEmployees;
     if (selectedDepartments.length > 0) {
-      filtered = allEmployees.filter(emp => 
+      filtered = allEmployees.filter(emp =>
         selectedDepartments.includes(Number(emp.departmentId))
       );
       showToast(`Filtered to ${filtered.length} employees from selected departments`, 'info');
@@ -202,11 +204,11 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
     }
   }, [allEmployees]);
 
-  // Close dropdown when clicking outside (improved with content ref)
+  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target) &&
-          dropdownContentRef.current && !dropdownContentRef.current.contains(event.target)) {
+        dropdownContentRef.current && !dropdownContentRef.current.contains(event.target)) {
         setShowDeptDropdown(false);
       }
     };
@@ -225,7 +227,6 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
       if (selectedCompanyId && Array.isArray(data)) {
         data = data.filter((d) => String(d.companyId) === String(selectedCompanyId));
       }
-      // Ensure departmentId is number
       data = data.map(dept => ({ ...dept, departmentId: Number(dept.departmentId) }));
       setDepartments(data);
       setDepartmentsLoaded(true);
@@ -254,22 +255,43 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
         employeeName: `${emp.firstName || ''} ${emp.lastName || ''}`.trim()
       }));
       setAllEmployees(processedEmployees);
+      
+      // Create mappings
       const numToName = {};
       const nameToNum = {};
       const numToDept = {};
+      const bioToEmp = {};
+      
       processedEmployees.forEach(emp => {
         if (emp.employeeNumber && emp.employeeName) {
           numToName[emp.employeeNumber] = emp.employeeName;
           nameToNum[emp.employeeName] = emp.employeeNumber;
-          // Ensure departmentId is number
           numToDept[emp.employeeNumber] = Number(emp.departmentId);
         }
+        // Create biometric to employee mapping for punches
+        if (emp.biometricNumber) {
+          bioToEmp[emp.biometricNumber] = {
+            employeeNumber: emp.employeeNumber,
+            employeeName: emp.employeeName,
+            departmentId: Number(emp.departmentId)
+          };
+        }
       });
+      
       setNumberToName(numToName);
       setNameToNumber(nameToNum);
       setNumberToDepartment(numToDept);
+      setBiometricToEmployee(bioToEmp);
       setRetryCount(0);
-      console.log('Employee Mappings:', { numToName, nameToNum, numToDept, employees: processedEmployees });
+      
+      console.log('Employee Mappings:', { 
+        numToName, 
+        nameToNum, 
+        numToDept, 
+        bioToEmp,
+        employees: processedEmployees 
+      });
+      
       showToast('Employees loaded successfully', 'success');
     } catch (error) {
       console.error('Error fetching employees:', error);
@@ -277,7 +299,7 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
       setError(errorMessage);
       showToast(errorMessage, 'error');
       setEmployeesLoaded(false);
-      // Auto-retry up to 3 times on 500
+      
       if (error.response?.status === 500 && retryCount < 3) {
         setTimeout(() => {
           setRetryCount(prev => prev + 1);
@@ -301,7 +323,7 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
     setSelectedDepartments([]);
     setSelectedEmployees([]);
     setEmployeeSearch('');
-    const initialReportType = model === 'punches' ? 'monthly' : (model === 'leaves' ? 'monthly' : 'all');  // Force monthly for punches
+    const initialReportType = model === 'punches' ? 'monthly' : (model === 'leaves' ? 'monthly' : 'all');
     setReportType(initialReportType);
     setDateFilter(new Date().toISOString().split('T')[0]);
     setMonthFilter('1');
@@ -310,7 +332,7 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
   };
 
   const handleFieldToggle = (fieldName) => {
-    if (fieldName === 'employeeName' || fieldName === 'employeeNumber') return; // Prevent deselection of defaults
+    if (fieldName === 'employeeName' || fieldName === 'employeeNumber') return;
     setSelectedFields((prev) =>
       prev.includes(fieldName)
         ? prev.filter((f) => f !== fieldName)
@@ -335,25 +357,23 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
       setSelectedDepartments([]);
       showToast('All departments deselected', 'info');
     } else {
-      const deptIds = departments.map(dept => Number(dept.departmentId));  // Ensure numbers
+      const deptIds = departments.map(dept => Number(dept.departmentId));
       setSelectedDepartments(deptIds);
       showToast('All departments selected', 'success');
     }
-    setShowDeptDropdown(false);  // Close dropdown after action
+    setShowDeptDropdown(false);
   };
 
   const handleToggleDepartment = (id) => {
-    const numId = Number(id);  // Ensure number
+    const numId = Number(id);
     setSelectedDepartments(prev => {
-      const newSelected = prev.includes(numId) 
-        ? prev.filter(d => d !== numId) 
+      const newSelected = prev.includes(numId)
+        ? prev.filter(d => d !== numId)
         : [...prev, numId];
       const deptName = departments.find(d => Number(d.departmentId) === numId)?.departmentName || 'Unknown';
       showToast(`${deptName} ${newSelected.includes(numId) ? 'selected' : 'deselected'}`, 'info');
       return newSelected;
     });
-    // Optional: close dropdown after toggle for better UX
-    // setShowDeptDropdown(false);
   };
 
   const handleSelectAllEmployees = () => {
@@ -381,7 +401,7 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
     setEmployeeSearch(e.target.value);
   };
 
-  const filteredEmployees = employees.filter(emp => 
+  const filteredEmployees = employees.filter(emp =>
     emp.employeeName.toLowerCase().includes(employeeSearch.toLowerCase()) ||
     emp.employeeNumber.toLowerCase().includes(employeeSearch.toLowerCase())
   );
@@ -419,7 +439,7 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
     setError(null);
     setData([]);
     showToast('Loading preview...', 'info');
-    
+
     try {
       const endpoint = `http://localhost:5000/api/${selectedModel}`;
       let params = { companyId: selectedCompanyId };
@@ -434,13 +454,9 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
           .map(emp => emp.employeeNumber);
       }
 
-      // For punches, do not send employeeNumber to avoid backend error; filter in frontend
+      // For punches, we'll filter frontend based on biometric mapping
       if (selectedModel !== 'punches' && targetEmpNums.length > 0) {
         params.employeeNumber = targetEmpNums;
-      }
-      // Add department filter if selected (as array for backend)
-      if (selectedDepartments.length > 0 && targetEmpNums.length === 0) {
-        params.departmentId = selectedDepartments;  // Backend can handle array
       }
 
       // Model-specific time filters
@@ -466,7 +482,7 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
         }
       }
 
-      // Validation for punches: Ensure date range is provided
+      // Validation for punches
       if (selectedModel === 'punches' && !params.date && !params.startDate && !params.endDate) {
         const errorMessage = 'Please select a date range (daily/monthly/yearly) for punches - "All Time" fetches too much data.';
         setError(errorMessage);
@@ -484,32 +500,31 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
 
       console.log('Fetching data with params:', params);
 
-      // Add timeout and retry logic
       let retryAttempts = 0;
       const maxRetries = 2;
       let response;
+      
       while (retryAttempts <= maxRetries) {
         try {
-          response = await axios.get(endpoint, { 
-            params, 
-            headers,
-              // 30s timeout
+          response = await axios.get(endpoint, {
+            params,
+            ...headers,
+            timeout: 30000
           });
-          break;  // Success, exit loop
+          break;
         } catch (fetchError) {
           if (fetchError.code === 'ECONNABORTED' || (fetchError.response?.status === 500 && retryAttempts < maxRetries)) {
             retryAttempts++;
             showToast(`Retry ${retryAttempts}/${maxRetries + 1} for slow query...`, 'warning');
-            await new Promise(resolve => setTimeout(resolve, 2000 * retryAttempts));  // Exponential backoff
+            await new Promise(resolve => setTimeout(resolve, 2000 * retryAttempts));
           } else {
-            throw fetchError;  // Re-throw non-retryable errors
+            throw fetchError;
           }
         }
       }
 
       let fetchedData = response.data;
 
-      // Handle cases where data might be wrapped inside an object
       if (!Array.isArray(fetchedData)) {
         if (Array.isArray(fetchedData.data)) {
           fetchedData = fetchedData.data;
@@ -523,9 +538,8 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
         }
       }
 
-      // Cap data for punches to prevent overload
       if (selectedModel === 'punches' && fetchedData.length > 10000) {
-        fetchedData = fetchedData.slice(0, 10000);  // Take first 10k
+        fetchedData = fetchedData.slice(0, 10000);
         showToast('Capped at 10k records for preview - use filters for more.', 'warning');
       }
 
@@ -547,29 +561,41 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
 
       // Frontend filtering and enriching
       let filteredData = fetchedData;
+      
       if (selectedModel === 'punches') {
-        // For punches, match biometricNumber with employees
-        filteredData = fetchedData.filter(item => {
-          const matchingEmp = allEmployees.find(emp => emp.biometricNumber === item.biometricNumber);
-          if (!matchingEmp) return false; // Skip if no matching employee
-          const empNum = matchingEmp.employeeNumber;
-          const empDept = Number(matchingEmp.departmentId);
-          const inDepts = selectedDepartments.length === 0 || selectedDepartments.includes(empDept);
-          const inEmps = selectedEmployees.length === 0 || selectedEmployees.includes(empNum);
-          return inDepts && inEmps;
-        }).map(record => {
-          const matchingEmp = allEmployees.find(emp => emp.biometricNumber === record.biometricNumber);
-          return {
-            ...record,
-            employeeName: matchingEmp ? matchingEmp.employeeName : '',
-            employeeNumber: matchingEmp ? matchingEmp.employeeNumber : '',
-          };
-        });
+        // Match punches with employees using biometricNumber
+        filteredData = fetchedData
+          .map(punch => {
+            const empData = biometricToEmployee[punch.biometricNumber];
+            if (!empData) {
+              console.warn(`No employee found for biometric number: ${punch.biometricNumber}`);
+              return null;
+            }
+            return {
+              ...punch,
+              employeeName: empData.employeeName,
+              employeeNumber: empData.employeeNumber,
+              departmentId: empData.departmentId
+            };
+          })
+          .filter(punch => {
+            if (!punch) return false;
+            
+            const empDept = punch.departmentId;
+            const empNum = punch.employeeNumber;
+            
+            // Filter by selected departments
+            const inDepts = selectedDepartments.length === 0 || selectedDepartments.includes(empDept);
+            // Filter by selected employees
+            const inEmps = selectedEmployees.length === 0 || selectedEmployees.includes(empNum);
+            
+            return inDepts && inEmps;
+          });
       } else {
-        // For other models
+        // For other models (attendance, leaves)
         filteredData = fetchedData.filter(item => {
           const empNum = item.employeeNumber;
-          const empDept = Number(numberToDepartment[empNum]);  // Ensure number
+          const empDept = Number(numberToDepartment[empNum]);
           const inDepts = selectedDepartments.length === 0 || selectedDepartments.includes(empDept);
           const inEmps = selectedEmployees.length === 0 || selectedEmployees.includes(empNum);
           return inDepts && inEmps;
@@ -584,7 +610,7 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
     } catch (error) {
       console.error(`Error fetching ${selectedModel} data:`, error);
       let errorMessage = '';
-      
+
       if (error.response) {
         if (error.response.status === 404) {
           errorMessage = `${selectedModel} endpoint not found. Please check backend configuration.`;
@@ -596,7 +622,7 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
       } else {
         errorMessage = `Error: ${error.message}`;
       }
-      
+
       setError(errorMessage);
       showToast(errorMessage, 'error');
       Swal.fire({
@@ -641,13 +667,11 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
     }
 
     try {
-      // Prepare headers
       const headers = selectedFields.map(fieldName => {
         const field = modelFields[selectedModel].find(f => f.name === fieldName);
         return field ? field.label : fieldName;
       });
 
-      // Prepare data rows
       const rows = data.map(record => {
         const row = {};
         selectedFields.forEach(fieldName => {
@@ -657,18 +681,13 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
         return row;
       });
 
-      // Create worksheet
       const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
-
-      // Auto-fit columns (optional)
       const colWidths = headers.map(h => ({ wch: Math.max(10, h.length + 2) }));
       ws['!cols'] = colWidths;
 
-      // Create workbook
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Report');
 
-      // Generate filename with filters
       const now = new Date().toISOString().split('T')[0];
       let filename = `${selectedModel}_report_${now}`;
       if (reportType !== 'all') {
@@ -681,7 +700,6 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
       if (selectedEmployees.length > 0) filename += '_emps';
       filename += '.xlsx';
 
-      // Download
       XLSX.writeFile(wb, filename);
       showToast(`Excel report "${filename}" generated successfully!`, 'success');
       Swal.fire({
@@ -706,67 +724,52 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
     }
   };
 
-  // Handle report type change
   const handleReportTypeChange = (type) => {
     setReportType(type);
     showToast(`Report type changed to ${type}`, 'info');
   };
 
-  // Handle date change
   const handleDateChange = (e) => {
     setDateFilter(e.target.value);
   };
 
-  // Handle month change
   const handleMonthChange = (e) => {
     setMonthFilter(e.target.value);
   };
 
-  // Handle year change
   const handleYearChange = (e) => {
     setYearFilter(e.target.value);
   };
 
-  if (!selectedCompanyId) {
-    return (
-      <div className="p-6 bg-gray-50 min-h-screen">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Report Generator</h1>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <p className="text-gray-600">Please select a company first.</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">Report Generator - {selectedCompanyName}</h1>
-        
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
-            <button onClick={() => setError(null)} className="float-right text-red-700 hover:text-red-900">×</button>
-          </div>
-        )}
-
         {/* Model Selection */}
-        <div className="bg-white p-6 rounded-lg shadow mb-6">
-          <h2 className="text-xl font-semibold mb-4">Select Model</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {['attendance', 'punches', 'leaves'].map(model => (
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
+            <svg className="w-6 h-6 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+            </svg>
+            Select Report Type
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {Object.keys(modelFields).map(model => (
               <button
                 key={model}
                 onClick={() => handleModelSelect(model)}
-                className={`p-4 rounded-lg border-2 transition-colors ${
+                className={`p-6 rounded-lg border-2 transition-all transform hover:scale-105 ${
                   selectedModel === model
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-300 hover:border-gray-400'
+                    ? 'border-indigo-500 bg-indigo-50 shadow-lg'
+                    : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'
                 }`}
               >
-                {model.charAt(0).toUpperCase() + model.slice(1)}
+                <div className="text-4xl mb-3">
+                  {model === 'attendance' && '📋'}
+                  {model === 'punches' && '👆'}
+                  {model === 'leaves' && '🍃'}
+                </div>
+                <h3 className="font-bold text-lg text-gray-900 mb-2 capitalize">{model}</h3>
+                <p className="text-gray-600 text-sm">{modelFields[model].length} fields available</p>
               </button>
             ))}
           </div>
@@ -775,78 +778,118 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
         {selectedModel && (
           <>
             {/* Fields Selection */}
-            <div className="bg-white p-6 rounded-lg shadow mb-6">
-              <h2 className="text-xl font-semibold mb-4">Select Fields</h2>
+            <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
+                <svg className="w-6 h-6 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+                Select Fields to Include
+              </h2>
               <button
                 onClick={handleSelectAllFields}
-                className="mb-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                className="mb-4 px-6 py-2 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 rounded-lg hover:from-gray-200 hover:to-gray-300 font-medium transition-all shadow-sm"
               >
-                {selectedFields.length > 2 ? 'Deselect Non-Defaults' : 'Select All'}
+                {selectedFields.length > 2 ? '✓ Deselect Non-Defaults' : '☐ Select All Fields'}
               </button>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-48 overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {modelFields[selectedModel].map(field => (
-                  <label key={field.name} className="flex items-center">
+                  <label 
+                    key={field.name} 
+                    className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                      selectedFields.includes(field.name)
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    } ${(field.name === 'employeeName' || field.name === 'employeeNumber') ? 'opacity-100' : ''}`}
+                  >
                     <input
                       type="checkbox"
                       checked={selectedFields.includes(field.name)}
                       onChange={() => handleFieldToggle(field.name)}
                       disabled={field.name === 'employeeName' || field.name === 'employeeNumber'}
-                      className="mr-2"
+                      className="mr-3 w-4 h-4 text-green-600"
                     />
-                    {field.label}
+                    <span className="font-medium text-gray-700">{field.label}</span>
+                    {(field.name === 'employeeName' || field.name === 'employeeNumber') && (
+                      <span className="ml-auto text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Required</span>
+                    )}
                   </label>
                 ))}
               </div>
             </div>
 
-            {/* Report Type and Date Filters */}
-            <div className="bg-white p-6 rounded-lg shadow mb-6">
-              <h2 className="text-xl font-semibold mb-4">Filters</h2>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Report Type</label>
-                  <select
-                    value={reportType}
-                    onChange={(e) => handleReportTypeChange(e.target.value)}
-                    className="w-full p-2 border rounded"
-                  >
-                    {selectedModel !== 'punches' && <option value="all">All Time</option>}
-                    <option value="daily">Daily</option>
-                    <option value="monthly">Monthly</option>
-                    <option value="yearly">Yearly</option>
-                  </select>
-                </div>
-                {reportType === 'daily' && (
+            {/* Filters Section */}
+            <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                <svg className="w-6 h-6 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+                Filters
+              </h2>
+              
+              {/* Date Filters */}
+              <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg">
+                <h3 className="font-semibold text-gray-800 mb-3">Time Period</h3>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-1">Date</label>
-                    <input
-                      type="date"
-                      value={dateFilter}
-                      onChange={handleDateChange}
-                      className="w-full p-2 border rounded"
-                    />
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Report Type</label>
+                    <select
+                      value={reportType}
+                      onChange={(e) => handleReportTypeChange(e.target.value)}
+                      className="w-full p-2.5 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all"
+                    >
+                      {selectedModel !== 'punches' && <option value="all">All Time</option>}
+                      <option value="daily">📅 Daily</option>
+                      <option value="monthly">📊 Monthly</option>
+                      <option value="yearly">📈 Yearly</option>
+                    </select>
                   </div>
-                )}
-                {reportType === 'monthly' && (
-                  <>
+                  {reportType === 'daily' && (
                     <div>
-                      <label className="block text-sm font-medium mb-1">Month</label>
-                      <select
-                        value={monthFilter}
-                        onChange={handleMonthChange}
-                        className="w-full p-2 border rounded"
-                      >
-                        {Array.from({ length: 12 }, (_, i) => (
-                          <option key={i + 1} value={(i + 1).toString()}>{i + 1}</option>
-                        ))}
-                      </select>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
+                      <input
+                        type="date"
+                        value={dateFilter}
+                        onChange={handleDateChange}
+                        className="w-full p-2.5 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all"
+                      />
                     </div>
+                  )}
+                  {reportType === 'monthly' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Month</label>
+                        <select
+                          value={monthFilter}
+                          onChange={handleMonthChange}
+                          className="w-full p-2.5 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all"
+                        >
+                          {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((month, i) => (
+                            <option key={i + 1} value={(i + 1).toString()}>{month}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
+                        <select
+                          value={yearFilter}
+                          onChange={handleYearChange}
+                          className="w-full p-2.5 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all"
+                        >
+                          {Array.from({ length: 10 }, (_, i) => {
+                            const year = new Date().getFullYear() - i;
+                            return <option key={year} value={year.toString()}>{year}</option>;
+                          })}
+                        </select>
+                      </div>
+                    </>
+                  )}
+                  {reportType === 'yearly' && (
                     <div>
-                      <label className="block text-sm font-medium mb-1">Year</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
                       <select
                         value={yearFilter}
                         onChange={handleYearChange}
-                        className="w-full p-2 border rounded"
+                        className="w-full p-2.5 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all"
                       >
                         {Array.from({ length: 10 }, (_, i) => {
                           const year = new Date().getFullYear() - i;
@@ -854,59 +897,55 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
                         })}
                       </select>
                     </div>
-                  </>
-                )}
-                {reportType === 'yearly' && (
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Year</label>
-                    <select
-                      value={yearFilter}
-                      onChange={handleYearChange}
-                      className="w-full p-2 border rounded"
-                    >
-                      {Array.from({ length: 10 }, (_, i) => {
-                        const year = new Date().getFullYear() - i;
-                        return <option key={year} value={year.toString()}>{year}</option>;
-                      })}
-                    </select>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
               {/* Departments Filter */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-2">Departments</label>
+              <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg">
+                <h3 className="font-semibold text-gray-800 mb-3">Departments</h3>
                 <div ref={dropdownRef} className="relative">
                   <button
                     onClick={() => setShowDeptDropdown(!showDeptDropdown)}
-                    className="w-full p-2 border rounded flex justify-between items-center"
+                    className="w-full p-3 border-2 border-gray-300 rounded-lg flex justify-between items-center hover:border-blue-500 transition-all bg-white"
                   >
-                    {selectedDepartments.length > 0
-                      ? `${selectedDepartments.length} selected`
-                      : 'Select Departments'}
+                    <span className="font-medium text-gray-700">
+                      {selectedDepartments.length > 0
+                        ? `${selectedDepartments.length} department${selectedDepartments.length > 1 ? 's' : ''} selected`
+                        : 'Select Departments (Optional)'}
+                    </span>
+                    <svg className={`w-5 h-5 transition-transform ${showDeptDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
                   </button>
                   {showDeptDropdown && (
-                    <div ref={dropdownContentRef} className="absolute z-10 w-full bg-white border rounded shadow-lg max-h-60 overflow-y-auto mt-1">
+                    <div ref={dropdownContentRef} className="absolute z-20 w-full bg-white border-2 border-blue-500 rounded-lg shadow-xl max-h-60 overflow-y-auto mt-2">
                       <button
                         onClick={handleSelectAllDepartments}
-                        className="w-full p-2 bg-gray-100 hover:bg-gray-200 text-left"
+                        className="w-full p-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold text-left transition-all"
                       >
-                        {selectedDepartments.length === departments.length ? 'Deselect All' : 'Select All'}
+                        {selectedDepartments.length === departments.length ? '✓ Deselect All' : '☐ Select All Departments'}
                       </button>
                       {departmentsLoaded ? (
                         departments.map(dept => (
-                          <label key={dept.departmentId} className="flex items-center p-2 hover:bg-gray-50">
+                          <label 
+                            key={dept.departmentId} 
+                            className="flex items-center p-3 hover:bg-blue-50 cursor-pointer transition-colors border-b border-gray-100"
+                          >
                             <input
                               type="checkbox"
                               checked={selectedDepartments.includes(Number(dept.departmentId))}
                               onChange={() => handleToggleDepartment(dept.departmentId)}
-                              className="mr-2"
+                              className="mr-3 w-4 h-4 text-blue-600"
                             />
-                            {dept.departmentName}
+                            <span className="font-medium text-gray-700">{dept.departmentName}</span>
                           </label>
                         ))
                       ) : (
-                        <p className="p-2 text-gray-500">Loading departments...</p>
+                        <div className="p-4 text-center text-gray-500">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                          Loading departments...
+                        </div>
                       )}
                     </div>
                   )}
@@ -914,108 +953,157 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
               </div>
 
               {/* Employees Filter */}
-              <div>
-                <label className="block text-sm font-medium mb-2">Employees</label>
+              <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg">
+                <h3 className="font-semibold text-gray-800 mb-3">Employees</h3>
                 <input
                   type="text"
-                  placeholder="Search employees..."
+                  placeholder="🔍 Search employees by name or number..."
                   value={employeeSearch}
                   onChange={handleEmployeeSearchChange}
-                  className="w-full p-2 border rounded mb-2"
+                  className="w-full p-3 border-2 border-gray-300 rounded-lg mb-3 focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all"
                 />
-                <div className="max-h-40 overflow-y-auto border rounded">
+                <div className="max-h-60 overflow-y-auto border-2 border-gray-200 rounded-lg bg-white">
                   {employeesLoaded ? (
-                    filteredEmployees.map(emp => (
-                      <label key={emp.employeeNumber} className="flex items-center p-2 hover:bg-gray-50">
-                        <input
-                          type="checkbox"
-                          checked={selectedEmployees.includes(emp.employeeNumber)}
-                          onChange={() => handleToggleEmployee(emp.employeeNumber)}
-                          className="mr-2"
-                        />
-                        {emp.employeeName} ({emp.employeeNumber})
-                      </label>
-                    ))
+                    filteredEmployees.length > 0 ? (
+                      filteredEmployees.map(emp => (
+                        <label 
+                          key={emp.employeeNumber} 
+                          className="flex items-center p-3 hover:bg-green-50 cursor-pointer transition-colors border-b border-gray-100 last:border-b-0"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedEmployees.includes(emp.employeeNumber)}
+                            onChange={() => handleToggleEmployee(emp.employeeNumber)}
+                            className="mr-3 w-4 h-4 text-green-600"
+                          />
+                          <div className="flex-1">
+                            <div className="font-medium text-gray-800">{emp.employeeName}</div>
+                            <div className="text-xs text-gray-500">ID: {emp.employeeNumber}</div>
+                          </div>
+                        </label>
+                      ))
+                    ) : (
+                      <p className="p-4 text-center text-gray-500">No employees found matching your search.</p>
+                    )
                   ) : (
-                    <p className="p-2 text-gray-500">Loading employees...</p>
+                    <div className="p-4 text-center text-gray-500">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600 mx-auto mb-2"></div>
+                      Loading employees...
+                    </div>
                   )}
                 </div>
-                {employeesLoaded && filteredEmployees.length === 0 && (
-                  <p className="p-2 text-gray-500 text-sm">No employees found.</p>
-                )}
                 <button
                   onClick={handleSelectAllEmployees}
-                  className="mt-2 w-full p-2 bg-gray-200 rounded hover:bg-gray-300"
+                  className="mt-3 w-full p-3 bg-gradient-to-r from-green-100 to-emerald-100 text-gray-800 rounded-lg hover:from-green-200 hover:to-emerald-200 font-medium transition-all shadow-sm"
                   disabled={!employeesLoaded || filteredEmployees.length === 0}
                 >
-                  {selectedEmployees.length >= filteredEmployees.length ? 'Deselect All Visible' : 'Select All Visible'}
+                  {selectedEmployees.length >= filteredEmployees.length && filteredEmployees.length > 0 ? '✓ Deselect All Visible' : '☐ Select All Visible'}
                 </button>
               </div>
             </div>
 
             {/* Actions */}
-            <div className="bg-white p-6 rounded-lg shadow mb-6 flex gap-4">
-              {!employeesLoaded && (
-                <div className="text-red-500 mb-2">
-                  Employees data is loading or failed. Please wait or retry.
-                </div>
-              )}
-              <button
-                onClick={loadPreview}
-                disabled={loading || !employeesLoaded}
-                className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Loading...' : (!employeesLoaded ? 'Employees Loading...' : 'Load Preview')}
-              </button>
-              <button
-                onClick={generateExcelReport}
-                disabled={loading || data.length === 0}
-                className="px-6 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
-              >
-                Generate Excel Report
-              </button>
-              {!employeesLoaded && (
+            <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+              <div className="flex flex-wrap gap-4">
                 <button
-                  onClick={handleRetryEmployees}
-                  className="px-6 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+                  onClick={loadPreview}
+                  disabled={loading || !employeesLoaded}
+                  className="flex-1 min-w-[200px] px-8 py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed font-semibold text-lg shadow-lg transform hover:scale-105 transition-all flex items-center justify-center"
                 >
-                  Retry Load Employees
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Loading...
+                    </>
+                  ) : !employeesLoaded ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Employees Loading...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                      Load Preview
+                    </>
+                  )}
                 </button>
-              )}
+                <button
+                  onClick={generateExcelReport}
+                  disabled={loading || data.length === 0}
+                  className="flex-1 min-w-[200px] px-8 py-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed font-semibold text-lg shadow-lg transform hover:scale-105 transition-all flex items-center justify-center"
+                >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Generate Excel Report
+                </button>
+                {!employeesLoaded && (
+                  <button
+                    onClick={handleRetryEmployees}
+                    className="px-6 py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white rounded-lg hover:from-yellow-600 hover:to-yellow-700 font-semibold shadow-lg transform hover:scale-105 transition-all flex items-center"
+                  >
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Retry Load Employees
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Preview Table */}
             {data.length > 0 && (
-              <div className="bg-white p-6 rounded-lg shadow">
-                <h2 className="text-xl font-semibold mb-4">Data Preview ({data.length} records)</h2>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full bg-white border border-gray-300">
-                    <thead>
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+                    <svg className="w-6 h-6 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Data Preview
+                  </h2>
+                  <span className="px-4 py-2 bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-800 rounded-lg font-semibold">
+                    {data.length} records
+                  </span>
+                </div>
+                <div className="overflow-x-auto rounded-lg border-2 border-gray-200">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                       <tr>
                         {selectedFields.map(fieldName => {
                           const field = modelFields[selectedModel].find(f => f.name === fieldName);
-                          return <th key={fieldName} className="px-4 py-2 border-b bg-gray-100 font-semibold">{field ? field.label : fieldName}</th>;
+                          return (
+                            <th key={fieldName} className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b-2 border-gray-300">
+                              {field ? field.label : fieldName}
+                            </th>
+                          );
                         })}
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="bg-white divide-y divide-gray-200">
                       {data.slice(0, 50).map((record, index) => (
-                        <tr key={index}>
+                        <tr key={index} className="hover:bg-gray-50 transition-colors">
                           {selectedFields.map(fieldName => {
                             let value = record[fieldName];
-                            return <td key={fieldName} className="px-4 py-2 border-b">{value || ''}</td>;
+                            return (
+                              <td key={fieldName} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {value || <span className="text-gray-400">—</span>}
+                              </td>
+                            );
                           })}
                         </tr>
                       ))}
-                      {data.length > 50 && (
-                        <tr>
-                          <td colSpan={selectedFields.length} className="px-4 py-2 text-center text-gray-500">
-                            Showing first 50 of {data.length} records...
-                          </td>
-                        </tr>
-                      )}
                     </tbody>
                   </table>
+                  {data.length > 50 && (
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 text-center border-t-2 border-gray-200">
+                      <p className="text-gray-700 font-medium">
+                        Showing first 50 of {data.length} records. Generate Excel to view all data.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -1024,6 +1112,24 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
       </div>
     </div>
   );
+
+  if (!selectedCompanyId) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Report Generator</h1>
+            <p className="text-gray-600">Please select a company first to generate reports.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 };
 
 export default ReportGenerator;
