@@ -103,18 +103,22 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
   const [yearFilter, setYearFilter] = useState(new Date().getFullYear().toString());
   const [departments, setDepartments] = useState([]);
   const [allEmployees, setAllEmployees] = useState([]);
-  const [employees, setEmployees] = useState([]);
+  const [employees, setEmployees] = useState([]);  // Filtered employees based on selected departments
   const [selectedDepartments, setSelectedDepartments] = useState([]);
   const [selectedEmployees, setSelectedEmployees] = useState([]);
   const [employeeSearch, setEmployeeSearch] = useState('');
   const [numberToName, setNumberToName] = useState({});
   const [nameToNumber, setNameToNumber] = useState({});
   const [numberToDepartment, setNumberToDepartment] = useState({});
+  const [biometricToName, setBiometricToName] = useState({});
+  const [biometricToEmpNum, setBiometricToEmpNum] = useState({});
+  const [empNumToBiometric, setEmpNumToBiometric] = useState({});
   const [showDeptDropdown, setShowDeptDropdown] = useState(false);
   const [departmentsLoaded, setDepartmentsLoaded] = useState(false);
   const [employeesLoaded, setEmployeesLoaded] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const dropdownRef = useRef(null);
+  const dropdownContentRef = useRef(null);
 
   let token     = sessionStorage.getItem("token");
   let decoded   = (token)?jwtDecode(token):"";
@@ -129,9 +133,11 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
       { name: 'attendanceDate', label: 'Date' },
       { name: 'attendanceStatus', label: 'Status' },
     ],
-    biometrics: [
-      { name: 'biometricId', label: 'Biometric ID' },
-      { name: 'biometricNumber', label: 'Biometric Number' },
+    punches: [
+      { name: 'punchId', label: 'Punch ID' },
+      { name: 'biometricNumber', label: 'Biometric Number (Employee Name)' },
+      { name: 'deviceIp', label: 'Device IP' },
+      { name: 'punchTimestamp', label: 'Punch Timestamp' },
       { name: 'employeeNumber', label: 'Employee Number' },
     ],
     leaves: [
@@ -163,6 +169,9 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
     setDepartmentsLoaded(false);
     setEmployeesLoaded(false);
     setRetryCount(0);
+    setBiometricToName({});
+    setBiometricToEmpNum({});
+    setEmpNumToBiometric({});
   }, [selectedCompanyId]);
 
   // Fetch data only when selectedCompanyId is present
@@ -173,17 +182,31 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
     }
   }, [selectedCompanyId]);
 
+  // Filter employees based on selected departments
+  useEffect(() => {
+    let filtered = allEmployees;
+    if (selectedDepartments.length > 0) {
+      filtered = allEmployees.filter(emp => 
+        selectedDepartments.includes(Number(emp.departmentId))
+      );
+      showToast(`Filtered to ${filtered.length} employees from selected departments`, 'info');
+    } else if (allEmployees.length > 0) {
+      showToast(`Showing all ${allEmployees.length} employees`, 'info');
+    }
+    setEmployees(filtered);
+  }, [allEmployees, selectedDepartments]);
+
   useEffect(() => {
     if (allEmployees.length > 0) {
-      setEmployees(allEmployees);
       setEmployeesLoaded(true);
     }
   }, [allEmployees]);
 
-  // Close dropdown when clicking outside
+  // Close dropdown when clicking outside (improved with content ref)
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target) &&
+          dropdownContentRef.current && !dropdownContentRef.current.contains(event.target)) {
         setShowDeptDropdown(false);
       }
     };
@@ -202,6 +225,8 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
       if (selectedCompanyId && Array.isArray(data)) {
         data = data.filter((d) => String(d.companyId) === String(selectedCompanyId));
       }
+      // Ensure departmentId is number
+      data = data.map(dept => ({ ...dept, departmentId: Number(dept.departmentId) }));
       setDepartments(data);
       setDepartmentsLoaded(true);
       showToast('Departments loaded successfully', 'success');
@@ -232,19 +257,30 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
       const numToName = {};
       const nameToNum = {};
       const numToDept = {};
+      const biometricToName = {};
+      const biometricToEmpNum = {};
+      const empNumToBiometric = {};
       processedEmployees.forEach(emp => {
         if (emp.employeeNumber && emp.employeeName) {
           numToName[emp.employeeNumber] = emp.employeeName;
           nameToNum[emp.employeeName] = emp.employeeNumber;
-          numToDept[emp.employeeNumber] = emp.departmentId;
+          // Ensure departmentId is number
+          numToDept[emp.employeeNumber] = Number(emp.departmentId);
+        }
+        if (emp.biometricNumber && emp.employeeNumber && emp.employeeName) {
+          biometricToName[emp.biometricNumber] = emp.employeeName;
+          biometricToEmpNum[emp.biometricNumber] = emp.employeeNumber;
+          empNumToBiometric[emp.employeeNumber] = emp.biometricNumber;
         }
       });
       setNumberToName(numToName);
       setNameToNumber(nameToNum);
       setNumberToDepartment(numToDept);
-      setEmployees(processedEmployees);
+      setBiometricToName(biometricToName);
+      setBiometricToEmpNum(biometricToEmpNum);
+      setEmpNumToBiometric(empNumToBiometric);
       setRetryCount(0);
-      console.log('Employee Mappings:', { numToName, nameToNum, numToDept, employees: processedEmployees });
+      console.log('Employee Mappings:', { numToName, nameToNum, numToDept, biometricToName, biometricToEmpNum, empNumToBiometric, employees: processedEmployees });
       showToast('Employees loaded successfully', 'success');
     } catch (error) {
       console.error('Error fetching employees:', error);
@@ -259,24 +295,6 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
           fetchAllEmployees(true);
           showToast(`Retrying employees fetch (${retryCount + 1}/3)...`, 'warning');
         }, 2000);
-      }
-      // Fallback mock data if max retries exceeded
-      else if (retryCount >= 3) {
-        const mockEmployees = [
-          { employeeNumber: 'EMP001', firstName: 'John', lastName: 'Doe', departmentId: 1, companyId: selectedCompanyId, employeeName: 'John Doe' },
-          { employeeNumber: 'EMP002', firstName: 'Jane', lastName: 'Smith', departmentId: 1, companyId: selectedCompanyId, employeeName: 'Jane Smith' },
-          { employeeNumber: 'EMP003', firstName: 'Bob', lastName: 'Johnson', departmentId: 2, companyId: selectedCompanyId, employeeName: 'Bob Johnson' },
-        ];
-        setAllEmployees(mockEmployees);
-        setEmployees(mockEmployees);
-        setEmployeesLoaded(true);
-        const numToName = { 'EMP001': 'John Doe', 'EMP002': 'Jane Smith', 'EMP003': 'Bob Johnson' };
-        const nameToNum = { 'John Doe': 'EMP001', 'Jane Smith': 'EMP002', 'Bob Johnson': 'EMP003' };
-        const numToDept = { 'EMP001': 1, 'EMP002': 1, 'EMP003': 2 };
-        setNumberToName(numToName);
-        setNameToNumber(nameToNum);
-        setNumberToDepartment(numToDept);
-        showToast('Using mock employee data (backend failed after retries)', 'warning');
       }
     }
   };
@@ -294,7 +312,8 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
     setSelectedDepartments([]);
     setSelectedEmployees([]);
     setEmployeeSearch('');
-    setReportType('all');
+    const initialReportType = model === 'leaves' ? 'monthly' : 'all';
+    setReportType(initialReportType);
     setDateFilter(new Date().toISOString().split('T')[0]);
     setMonthFilter('1');
     setYearFilter(new Date().getFullYear().toString());
@@ -324,17 +343,25 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
       setSelectedDepartments([]);
       showToast('All departments deselected', 'info');
     } else {
-      setSelectedDepartments(departments.map(dept => dept.departmentId));
+      const deptIds = departments.map(dept => Number(dept.departmentId));  // Ensure numbers
+      setSelectedDepartments(deptIds);
       showToast('All departments selected', 'success');
     }
+    setShowDeptDropdown(false);  // Close dropdown after action
   };
 
   const handleToggleDepartment = (id) => {
+    const numId = Number(id);  // Ensure number
     setSelectedDepartments(prev => {
-      const newSelected = prev.includes(id) ? prev.filter(d => d !== id) : [...prev, id];
-      showToast(`${departments.find(d => d.departmentId === id)?.departmentName} ${newSelected.includes(id) ? 'selected' : 'deselected'}`, 'info');
+      const newSelected = prev.includes(numId) 
+        ? prev.filter(d => d !== numId) 
+        : [...prev, numId];
+      const deptName = departments.find(d => Number(d.departmentId) === numId)?.departmentName || 'Unknown';
+      showToast(`${deptName} ${newSelected.includes(numId) ? 'selected' : 'deselected'}`, 'info');
       return newSelected;
     });
+    // Optional: close dropdown after toggle for better UX
+    // setShowDeptDropdown(false);
   };
 
   const handleSelectAllEmployees = () => {
@@ -402,24 +429,84 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
     showToast('Loading preview...', 'info');
     
     try {
-      const endpoint = `http://localhost:5000/api/${selectedModel.toLowerCase()}`;
-      let params = {};
+      const endpoint = `http://localhost:5000/api/${selectedModel}`;
+      let params = { companyId: selectedCompanyId };
 
-      if (reportType === 'daily' && dateFilter) {
-        params.date = dateFilter;
-      } else if (reportType === 'monthly') {
-        const startDate = `${yearFilter}-${monthFilter.padStart(2, '0')}-01`;
-        const endDate = new Date(yearFilter, monthFilter, 0).toISOString().split('T')[0];
-        params.startDate = startDate;
-        params.endDate = endDate;
-      } else if (reportType === 'yearly') {
-        params.startDate = `${yearFilter}-01-01`;
-        params.endDate = `${yearFilter}-12-31`;
+      // Determine target employee numbers based on selections
+      let targetEmpNums = [];
+      if (selectedEmployees.length > 0) {
+        targetEmpNums = selectedEmployees;
+      } else if (selectedDepartments.length > 0) {
+        targetEmpNums = allEmployees
+          .filter(emp => selectedDepartments.includes(Number(emp.departmentId)))
+          .map(emp => emp.employeeNumber);
+      }
+
+      if (selectedModel === 'punches') {
+        // For punches, collect biometricNumbers from targetEmpNums
+        if (targetEmpNums.length > 0) {
+          const biometricNumbers = targetEmpNums
+            .map(empNum => empNumToBiometric[empNum])
+            .filter(bio => bio);
+          if (biometricNumbers.length > 0) {
+            params.biometricNumber = biometricNumbers;
+          } else {
+            // No biometrics for selected, treat as no data
+            throw new Error('No biometric numbers found for selected employees/departments.');
+          }
+        }
+      } else {
+        // For other models, use employeeNumber
+        if (targetEmpNums.length > 0) {
+          params.employeeNumber = targetEmpNums;
+        }
+        // Add department filter if selected (as array for backend)
+        if (selectedDepartments.length > 0 && targetEmpNums.length === 0) {
+          params.departmentId = selectedDepartments;  // Backend can handle array
+        }
+      }
+
+      // Model-specific time filters
+      if (selectedModel === 'attendance' || selectedModel === 'punches') {
+        if (reportType === 'daily') {
+          params.date = dateFilter;
+        } else if (reportType === 'monthly') {
+          params.startDate = `${yearFilter}-${monthFilter.padStart(2, '0')}-01`;
+          params.endDate = new Date(yearFilter, monthFilter, 0).toISOString().split('T')[0];
+        } else if (reportType === 'yearly') {
+          params.startDate = `${yearFilter}-01-01`;
+          params.endDate = `${yearFilter}-12-31`;
+        }
+      } else if (selectedModel === 'leaves') {
+        if (reportType === 'daily') {
+          params.startDate = dateFilter;
+          params.endDate = dateFilter;
+        } else if (reportType === 'monthly') {
+          params.month = monthFilter;
+          params.year = yearFilter;
+        } else if (reportType === 'yearly') {
+          params.year = yearFilter;
+        }
       }
 
       console.log('Fetching data with params:', params);
       const response = await axios.get(endpoint, { params, headers });
-      if (!Array.isArray(response.data) || response.data.length === 0) {
+      let fetchedData = response.data;
+
+      // Handle cases where data might be wrapped inside an object
+      if (!Array.isArray(fetchedData)) {
+        if (Array.isArray(fetchedData.data)) {
+          fetchedData = fetchedData.data;
+        } else if (Array.isArray(fetchedData.punches)) {
+          fetchedData = fetchedData.punches;
+        } else if (Array.isArray(fetchedData.newLogs)) {
+          fetchedData = fetchedData.newLogs;
+        } else {
+          console.error("Invalid response format:", fetchedData);
+          throw new Error(`${selectedModel} data is not an array`);
+        }
+      }
+      if (fetchedData.length === 0) {
         const errorMessage = `No ${selectedModel} data found for the selected filters.`;
         setError(errorMessage);
         setData([]);
@@ -435,16 +522,30 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
         return;
       }
 
-      const filteredData = response.data.filter(item => {
-        const empNum = item.employeeNumber;
-        const empDept = numberToDepartment[empNum];
-        const inDepts = selectedDepartments.length === 0 || (empDept && selectedDepartments.includes(empDept));
-        const inEmps = selectedEmployees.length === 0 || selectedEmployees.includes(empNum);
-        return inDepts && inEmps;
-      });
+      // Frontend filtering as fallback (ensure numbers for comparison)
+      let filteredData = fetchedData;
+      if (selectedModel === 'punches') {
+        filteredData = fetchedData.filter(item => {
+          const bioNum = item.biometricNumber;
+          const empNumFromBio = biometricToEmpNum[bioNum];
+          const empNum = empNumFromBio || item.employeeNumber;
+          const empDept = empNum ? Number(numberToDepartment[empNum]) : null;
+          const inDepts = selectedDepartments.length === 0 || (empDept && selectedDepartments.includes(empDept));
+          const inEmps = selectedEmployees.length === 0 || selectedEmployees.includes(empNum);
+          return inDepts && inEmps;
+        });
+      } else {
+        filteredData = fetchedData.filter(item => {
+          const empNum = item.employeeNumber;
+          const empDept = Number(numberToDepartment[empNum]);  // Ensure number
+          const inDepts = selectedDepartments.length === 0 || selectedDepartments.includes(empDept);
+          const inEmps = selectedEmployees.length === 0 || selectedEmployees.includes(empNum);
+          return inDepts && inEmps;
+        });
+      }
 
       setData(filteredData);
-      showToast('Preview loaded successfully!', 'success');
+      showToast(`${filteredData.length} records loaded successfully!`, 'success');
     } catch (error) {
       console.error(`Error fetching ${selectedModel} data:`, error);
       let errorMessage = '';
@@ -453,7 +554,7 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
         if (error.response.status === 404) {
           errorMessage = `${selectedModel} endpoint not found. Please check backend configuration.`;
         } else {
-          errorMessage = `Failed to fetch ${selectedModel} data: ${error.response.data.message || 'Server error'}.`;
+          errorMessage = `Failed to fetch ${selectedModel} data: ${error.response.data?.message || error.response.data || 'Server error'}.`;
         }
       } else if (error.request) {
         errorMessage = 'No response from server. Please ensure the backend is running on http://localhost:5000.';
@@ -477,438 +578,414 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
 
   const generateExcelReport = () => {
     if (!Array.isArray(data) || data.length === 0) {
-      const errorMessage = `No data available to generate a report. Please load preview first.`;
+      const errorMessage = 'No data available to export. Please load preview first.';
       setError(errorMessage);
-      showToast(errorMessage, 'error');
-      return;
-    }
-
-    if (Object.keys(numberToName).length === 0) {
-      const errorMessage = 'Employee name mappings not available. Cannot generate report.';
-      setError(errorMessage);
-      showToast(errorMessage, 'error');
-      return;
-    }
-
-    const reportData = data.map((item) => {
-      if (!item) return {};
-      const empNum = item.employeeNumber ?? 'N/A';
-      const empName = numberToName[empNum] || 'Unknown';
-      const row = {
-        'Employee Number': empNum,
-        'Employee Name': empName,
-      };
-      selectedFields.forEach((field) => {
-        if (field !== 'employeeNumber') {
-          const fieldLabel = modelFields[selectedModel].find((f) => f.name === field)?.label || field;
-          row[fieldLabel] = item[field] ?? 'N/A';
-        }
+      showToast(errorMessage, 'warning');
+      Swal.fire({
+        title: 'Validation Error',
+        text: errorMessage,
+        icon: 'warning',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#3085d6',
       });
-      return row;
-    });
+      return;
+    }
 
-    console.log('Excel Data:', reportData);
+    if (selectedFields.length === 0) {
+      const errorMessage = 'No fields selected for export.';
+      setError(errorMessage);
+      showToast(errorMessage, 'warning');
+      Swal.fire({
+        title: 'Validation Error',
+        text: errorMessage,
+        icon: 'warning',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#3085d6',
+      });
+      return;
+    }
 
-    const ws = XLSX.utils.json_to_sheet(reportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, `${selectedModel} Report`);
-    const reportName = `${selectedModel}_Report_${reportType}_${new Date().toISOString().split('T')[0]}.xlsx`;
-    XLSX.writeFile(wb, reportName);
+    try {
+      // Prepare headers
+      const headers = selectedFields.map(fieldName => {
+        const field = modelFields[selectedModel].find(f => f.name === fieldName);
+        return field ? field.label : fieldName;
+      });
 
-    showToast('Report generated successfully!', 'success');
-    Swal.fire({
-      title: 'Success!',
-      text: 'Report has been generated and downloaded successfully.',
-      icon: 'success',
-      confirmButtonText: 'OK',
-      confirmButtonColor: '#3085d6',
-    });
+      // Prepare data rows, optionally replace employeeNumber or biometricNumber with name if mapping exists
+      const rows = data.map(record => {
+        const row = {};
+        selectedFields.forEach(fieldName => {
+          let value = record[fieldName];
+          if (fieldName === 'employeeNumber' && numberToName[value]) {
+            value = numberToName[value];  // Replace number with name
+          } else if (fieldName === 'biometricNumber' && biometricToName[value]) {
+            value = biometricToName[value];  // Replace biometric with name
+          }
+          row[fieldName] = value || '';
+        });
+        return row;
+      });
+
+      // Create worksheet
+      const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
+
+      // Auto-fit columns (optional)
+      const colWidths = headers.map(h => ({ wch: Math.max(10, h.length + 2) }));
+      ws['!cols'] = colWidths;
+
+      // Create workbook
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Report');
+
+      // Generate filename with filters
+      const now = new Date().toISOString().split('T')[0];
+      let filename = `${selectedModel}_report_${now}`;
+      if (reportType !== 'all') {
+        filename += `_${reportType}`;
+        if (reportType === 'daily') filename += `_${dateFilter}`;
+        else if (reportType === 'monthly') filename += `_${monthFilter}-${yearFilter}`;
+        else if (reportType === 'yearly') filename += `_${yearFilter}`;
+      }
+      if (selectedDepartments.length > 0) filename += '_depts';
+      if (selectedEmployees.length > 0) filename += '_emps';
+      filename += '.xlsx';
+
+      // Download
+      XLSX.writeFile(wb, filename);
+      showToast(`Excel report "${filename}" generated successfully!`, 'success');
+      Swal.fire({
+        title: 'Success!',
+        text: `Report exported as ${filename}`,
+        icon: 'success',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#3085d6',
+      });
+    } catch (error) {
+      console.error('Error generating Excel:', error);
+      const errorMessage = `Failed to generate Excel: ${error.message}`;
+      setError(errorMessage);
+      showToast(errorMessage, 'error');
+      Swal.fire({
+        title: 'Error!',
+        text: errorMessage,
+        icon: 'error',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#3085d6',
+      });
+    }
   };
 
-  const isAllDepartmentsSelected = departments.length > 0 && selectedDepartments.length === departments.length;
+  // Handle report type change
+  const handleReportTypeChange = (type) => {
+    setReportType(type);
+    showToast(`Report type changed to ${type}`, 'info');
+  };
 
-  const isAllEmployeesSelected = filteredEmployees.length > 0 && filteredEmployees.every(emp => selectedEmployees.includes(emp.employeeNumber));
+  // Handle date change
+  const handleDateChange = (e) => {
+    setDateFilter(e.target.value);
+  };
 
-  if (userRole === "Super Admin" && !selectedCompanyId) {
+  // Handle month change
+  const handleMonthChange = (e) => {
+    setMonthFilter(e.target.value);
+  };
+
+  // Handle year change
+  const handleYearChange = (e) => {
+    setYearFilter(e.target.value);
+  };
+
+  if (!selectedCompanyId) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Report Generator</h1>
-          <p className="text-gray-500">Please select a company to generate reports.</p>
+      <div className="p-6 bg-gray-50 min-h-screen">
+        <div className="max-w-4xl mx-auto">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Report Generator</h1>
+          <div className="bg-white p-6 rounded-lg shadow">
+            <p className="text-gray-600">Please select a company first.</p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Report Generator{selectedCompanyName ? ` - ${selectedCompanyName}` : ""}</h1>
-              <p className="mt-1 text-sm text-gray-600">Generate comprehensive reports for attendance, biometrics, and leaves</p>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="h-3 w-3 rounded-full bg-green-400"></div>
-              <span className="text-sm text-gray-500">System Online</span>
-            </div>
+    <div className="p-6 bg-gray-50 min-h-screen">
+      <div className="max-w-6xl mx-auto">
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">Report Generator - {selectedCompanyName}</h1>
+        
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            {error}
+            <button onClick={() => setError(null)} className="float-right text-red-700 hover:text-red-900">×</button>
           </div>
-        </div>
-      </div>
+        )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Model Selection Cards */}
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Data Model</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {['attendance', 'biometrics', 'leaves'].map((model) => (
-              <div
+        {/* Model Selection */}
+        <div className="bg-white p-6 rounded-lg shadow mb-6">
+          <h2 className="text-xl font-semibold mb-4">Select Model</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {['attendance', 'punches', 'leaves'].map(model => (
+              <button
                 key={model}
-                className={`relative group cursor-pointer transform transition-all duration-200 hover:scale-105 ${
-                  selectedModel === model ? 'ring-2 ring-blue-500' : ''
-                }`}
                 onClick={() => handleModelSelect(model)}
+                className={`p-4 rounded-lg border-2 transition-colors ${
+                  selectedModel === model
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-300 hover:border-gray-400'
+                }`}
               >
-                <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${
-                      selectedModel === model ? 'bg-blue-500' : 'bg-gray-300 group-hover:bg-blue-400'
-                    }`}>
-                      {model.charAt(0).toUpperCase()}
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-900">{model.charAt(0).toUpperCase() + model.slice(1)}</h3>
-                  </div>
-                  <p className="text-gray-600 mb-4">
-                    {model === 'attendance' && 'Track employee attendance records and status.'}
-                    {model === 'biometrics' && 'Manage biometric authentication data.'}
-                    {model === 'leaves' && 'Handle leave requests and approvals.'}
-                  </p>
-                  {selectedModel === model && (
-                    <div className="absolute -top-2 -right-2 bg-green-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
-                      ✓
-                    </div>
-                  )}
-                </div>
-              </div>
+                {model.charAt(0).toUpperCase() + model.slice(1)}
+              </button>
             ))}
           </div>
         </div>
 
         {selectedModel && (
           <>
-            {/* Field Selection */}
-            <div className="mb-8">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Fields</h2>
-              <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-medium text-gray-900">Available Fields</h3>
-                  <button
-                    onClick={handleSelectAllFields}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                  >
-                    {selectedFields.length === modelFields[selectedModel]?.length ? 'Deselect All' : 'Select All'}
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-48 overflow-y-auto">
-                  {modelFields[selectedModel]?.map((field) => (
-                    <label key={field.name} className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedFields.includes(field.name)}
-                        onChange={() => handleFieldToggle(field.name)}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="text-sm text-gray-700">{field.label}</span>
-                    </label>
-                  ))}
-                </div>
+            {/* Fields Selection */}
+            <div className="bg-white p-6 rounded-lg shadow mb-6">
+              <h2 className="text-xl font-semibold mb-4">Select Fields</h2>
+              <button
+                onClick={handleSelectAllFields}
+                className="mb-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+              >
+                {selectedFields.length === modelFields[selectedModel].length ? 'Deselect All' : 'Select All'}
+              </button>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-48 overflow-y-auto">
+                {modelFields[selectedModel].map(field => (
+                  <label key={field.name} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedFields.includes(field.name)}
+                      onChange={() => handleFieldToggle(field.name)}
+                      className="mr-2"
+                    />
+                    {field.label}
+                  </label>
+                ))}
               </div>
             </div>
 
-            {/* Filters Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-              {/* Report Type & Date Filters */}
-              <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Report Filters</h3>
-                <div className="space-y-4">
+            {/* Report Type and Date Filters */}
+            <div className="bg-white p-6 rounded-lg shadow mb-6">
+              <h2 className="text-xl font-semibold mb-4">Filters</h2>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Report Type</label>
+                  <select
+                    value={reportType}
+                    onChange={(e) => handleReportTypeChange(e.target.value)}
+                    className="w-full p-2 border rounded"
+                  >
+                    <option value="all">All Time</option>
+                    <option value="daily">Daily</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="yearly">Yearly</option>
+                  </select>
+                </div>
+                {reportType === 'daily' && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Report Type</label>
-                    <select
-                      value={reportType}
-                      onChange={(e) => setReportType(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="all">All Records</option>
-                      <option value="daily">Daily</option>
-                      <option value="monthly">Monthly</option>
-                      <option value="yearly">Yearly</option>
-                    </select>
+                    <label className="block text-sm font-medium mb-1">Date</label>
+                    <input
+                      type="date"
+                      value={dateFilter}
+                      onChange={handleDateChange}
+                      className="w-full p-2 border rounded"
+                    />
                   </div>
-
-                  {reportType === 'daily' && (
+                )}
+                {reportType === 'monthly' && (
+                  <>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
-                      <input
-                        type="date"
-                        value={dateFilter}
-                        onChange={(e) => setDateFilter(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
+                      <label className="block text-sm font-medium mb-1">Month</label>
+                      <select
+                        value={monthFilter}
+                        onChange={handleMonthChange}
+                        className="w-full p-2 border rounded"
+                      >
+                        {Array.from({ length: 12 }, (_, i) => (
+                          <option key={i + 1} value={(i + 1).toString()}>{i + 1}</option>
+                        ))}
+                      </select>
                     </div>
-                  )}
-
-                  {reportType === 'monthly' && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Month</label>
-                        <select
-                          value={monthFilter}
-                          onChange={(e) => setMonthFilter(e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          {Array.from({ length: 12 }, (_, i) => (
-                            <option key={i + 1} value={i + 1}>{new Date(0, i).toLocaleString('en', { month: 'long' })}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
-                        <select
-                          value={yearFilter}
-                          onChange={(e) => setYearFilter(e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          {Array.from({ length: 10 }, (_, i) => {
-                            const year = new Date().getFullYear() - i;
-                            return <option key={year} value={year}>{year}</option>;
-                          })}
-                        </select>
-                      </div>
-                    </>
-                  )}
-
-                  {reportType === 'yearly' && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
+                      <label className="block text-sm font-medium mb-1">Year</label>
                       <select
                         value={yearFilter}
-                        onChange={(e) => setYearFilter(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        onChange={handleYearChange}
+                        className="w-full p-2 border rounded"
                       >
                         {Array.from({ length: 10 }, (_, i) => {
                           const year = new Date().getFullYear() - i;
-                          return <option key={year} value={year}>{year}</option>;
+                          return <option key={year} value={year.toString()}>{year}</option>;
                         })}
                       </select>
                     </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Department Selection */}
-              <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Departments {departmentsLoaded ? `(${departments.length})` : '(Loading...)'} </h3>
-                <div className="relative">
-                  <button
-                    onClick={() => setShowDeptDropdown(!showDeptDropdown)}
-                    ref={dropdownRef}
-                    disabled={!departmentsLoaded}
-                    className="w-full flex justify-between items-center px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                  >
-                    <span>{selectedDepartments.length === 0 ? 'All Departments' : `${selectedDepartments.length} selected`}</span>
-                    <svg className={`w-4 h-4 transition-transform ${showDeptDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                  {showDeptDropdown && departmentsLoaded && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 max-h-48 overflow-y-auto z-10">
-                      <div className="p-2">
-                        <button
-                          onClick={handleSelectAllDepartments}
-                          className="w-full px-3 py-2 text-left text-sm text-blue-600 hover:bg-blue-50 rounded"
-                        >
-                          {isAllDepartmentsSelected ? 'Deselect All' : 'Select All'}
-                        </button>
-                        {departments.length === 0 ? (
-                          <p className="text-gray-500 text-sm p-2 text-center">No departments available.</p>
-                        ) : (
-                          departments.map((dept) => (
-                            <label key={dept.departmentId} className="flex items-center space-x-2 p-2 cursor-pointer hover:bg-gray-50 rounded">
-                              <input
-                                type="checkbox"
-                                checked={selectedDepartments.includes(dept.departmentId)}
-                                onChange={() => handleToggleDepartment(dept.departmentId)}
-                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                              />
-                              <span className="text-sm text-gray-700">{dept.departmentName}</span>
-                            </label>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  {!departmentsLoaded && (
-                    <p className="text-gray-500 text-sm p-2 text-center">Loading departments...</p>
-                  )}
-                </div>
-                {error && (
-                  <button
-                    onClick={fetchDepartments}
-                    className="mt-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm"
-                  >
-                    Retry Departments
-                  </button>
+                  </>
+                )}
+                {reportType === 'yearly' && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Year</label>
+                    <select
+                      value={yearFilter}
+                      onChange={handleYearChange}
+                      className="w-full p-2 border rounded"
+                    >
+                      {Array.from({ length: 10 }, (_, i) => {
+                        const year = new Date().getFullYear() - i;
+                        return <option key={year} value={year.toString()}>{year}</option>;
+                      })}
+                    </select>
+                  </div>
                 )}
               </div>
-            </div>
 
-            {/* Employee Selection */}
-            <div className="mb-8">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Employees {employeesLoaded ? `(${employees.length})` : '(Loading...)'} </h3>
-              <div className="bg-white rounded-xl shadow-lg border border-gray-100">
-                <div className="p-6 border-b border-gray-200">
-                  <div className="flex gap-4 mb-4">
-                    <input
-                      type="text"
-                      placeholder="Search employees by name or number..."
-                      value={employeeSearch}
-                      onChange={handleEmployeeSearchChange}
-                      disabled={!employeesLoaded}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                    />
-                    <button
-                      onClick={handleSelectAllEmployees}
-                      disabled={!employeesLoaded || filteredEmployees.length === 0}
-                      className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-400"
-                    >
-                      {isAllEmployeesSelected ? 'Deselect All' : 'Select All'}
-                    </button>
-                  </div>
-                  <div className="max-h-48 overflow-y-auto">
-                    {!employeesLoaded ? (
-                      <p className="text-gray-500 text-sm p-2 text-center">Loading employees...</p>
-                    ) : filteredEmployees.length === 0 ? (
-                      <p className="text-gray-500 text-sm p-2 text-center">
-                        {employees.length === 0 ? 'No employees found. Check backend.' : 'No matching employees.'}
-                      </p>
-                    ) : (
-                      filteredEmployees.map((emp) => (
-                        <label key={emp.employeeNumber} className="flex items-center space-x-2 p-2 cursor-pointer hover:bg-gray-50 rounded">
-                          <input
-                            type="checkbox"
-                            checked={selectedEmployees.includes(emp.employeeNumber)}
-                            onChange={() => handleToggleEmployee(emp.employeeNumber)}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                          />
-                          <span className="text-sm text-gray-700">
-                            {emp.employeeName} ({emp.employeeNumber})
-                          </span>
-                        </label>
-                      ))
-                    )}
-                  </div>
-                </div>
-                <div className="p-4 bg-gray-50 border-t border-gray-200">
-                  {error && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-red-600">Employees fetch failed: {error}</span>
+              {/* Departments Filter */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">Departments</label>
+                <div ref={dropdownRef} className="relative">
+                  <button
+                    onClick={() => setShowDeptDropdown(!showDeptDropdown)}
+                    className="w-full p-2 border rounded flex justify-between items-center"
+                  >
+                    {selectedDepartments.length > 0
+                      ? `${selectedDepartments.length} selected`
+                      : 'Select Departments'}
+                  </button>
+                  {showDeptDropdown && (
+                    <div ref={dropdownContentRef} className="absolute z-10 w-full bg-white border rounded shadow-lg max-h-60 overflow-y-auto mt-1">
                       <button
-                        onClick={handleRetryEmployees}
-                        className="px-4 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors text-sm"
+                        onClick={handleSelectAllDepartments}
+                        className="w-full p-2 bg-gray-100 hover:bg-gray-200 text-left"
                       >
-                        Retry
+                        {selectedDepartments.length === departments.length ? 'Deselect All' : 'Select All'}
                       </button>
+                      {departmentsLoaded ? (
+                        departments.map(dept => (
+                          <label key={dept.departmentId} className="flex items-center p-2 hover:bg-gray-50">
+                            <input
+                              type="checkbox"
+                              checked={selectedDepartments.includes(Number(dept.departmentId))}
+                              onChange={() => handleToggleDepartment(dept.departmentId)}
+                              className="mr-2"
+                            />
+                            {dept.departmentName}
+                          </label>
+                        ))
+                      ) : (
+                        <p className="p-2 text-gray-500">Loading departments...</p>
+                      )}
                     </div>
                   )}
                 </div>
               </div>
+
+              {/* Employees Filter */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Employees</label>
+                <input
+                  type="text"
+                  placeholder="Search employees..."
+                  value={employeeSearch}
+                  onChange={handleEmployeeSearchChange}
+                  className="w-full p-2 border rounded mb-2"
+                />
+                <div className="max-h-40 overflow-y-auto border rounded">
+                  {employeesLoaded ? (
+                    filteredEmployees.map(emp => (
+                      <label key={emp.employeeNumber} className="flex items-center p-2 hover:bg-gray-50">
+                        <input
+                          type="checkbox"
+                          checked={selectedEmployees.includes(emp.employeeNumber)}
+                          onChange={() => handleToggleEmployee(emp.employeeNumber)}
+                          className="mr-2"
+                        />
+                        {emp.employeeName} ({emp.employeeNumber})
+                      </label>
+                    ))
+                  ) : (
+                    <p className="p-2 text-gray-500">Loading employees...</p>
+                  )}
+                </div>
+                {employeesLoaded && filteredEmployees.length === 0 && (
+                  <p className="p-2 text-gray-500 text-sm">No employees found.</p>
+                )}
+                <button
+                  onClick={handleSelectAllEmployees}
+                  className="mt-2 w-full p-2 bg-gray-200 rounded hover:bg-gray-300"
+                  disabled={!employeesLoaded || filteredEmployees.length === 0}
+                >
+                  {selectedEmployees.length >= filteredEmployees.length ? 'Deselect All Visible' : 'Select All Visible'}
+                </button>
+              </div>
             </div>
 
-            {/* Load Preview Button */}
-            <div className="flex justify-center mb-8">
+            {/* Actions */}
+            <div className="bg-white p-6 rounded-lg shadow mb-6 flex gap-4">
               <button
                 onClick={loadPreview}
-                disabled={loading || !employeesLoaded || !departmentsLoaded}
-                className="px-8 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-400 transition-colors font-medium"
+                disabled={loading}
+                className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
               >
                 {loading ? 'Loading...' : 'Load Preview'}
               </button>
+              <button
+                onClick={generateExcelReport}
+                disabled={loading || data.length === 0}
+                className="px-6 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
+              >
+                Generate Excel Report
+              </button>
+              {!employeesLoaded && (
+                <button
+                  onClick={handleRetryEmployees}
+                  className="px-6 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+                >
+                  Retry Load Employees
+                </button>
+              )}
             </div>
 
-            {/* Error Display */}
-            {error && !employeesLoaded && (
-              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-red-700">{error}</p>
-              </div>
-            )}
-
-            {/* Data Preview Table */}
+            {/* Preview Table */}
             {data.length > 0 && (
-              <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 mb-8">
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-lg font-medium text-gray-900">Data Preview ({data.length} records)</h3>
-                </div>
+              <div className="bg-white p-6 rounded-lg shadow">
+                <h2 className="text-xl font-semibold mb-4">Data Preview ({data.length} records)</h2>
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                  <table className="min-w-full bg-white border border-gray-300">
+                    <thead>
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee Number</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee Name</th>
-                        {selectedFields.map((field) => {
-                          const fieldInfo = modelFields[selectedModel].find((f) => f.name === field);
-                          if (!fieldInfo || field === 'employeeNumber') return null;
-                          return (
-                            <th key={field} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              {fieldInfo.label}
-                            </th>
-                          );
+                        {selectedFields.map(fieldName => {
+                          const field = modelFields[selectedModel].find(f => f.name === fieldName);
+                          return <th key={fieldName} className="px-4 py-2 border-b bg-gray-100 font-semibold">{field ? field.label : fieldName}</th>;
                         })}
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {data.slice(0, 50).map((item, index) => { // Limit to 50 for preview
-                        const empNum = item.employeeNumber ?? 'N/A';
-                        const empName = numberToName[empNum] || 'Unknown';
-                        return (
-                          <tr key={index} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{empNum}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{empName}</td>
-                            {selectedFields.map((field) => {
-                              const fieldInfo = modelFields[selectedModel].find((f) => f.name === field);
-                              if (!fieldInfo || field === 'employeeNumber') return null;
-                              return (
-                                <td key={field} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                  {item[field] ?? 'N/A'}
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        );
-                      })}
+                    <tbody>
+                      {data.slice(0, 50).map((record, index) => (
+                        <tr key={index}>
+                          {selectedFields.map(fieldName => {
+                            let value = record[fieldName];
+                            if (fieldName === 'employeeNumber' && numberToName[value]) {
+                              value = numberToName[value];
+                            } else if (fieldName === 'biometricNumber' && biometricToName[value]) {
+                              value = biometricToName[value];
+                            }
+                            return <td key={fieldName} className="px-4 py-2 border-b">{value || ''}</td>;
+                          })}
+                        </tr>
+                      ))}
                       {data.length > 50 && (
                         <tr>
-                          <td colSpan={selectedFields.length + 2} className="px-6 py-4 text-center text-sm text-gray-500">
-                            Showing first 50 records. Full data will be in the report.
+                          <td colSpan={selectedFields.length} className="px-4 py-2 text-center text-gray-500">
+                            Showing first 50 of {data.length} records...
                           </td>
                         </tr>
                       )}
                     </tbody>
                   </table>
                 </div>
-              </div>
-            )}
-
-            {/* Generate Report Button */}
-            {data.length > 0 && (
-              <div className="flex justify-center">
-                <button
-                  onClick={generateExcelReport}
-                  className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
-                >
-                  Generate Excel Report
-                </button>
               </div>
             )}
           </>

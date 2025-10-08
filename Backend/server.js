@@ -67,26 +67,8 @@ app.use('/api/users', userRoute);
 app.use('/api/auth', authRoute);
 app.use("/api/shiftAllocation", shiftAllocationRoutes);
 
-// Import models for Sequelize
-require('./models/Attendance');
-require('./models/BiometricDevice');
-require('./models/Bus');
-require('./models/Caste');
-require('./models/Company');
-require('./models/Department');
-require('./models/Designation');
-require('./models/Employee');
-require('./models/EmployeeGrade');
-require('./models/EmployeeType');
-require('./models/Holiday');
-require('./models/HolidayPlan');
-require('./models/LeaveAllocation');
-require('./models/Leave');
-require('./models/LeaveType');
-require('./models/Punch');
-require('./models/Religion');
-require('./models/Shift');
-require('./models/User');
+// ✅ Central model loading (replaces individual requires)
+require('./models');  // Triggers index.js: loads all models + associations
 
 // ✅ Start server
 const startServer = async () => {
@@ -95,25 +77,25 @@ const startServer = async () => {
     console.log("✅ DB Connected successfully");
 
     // ⚠️ safer: alter = keep data, adjust schema if needed
-    await seq.sync({ alter:false,logging:false }); 
+    await seq.sync({ alter: false, logging: false });
     console.log("✅ Tables synced");
 
     app.listen(5000, () => {
       console.log("🚀 Listening at http://localhost:5000");
     });
 
-    // 🕛 Hourly biometric fetch
-    cron.schedule("* * * * *", async () => {
-      try {
-        console.log("🕛 Running hourly biometric fetch...");
-        await fetchBiometrics();
-      } catch (err) {
-        console.error("❌ Error fetching biometrics:", err.message);
-      }
-    });
-
-    // // 🕛 Daily attendance processor at 12:00 AM
+    // 🕛 Hourly biometric fetch (uncomment if needed)
     // cron.schedule("* * * * *", async () => {
+    //   try {
+    //     console.log("🕛 Running hourly biometric fetch...");
+    //     await fetchBiometrics();
+    //   } catch (err) {
+    //     console.error("❌ Error fetching biometrics:", err.message);
+    //   }
+    // });
+
+    // 🕛 Daily attendance processor at 12:00 AM (uncomment if needed)
+    // cron.schedule("0 0 * * *", async () => {  // Fixed: proper cron for midnight
     //   try {
     //     console.log("🕛 Running daily attendance processor...");
     //     await processAttendance();
