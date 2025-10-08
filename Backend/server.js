@@ -103,14 +103,14 @@ const startServer = async () => {
     });
 
     // 🕛 Hourly biometric fetch
-    // cron.schedule("* * * * *", async () => {
-    //   try {
-    //     console.log("🕛 Running hourly biometric fetch...");
-    //     await fetchBiometrics();
-    //   } catch (err) {
-    //     console.error("❌ Error fetching biometrics:", err.message);
-    //   }
-    // });
+    cron.schedule("* * * * *", async () => {
+      try {
+        console.log("🕛 Running hourly biometric fetch...");
+        await fetchBiometrics();
+      } catch (err) {
+        console.error("❌ Error fetching biometrics:", err.message);
+      }
+    });
 
     // // 🕛 Daily attendance processor at 12:00 AM
     // cron.schedule("* * * * *", async () => {

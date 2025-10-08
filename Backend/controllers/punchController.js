@@ -12,55 +12,60 @@ exports.fetchPunches = async (req, res) => {
     if (companyId) {
       deviceQuery.where = { companyId };
     }
+
     const devices = await BiometricDevice.findAll(deviceQuery);
     const newLogs = [];
 
     for (const device of devices) {
-      const zk = new ZKLib(device.deviceIp, 4370, 10000, 4000);
-      await zk.createSocket();
-      const logs = await zk.getAttendances();
+      try {
+        const zk = new ZKLib(device.deviceIp, 4370, 10000, 4000);
+        await zk.createSocket();
+        const logs = await zk.getAttendances();
 
-      for (const log of logs.data) {
-        const recordTime = new Date(log.recordTime); 
+        for (const log of logs.data) {
+          const recordTime = new Date(log.recordTime);
 
-        const exists = await Punch.findOne({
-          where: {
-            biometricNumber: log.deviceUserId,
-            punchTimestamp: recordTime
-          }
-        });
-
-        if (!exists) {
-          // find employeeNumber and companyId from Employee table using biometricNumber
-          const bioRecord = await Employee.findOne({
-            where: { biometricNumber: log.deviceUserId }
+          const exists = await Punch.findOne({
+            where: {
+              biometricNumber: log.deviceUserId,
+              punchTimestamp: recordTime
+            }
           });
 
-          if (bioRecord) {
-            const saved = await Punch.create({
-              biometricNumber: log.deviceUserId,
-              employeeNumber: bioRecord.employeeNumber,
-              punchTimestamp: recordTime,
-              deviceIp: device.deviceIp,
-              companyId: bioRecord.companyId,
+          if (!exists) {
+            const bioRecord = await Employee.findOne({
+              where: { biometricNumber: log.deviceUserId }
             });
 
-            newLogs.push(saved);
-          } else {
-            console.warn(`No employee found for biometricNumber: ${log.deviceUserId}`);
+            if (bioRecord) {
+              const saved = await Punch.create({
+                biometricNumber: log.deviceUserId,
+                employeeNumber: bioRecord.employeeNumber,
+                punchTimestamp: recordTime,
+                deviceIp: device.deviceIp,
+                companyId: bioRecord.companyId,
+              });
+              newLogs.push(saved);
+            } else {
+              console.warn(`⚠️ No employee found for biometricNumber: ${log.deviceUserId}`);
+            }
           }
         }
-      }
 
-      await zk.disconnect();
+        await zk.disconnect();
+      } catch (err) {
+        console.error(`❌ Error connecting to device ${device.deviceIp}:`, err.message);
+        continue; // Skip to next device if this one fails
+      }
     }
 
-    res.json({ message: "Punches fetched and stored", newLogs });
+    res.json({ message: "✅ Punches fetched and stored successfully", newLogs });
   } catch (err) {
     console.error("❌ Error fetching punches:", err);
     res.status(500).send("Error fetching punches: " + err.message);
   }
 };
+
 
 // Get today’s punches (all employees)
 exports.getTodayPunches = async (req, res) => {

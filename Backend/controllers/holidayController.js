@@ -1,3 +1,4 @@
+const { where } = require("sequelize");
 const Holiday = require("../models/Holiday");
 
 // Add manual holiday (update if exists)
@@ -44,15 +45,21 @@ exports.addHoliday = async (req, res) => {
 exports.getHolidaysByPlan = async (req, res) => {
   try {
     const { planId } = req.params;
-    const { companyId } = req.query;
+    //  const { companyId } = req.query;
 
-    // Validate companyId
-    if (!companyId) {
-      return res.status(400).json({ message: "Company ID is required" });
+    // Build the where clause dynamically
+    const whereClause = { status: "active" };
+    if (planId) {
+      whereClause.holidayPlanId = planId;
     }
 
+    // Validate companyId
+    // if (!companyId) {
+    //   return res.status(400).json({ message: "Company ID is required" });
+    // }
+
     const holidays = await Holiday.findAll({
-      where: { holidayPlanId: planId, companyId, status: "active" },
+      where: whereClause,
     });
     res.json(holidays);
   } catch (err) {
@@ -92,9 +99,9 @@ exports.deleteHoliday = async (req, res) => {
     const { updatedBy, companyId } = req.body;
 
     // Validate companyId
-    if (!companyId) {
-      return res.status(400).json({ message: "Company ID is required" });
-    }
+    // if (!companyId) {
+    //   return res.status(400).json({ message: "Company ID is required" });
+    // }
 
     const holiday = await Holiday.findOne({
       where: { holidayId, companyId, status: "active" },

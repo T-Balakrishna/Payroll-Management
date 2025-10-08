@@ -7,7 +7,7 @@ import { toast } from "react-toastify";
 
 // Decode JWT token to get userNumber and role
 const token = sessionStorage.getItem("token");
-const decoded = token ? jwtDecode(token) : {};
+let decoded   = (token)?jwtDecode(token):"";
 const userNumber = decoded.userNumber || "";
 const userRole = decoded.role || "";
 
@@ -16,8 +16,11 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
   const [holidays, setHolidays] = useState([]);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [selectedHoliday, setSelectedHoliday] = useState(null);
-  const [companyId, setCompanyId] = useState(""); // For Admin's companyId
-  const [isSuperAdmin] = useState(userRole === "Super Admin");
+  const [companyId, setCompanyId] = useState(selectedCompanyId); // Admin's companyId
+  const [companyName, setCompanyName] = useState(""); // Company name display
+  const [companyAcronym, setCompanyAcronym] = useState(""); // Admin's companyAcr
+  const [companies, setCompanies] = useState([]); // For Super Admin dropdown
+  const [isLoading, setIsLoading] = useState(false);
 
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [holidayModalOpen, setHolidayModalOpen] = useState(false);
@@ -26,69 +29,118 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
     startYear: "",
     endYear: "",
     weeklyOff: [],
-    companyId: isSuperAdmin ? selectedCompanyId : companyId,
+    companyId: userRole === "Super Admin" ? selectedCompanyId : companyId,
   });
 
   const [holidayForm, setHolidayForm] = useState({
     holidayDate: "",
     description: "",
-    companyId: isSuperAdmin ? selectedCompanyId : companyId,
+    companyId: userRole === "Super Admin" ? selectedCompanyId : companyId,
   });
 
-  const weekDays = [
-    "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
-  ];
+  const weekDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+  // Fetch companies for Super Admin and Admin's company details
+  useEffect(() => {
+    let mounted = true;
+    const fetchCompanies = async () => {
+      try {
+        const res = await axios.get("http://localhost:5000/api/companies", {
+          headers: { Authorization: `Bearer ${sessionStorage.getItem("token")}` },
+        });
+        if (!mounted) return;
+        setCompanies(res.data || []);
+        if (userRole === "Super Admin" && selectedCompanyId) {
+          setCompanyId(selectedCompanyId);
+          const selected = res.data.find((c) => c.companyId === selectedCompanyId);
+          setCompanyName(selected ? selected.companyName : selectedCompanyName || "");
+        }
+      } catch (err) {
+        console.error("Error fetching companies:", err);
+      }
+    };
+
+    const fetchAdminCompany = async () => {
+      try {
+        const res = await axios.get(`http://localhost:5000/api/users/byNumber/${userNumber}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!mounted) return;
+        setCompanyId(res.data.companyId || "");
+        setCompanyName(res.data.companyName || "No company selected");
+        setCompanyAcronym(res.data.companyAcr || res.data.companyId || "");
+        setPlanForm((prev) => ({ ...prev, companyId: res.data.companyId }));
+        setHolidayForm((prev) => ({ ...prev, companyId: res.data.companyId }));
+      } catch (err) {
+        console.error("Error fetching admin company:", err);
+        toast.error("Failed to fetch company details: " + (err.response?.data?.message || err.message));
+      }
+    };
+
+    const fetchCompanyAcronym = async (compId) => {
+      if (!compId) return;
+      try {
+        const res = await axios.get(`http://localhost:5000/api/companies/${compId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!mounted) return;
+        setCompanyAcronym(res.data.companyAcr || compId || "");
+        if (!companyName) setCompanyName(res.data.companyName || "No company selected");
+      } catch (err) {
+        console.error("Error fetching company acronym:", err);
+        toast.error("Failed to fetch company details: " + (err.response?.data?.message || err.message));
+      }
+    };
+
+    if (userRole === "Super Admin") {
+      fetchCompanies();
+    } else if (userRole === "Admin") {
+      if (selectedCompanyId) {
+        setCompanyId(selectedCompanyId);
+        setCompanyName(selectedCompanyName || "No company selected");
+        fetchCompanyAcronym(selectedCompanyId);
+        setPlanForm((prev) => ({ ...prev, companyId: selectedCompanyId }));
+        setHolidayForm((prev) => ({ ...prev, companyId: selectedCompanyId }));
+      } else {
+        fetchAdminCompany();
+      }
+    }
+    return () => {
+      mounted = false;
+    };
+  }, [userRole, selectedCompanyId, selectedCompanyName]);
+
+  // Fetch holiday plans when selectedCompanyId changes
   useEffect(() => {
     if (!userNumber) {
       toast.error("User not authenticated. Please log in again.");
       return;
     }
+    fetchHolidayPlans(userRole === "Super Admin" ? selectedCompanyId : companyId);
+  }, [selectedCompanyId, companyId, userRole]);
 
-    if (isSuperAdmin) {
-      fetchHolidayPlans(selectedCompanyId); // Fetch plans based on selected company or all
-    } else {
-      fetchAdminCompanyId(); // Fetch Admin's companyId
-    }
-  }, [selectedCompanyId, isSuperAdmin]);
-
-  // Fetch Admin's companyId using userNumber
-  const fetchAdminCompanyId = async () => {
-    try {
-      const res = await axios.get(`http://localhost:5000/api/users/${userNumber}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const adminCompanyId = res.data.companyId;
-      setCompanyId(adminCompanyId);
-      setPlanForm((prev) => ({ ...prev, companyId: adminCompanyId }));
-      setHolidayForm((prev) => ({ ...prev, companyId: adminCompanyId }));
-      fetchHolidayPlans(adminCompanyId);
-    } catch (err) {
-      console.error("Error fetching admin company ID:", err);
-      toast.error("Failed to fetch company ID: " + (err.response?.data?.message || err.message));
-    }
-  };
-
-  // Fetch holiday plans based on companyId (or all for Super Admin if companyId is empty)
+  // Fetch holiday plans
   const fetchHolidayPlans = async (companyId) => {
     try {
-      const url = companyId
-        ? `http://localhost:5000/api/holidayPlans?companyId=${companyId}`
-        : `http://localhost:5000/api/holidayPlans`;
+      setIsLoading(true);
+      const url = companyId ? `http://localhost:5000/api/holidayPlans?companyId=${companyId}` : `http://localhost:5000/api/holidayPlans`;
       const res = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setHolidayPlans(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error("Error fetching holiday plans:", err);
-      setHolidayPlans([]); // Ensure empty state is handled
+      setHolidayPlans([]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // Fetch holidays of a specific plan
   const fetchHolidays = async (holidayPlanId) => {
     try {
-      const effectiveCompanyId = isSuperAdmin ? selectedCompanyId : companyId;
+      setIsLoading(true);
+      const effectiveCompanyId = userRole === "Super Admin" ? selectedCompanyId : companyId;
       const url = effectiveCompanyId
         ? `http://localhost:5000/api/holidays/${holidayPlanId}?companyId=${effectiveCompanyId}`
         : `http://localhost:5000/api/holidays/${holidayPlanId}`;
@@ -100,30 +152,34 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
       console.error("Error fetching holidays:", err);
       toast.error("Failed to fetch holidays: " + (err.response?.data?.message || err.message));
       return [];
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const toggleWeeklyOff = (day) => {
     setPlanForm((prev) => ({
       ...prev,
-      weeklyOff: prev.weeklyOff.includes(day)
-        ? prev.weeklyOff.filter((d) => d !== day)
-        : [...prev.weeklyOff, day],
+      weeklyOff: prev.weeklyOff.includes(day) ? prev.weeklyOff.filter((d) => d !== day) : [...prev.weeklyOff, day],
     }));
   };
 
-  // Handle startYear change and auto-set endYear
   const handleStartYearChange = (e) => {
     const startYear = e.target.value;
     const endYear = startYear ? String(parseInt(startYear) + 1) : "";
     setPlanForm((prev) => ({ ...prev, startYear, endYear }));
   };
 
-  // Save or update Holiday Plan
+  const getCompanyAcronym = (id) => {
+    if (userRole === "Admin") return companyAcronym || id || "";
+    const company = companies.find((c) => c.companyId == id);
+    return company ? company.companyAcr : id || "";
+  };
+
   const handleSavePlan = async () => {
     const startYear = parseInt(planForm.startYear);
     const endYear = parseInt(planForm.endYear);
-    const effectiveCompanyId = isSuperAdmin ? planForm.companyId : companyId;
+    const effectiveCompanyId = userRole === "Super Admin" ? planForm.companyId : companyId;
 
     if (isNaN(startYear) || !startYear) {
       toast.error("Enter a valid start year.");
@@ -142,11 +198,12 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
       return;
     }
 
-    const holidayPlanName = `${startYear}-${endYear}`;
+    const holidayPlanName = `${getCompanyAcronym(effectiveCompanyId)}-${startYear}-${endYear}`;
     const startDate = `${startYear}-06-01`;
     const endDate = `${endYear}-04-30`;
 
     try {
+      setIsLoading(true);
       let plan;
       if (selectedPlan) {
         await axios.put(
@@ -183,17 +240,17 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
       setPlanModalOpen(false);
       setPlanForm({ startYear: "", endYear: "", weeklyOff: [], companyId: effectiveCompanyId });
       setSelectedPlan(null);
-
-      fetchHolidayPlans(isSuperAdmin ? selectedCompanyId : companyId);
-      fetchHolidays(plan.holidayPlanId).then(setHolidays);
+      await fetchHolidayPlans(userRole === "Super Admin" ? selectedCompanyId : companyId);
+      await fetchHolidays(plan.holidayPlanId).then(setHolidays);
     } catch (err) {
       console.error("Error creating/updating holiday plan:", err);
       toast.error("Error creating/updating holiday plan: " + (err.response?.data?.message || err.message));
+    } finally {
       setPlanModalOpen(false);
+      setIsLoading(false);
     }
   };
 
-  // Delete Holiday Plan
   const handleDeletePlan = async (id) => {
     const result = await Swal.fire({
       title: "Are you sure?",
@@ -207,12 +264,13 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
 
     if (result.isConfirmed) {
       try {
+        setIsLoading(true);
         await axios.delete(`http://localhost:5000/api/holidayPlans/${id}`, {
-          data: { updatedBy: userNumber, companyId: isSuperAdmin ? selectedCompanyId : companyId },
+          data: { updatedBy: userNumber },
           headers: { Authorization: `Bearer ${token}` },
         });
         toast.success("Holiday plan deleted successfully!");
-        fetchHolidayPlans(isSuperAdmin ? selectedCompanyId : companyId);
+        await fetchHolidayPlans(userRole === "Super Admin" ? selectedCompanyId : companyId);
         if (selectedPlan?.holidayPlanId === id) {
           setSelectedPlan(null);
           setHolidays([]);
@@ -220,13 +278,14 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
       } catch (err) {
         console.error("Error deleting holiday plan:", err);
         toast.error("Error deleting holiday plan: " + (err.response?.data?.message || err.message));
+      } finally {
+        setIsLoading(false);
       }
     }
   };
 
-  // Save or update Holiday
   const handleSaveHoliday = async () => {
-    const effectiveCompanyId = isSuperAdmin ? holidayForm.companyId : companyId;
+    const effectiveCompanyId = userRole === "Super Admin" ? holidayForm.companyId : companyId;
 
     if (!selectedPlan) {
       toast.error("Please select a holiday plan.");
@@ -246,6 +305,7 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
     }
 
     try {
+      setIsLoading(true);
       if (selectedHoliday) {
         await axios.put(
           `http://localhost:5000/api/holidays/${selectedHoliday.holidayId}`,
@@ -277,15 +337,15 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
       setHolidayModalOpen(false);
       setHolidayForm({ holidayDate: "", description: "", companyId: effectiveCompanyId });
       setSelectedHoliday(null);
-
-      fetchHolidays(selectedPlan.holidayPlanId).then(setHolidays);
+      await fetchHolidays(selectedPlan.holidayPlanId).then(setHolidays);
     } catch (err) {
       console.error("Error saving holiday:", err);
       toast.error("Error saving holiday: " + (err.response?.data?.message || err.message));
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Delete Holiday
   const handleDeleteHoliday = async (id) => {
     const result = await Swal.fire({
       title: "Are you sure?",
@@ -299,15 +359,18 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
 
     if (result.isConfirmed) {
       try {
+        setIsLoading(true);
         await axios.delete(`http://localhost:5000/api/holidays/${id}`, {
-          data: { updatedBy: userNumber, companyId: isSuperAdmin ? selectedCompanyId : companyId },
+          data: { updatedBy: userNumber, companyId: userRole === "Super Admin" ? selectedCompanyId : companyId },
           headers: { Authorization: `Bearer ${token}` },
         });
         toast.success("Holiday deleted successfully!");
-        fetchHolidays(selectedPlan.holidayPlanId).then(setHolidays);
+        await fetchHolidays(selectedPlan.holidayPlanId).then(setHolidays);
       } catch (err) {
         console.error("Error deleting holiday:", err);
         toast.error("Error deleting holiday: " + (err.response?.data?.message || err.message));
+      } finally {
+        setIsLoading(false);
       }
     }
   };
@@ -320,18 +383,19 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
         <button
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md"
           onClick={() => {
-            if (isSuperAdmin && !selectedCompanyId) {
-              toast.error("Please select a company first");
-              return;
-            }
             setSelectedPlan(null);
-            setPlanForm({ startYear: "", endYear: "", weeklyOff: [], companyId: isSuperAdmin ? selectedCompanyId : companyId });
+            setPlanForm({ startYear: "", endYear: "", weeklyOff: [], companyId: userRole === "Super Admin" ? selectedCompanyId : companyId });
+            setCompanyName(userRole === "Super Admin" ? selectedCompanyName : companyName);
             setPlanModalOpen(true);
           }}
+          disabled={isLoading}
         >
           <Plus size={18} /> Add Holiday Plan
         </button>
       </div>
+
+      {/* Loading Indicator */}
+      {isLoading && <div className="text-center text-gray-500">Loading...</div>}
 
       {/* Holiday Plans Table */}
       <div className="overflow-y-auto border border-gray-200 rounded-lg shadow-sm" style={{ maxHeight: "280px" }}>
@@ -341,7 +405,7 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
               <th className="py-3 px-4">Plan</th>
               <th className="py-3 px-4">Start Date</th>
               <th className="py-3 px-4">End Date</th>
-              {isSuperAdmin && <th className="py-3 px-4">Company</th>}
+              {userRole === "Super Admin" && <th className="py-3 px-4">Company</th>}
               <th className="py-3 px-4">Actions</th>
             </tr>
           </thead>
@@ -351,8 +415,10 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
                 <td className="py-2 px-4">{plan.holidayPlanName}</td>
                 <td className="py-2 px-4">{plan.startDate}</td>
                 <td className="py-2 px-4">{plan.endDate}</td>
-                {isSuperAdmin && (
-                  <td className="py-2 px-4">{plan.companyId === selectedCompanyId ? selectedCompanyName : plan.companyId}</td>
+                {userRole === "Super Admin" && (
+                  <td className="py-2 px-4">
+                    {plan.companyId === selectedCompanyId ? selectedCompanyName : getCompanyAcronym(plan.companyId)}
+                  </td>
                 )}
                 <td className="py-2 px-4 flex gap-2">
                   <button
@@ -362,26 +428,29 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
                         startYear: parseInt(plan.startDate.slice(0, 4)),
                         endYear: parseInt(plan.endDate.slice(0, 4)),
                         weeklyOff: plan.weeklyOff || [],
-                        companyId: plan.companyId || (isSuperAdmin ? selectedCompanyId : companyId),
+                        companyId: plan.companyId,
                       });
+                      setCompanyName(userRole === "Super Admin" ? (companies.find((c) => c.companyId === plan.companyId)?.companyName || plan.companyId) : companyName);
                       setSelectedPlan(plan);
                       setPlanModalOpen(true);
                     }}
+                    disabled={isLoading}
                   >
                     <Pencil size={16} />
                   </button>
                   <button
                     className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md"
                     onClick={() => handleDeletePlan(plan.holidayPlanId)}
+                    disabled={isLoading}
                   >
                     <Trash size={16} />
                   </button>
                 </td>
               </tr>
             ))}
-            {holidayPlans.length === 0 && (
+            {holidayPlans.length === 0 && !isLoading && (
               <tr>
-                <td colSpan={isSuperAdmin ? 5 : 4} className="text-center py-4 text-gray-500">
+                <td colSpan={userRole === "Super Admin" ? 5 : 4} className="text-center py-4 text-gray-500">
                   No holiday plans found
                 </td>
               </tr>
@@ -391,7 +460,7 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
       </div>
 
       {/* Holiday Selection */}
-      {holidayPlans.length > 0 && (
+      {holidayPlans.length > 0 && !isLoading && (
         <div>
           <label className="font-semibold mr-2">Select Holiday Plan:</label>
           <select
@@ -406,6 +475,7 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
               fetchHolidays(plan.holidayPlanId).then(setHolidays);
             }}
             className="border px-2 py-2 rounded-lg"
+            disabled={isLoading}
           >
             <option value="">-- Select --</option>
             {holidayPlans.map((plan) => (
@@ -424,15 +494,12 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
             <h2 className="text-xl font-semibold">Holidays in {selectedPlan.holidayPlanName}</h2>
             <button
               onClick={() => {
-                if (isSuperAdmin && !selectedCompanyId) {
-                  toast.error("Please select a company first");
-                  return;
-                }
-                setHolidayForm({ holidayDate: "", description: "", companyId: isSuperAdmin ? selectedCompanyId : companyId });
+                setHolidayForm({ holidayDate: "", description: "", companyId: userRole === "Super Admin" ? selectedCompanyId : companyId });
                 setSelectedHoliday(null);
                 setHolidayModalOpen(true);
               }}
               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md"
+              disabled={isLoading}
             >
               <Plus size={18} /> Add Holiday
             </button>
@@ -450,7 +517,6 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
               <tbody>
                 {holidays.map((h) => {
                   const isPast = new Date(h.holidayDate) < new Date();
-
                   return (
                     <tr key={h.holidayId} className="border-t hover:bg-gray-50">
                       <td className="py-2 px-4">{h.holidayDate}</td>
@@ -462,16 +528,14 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
                           <>
                             <button
                               className={`p-2 rounded-md ${
-                                isPast
-                                  ? "bg-gray-300 cursor-not-allowed"
-                                  : "bg-blue-500 hover:bg-blue-600 text-white"
+                                isPast ? "bg-gray-300 cursor-not-allowed" : "bg-blue-500 hover:bg-blue-600 text-white"
                               }`}
-                              disabled={isPast}
+                              disabled={isPast || isLoading}
                               onClick={() => {
                                 setHolidayForm({
                                   holidayDate: h.holidayDate,
                                   description: h.description,
-                                  companyId: h.companyId || (isSuperAdmin ? selectedCompanyId : companyId),
+                                  companyId: h.companyId || (userRole === "Super Admin" ? selectedCompanyId : companyId),
                                 });
                                 setSelectedHoliday(h);
                                 setHolidayModalOpen(true);
@@ -481,11 +545,9 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
                             </button>
                             <button
                               className={`p-2 rounded-md ${
-                                isPast
-                                  ? "bg-gray-300 cursor-not-allowed"
-                                  : "bg-red-500 hover:bg-red-600 text-white"
+                                isPast ? "bg-gray-300 cursor-not-allowed" : "bg-red-500 hover:bg-red-600 text-white"
                               }`}
-                              disabled={isPast}
+                              disabled={isPast || isLoading}
                               onClick={() => handleDeleteHoliday(h.holidayId)}
                             >
                               <Trash size={16} />
@@ -496,7 +558,7 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
                     </tr>
                   );
                 })}
-                {holidays.length === 0 && (
+                {holidays.length === 0 && !isLoading && (
                   <tr>
                     <td colSpan="3" className="text-center py-4 text-gray-500">
                       No holidays found
@@ -536,6 +598,7 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
               value={planForm.startYear}
               onChange={handleStartYearChange}
               className="border border-gray-300 rounded-lg p-3 w-full mb-3 focus:ring-2 focus:ring-blue-500 outline-none"
+              disabled={isLoading}
             />
             <input
               type="number"
@@ -544,13 +607,37 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
               readOnly
               className="border border-gray-300 rounded-lg p-3 w-full mb-3 focus:ring-2 focus:ring-blue-500 outline-none bg-gray-100"
             />
-            <input
-              type="text"
-              placeholder="Company"
-              value={isSuperAdmin ? selectedCompanyName || "No company selected" : companyId}
-              readOnly
-              className="border border-gray-300 rounded-lg p-3 w-full mb-3 focus:ring-2 focus:ring-blue-500 outline-none bg-gray-100"
-            />
+            <div>
+              <label className="block font-medium text-gray-700 mb-2">Company</label>
+              {userRole === "Super Admin" ? (
+                <select
+                  value={planForm.companyId}
+                  onChange={(e) => {
+                    setPlanForm((prev) => ({ ...prev, companyId: e.target.value }));
+                    const selected = companies.find((c) => c.companyId === e.target.value);
+                    setCompanyName(selected ? selected.companyName : "");
+                  }}
+                  disabled={selectedPlan !== null} // Disable when editing
+                  className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                >
+                  <option value="">Select Company</option>
+                  {companies
+                    .filter((c) => c.companyId !== 1)
+                    .map((c) => (
+                      <option key={c.companyId} value={c.companyId}>
+                        {c.companyName}
+                      </option>
+                    ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={companyName || "No company selected"}
+                  disabled
+                  className="w-full border border-gray-300 rounded-lg p-3 bg-gray-100 cursor-not-allowed"
+                />
+              )}
+            </div>
             <div className="flex flex-wrap gap-4 mb-4">
               {weekDays.map((day) => (
                 <label key={day} className="flex items-center gap-2 text-gray-700">
@@ -558,6 +645,7 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
                     type="checkbox"
                     checked={planForm.weeklyOff.includes(day)}
                     onChange={() => toggleWeeklyOff(day)}
+                    disabled={isLoading}
                   />
                   {day}
                 </label>
@@ -568,12 +656,14 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
               <button
                 onClick={() => setPlanModalOpen(false)}
                 className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg"
+                disabled={isLoading}
               >
                 Cancel
               </button>
               <button
                 onClick={handleSavePlan}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow-md"
+                disabled={isLoading}
               >
                 {selectedPlan ? "Update Changes" : "Save"}
               </button>
@@ -608,6 +698,7 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
               value={holidayForm.holidayDate}
               onChange={(e) => setHolidayForm((prev) => ({ ...prev, holidayDate: e.target.value }))}
               className="border border-gray-300 rounded-lg p-3 w-full mb-3 focus:ring-2 focus:ring-blue-500 outline-none"
+              disabled={isLoading}
             />
             <input
               type="text"
@@ -615,11 +706,12 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
               value={holidayForm.description}
               onChange={(e) => setHolidayForm((prev) => ({ ...prev, description: e.target.value }))}
               className="border border-gray-300 rounded-lg p-3 w-full mb-3 focus:ring-2 focus:ring-blue-500 outline-none"
+              disabled={isLoading}
             />
             <input
               type="text"
               placeholder="Company"
-              value={isSuperAdmin ? selectedCompanyName || "No company selected" : companyId}
+              value={userRole === "Super Admin" ? (companyName || "No company selected") : companyName}
               readOnly
               className="border border-gray-300 rounded-lg p-3 w-full mb-3 focus:ring-2 focus:ring-blue-500 outline-none bg-gray-100"
             />
@@ -628,12 +720,14 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
               <button
                 onClick={() => setHolidayModalOpen(false)}
                 className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg"
+                disabled={isLoading}
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveHoliday}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow-md"
+                disabled={isLoading}
               >
                 {selectedHoliday ? "Update Changes" : "Save"}
               </button>

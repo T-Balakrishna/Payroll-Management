@@ -89,13 +89,14 @@ exports.getAllHolidayPlans = async (req, res) => {
   try {
     const { companyId } = req.query;
 
-    // Validate companyId
-    if (!companyId) {
-      return res.status(400).json({ message: "Company ID is required" });
+    // Build the where clause dynamically
+    const whereClause = { status: "active" };
+    if (companyId) {
+      whereClause.companyId = companyId;
     }
 
     const plans = await HolidayPlan.findAll({
-      where: { companyId, status: "active" },
+      where: whereClause,
     });
     res.json(plans);
   } catch (err) {
@@ -137,13 +138,8 @@ exports.deleteHolidayPlan = async (req, res) => {
   try {
     const { updatedBy, companyId } = req.body;
 
-    // Validate companyId
-    if (!companyId) {
-      return res.status(400).json({ message: "Company ID is required" });
-    }
-
     const plan = await HolidayPlan.findOne({
-      where: { holidayPlanId: req.params.id, companyId, status: "active" },
+      where: { holidayPlanId: req.params.id, status: "active" },
     });
     if (!plan) {
       return res.status(404).json({ message: "Holiday Plan not found" });
@@ -151,9 +147,8 @@ exports.deleteHolidayPlan = async (req, res) => {
 
     await plan.update({ status: "inactive", updatedBy });
 
-    await Holiday.update(
-      { status: "inactive", updatedBy },
-      { where: { holidayPlanId: plan.holidayPlanId, companyId, status: "active" } }
+    await Holiday.destroy(
+      { where: { holidayPlanId: plan.holidayPlanId, status: "active" } }
     );
 
     res.json({ message: "Holiday Plan deactivated successfully" });
