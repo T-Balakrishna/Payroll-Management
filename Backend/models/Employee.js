@@ -66,7 +66,7 @@ const Employee = sequelize.define('Employee', {
 
   // Extra
   personalMail: { type: DataTypes.STRING },
-  biometricNumber: { type: DataTypes.STRING, allowNull: true },
+  biometricNumber: { type: DataTypes.STRING, allowNull: false},
   acctNumber: { type: DataTypes.STRING },
   qualification: { type: DataTypes.STRING },
   experience: { type: DataTypes.STRING },

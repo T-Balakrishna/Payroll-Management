@@ -2,9 +2,19 @@ const { Op } = require("sequelize");
 const Punch = require("../models/Punch");
 const BiometricDevice = require("../models/BiometricDevice");
 const ZKLib = require("node-zklib");
-const Employee = require("../models/Employee")
+const Employee = require("../models/Employee");
 
-// Fetch from biometric & save
+// Helper: Wrap query with timeout
+const withQueryTimeout = (promise, timeoutMs = 30000) => {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`Query timeout after ${timeoutMs}ms`)), timeoutMs)
+    )
+  ]);
+};
+
+// Fetch from biometric & save (unchanged)
 exports.fetchPunches = async (req, res) => {
   try {
     const { companyId } = req.query; // Optional companyId to filter devices
@@ -62,10 +72,10 @@ exports.fetchPunches = async (req, res) => {
   }
 };
 
-// Get today’s punches (all employees)
+// Get today’s punches (with limit)
 exports.getTodayPunches = async (req, res) => {
   try {
-    const { companyId } = req.query;
+    const { companyId, limit = 10000, offset = 0 } = req.query;
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
     const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
@@ -79,33 +89,43 @@ exports.getTodayPunches = async (req, res) => {
       where.companyId = companyId;
     }
 
-    const punches = await Punch.findAll({
-      where,
-      order: [["punchTimestamp", "DESC"]]
-    });
+    const punches = await withQueryTimeout(
+      Punch.findAll({
+        where,
+        order: [["punchTimestamp", "DESC"]],
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        raw: true
+      })
+    );
 
     res.json(punches);
   } catch (err) {
     console.error("❌ Error fetching today’s punches:", err);
-    res.status(500).send("Error: " + err.message);
+    res.status(500).json({ message: "Error fetching today’s punches: " + err.message });
   }
 };
 
-// Get all punches of a specific biometricNumber
+// Get all punches of a specific biometricNumber (with limit)
 exports.getPunchesById = async (req, res) => {
   try {
     const { bioNumber } = req.params;
-    const { companyId } = req.query;
+    const { companyId, limit = 10000, offset = 0 } = req.query;
 
     let where = { biometricNumber: bioNumber };
     if (companyId) {
       where.companyId = companyId;
     }
 
-    const punches = await Punch.findAll({
-      where,
-      order: [["punchTimestamp", "DESC"]]
-    });
+    const punches = await withQueryTimeout(
+      Punch.findAll({
+        where,
+        order: [["punchTimestamp", "DESC"]],
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        raw: true
+      })
+    );
 
     if (!punches.length) {
       return res.status(404).json({ message: "No punches found for this user" });
@@ -114,10 +134,11 @@ exports.getPunchesById = async (req, res) => {
     res.json(punches);
   } catch (err) {
     console.error("❌ Error fetching punches by ID:", err);
-    res.status(500).send("Error: " + err.message);
+    res.status(500).json({ message: "Error fetching punches by ID: " + err.message });
   }
 };
 
+// Get punches with filters (optimized with pagination, timeout, and better includes)
 exports.getPunches = async (req, res) => {
   try {
     const { 
@@ -126,7 +147,9 @@ exports.getPunches = async (req, res) => {
       departmentId, 
       date, 
       startDate, 
-      endDate 
+      endDate,
+      limit = 10000,  // Default cap to prevent overload
+      offset = 0
     } = req.query;
 
     // Validate required param
@@ -175,21 +198,33 @@ exports.getPunches = async (req, res) => {
         model: Employee,
         required: true,  // INNER JOIN for filtering
         where: employeeWhere,
-        attributes: []  // No need for extra attrs, just for filtering
+        attributes: []  // No extra attrs for performance
       });
     }
 
-    const punches = await Punch.findAll({
+    const queryOptions = {
       where: punchWhere,
       include,
       order: [["punchTimestamp", "DESC"]],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
       raw: true  // Serialize to plain objects
-    });
+    };
+
+    // Optional: Raw SQL fallback for extreme cases (uncomment if Sequelize too slow)
+    // const [results] = await sequelize.query(
+    //   `SELECT * FROM Punches p ${include.length ? 'INNER JOIN Employees e ON p.employeeNumber = e.employeeNumber' : ''} 
+    //    WHERE ${/* build WHERE dynamically */} 
+    //    ORDER BY p.punchTimestamp DESC LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}`,
+    //   { type: sequelize.QueryTypes.SELECT }
+    // );
+
+    const punches = await withQueryTimeout(Punch.findAll(queryOptions));
 
     // Always return array, even if empty
     res.json(punches);
   } catch (err) {
-    console.error("❌ Error fetching punches:", err);
-    res.status(500).json({ message: err.message });
+    console.error("❌ Error fetching punches:", err);  // Full error in logs
+    res.status(500).json({ message: `Error fetching punches: ${err.message}` });
   }
 };
