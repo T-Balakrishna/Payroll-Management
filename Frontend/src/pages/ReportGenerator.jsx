@@ -110,9 +110,6 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
   const [numberToName, setNumberToName] = useState({});
   const [nameToNumber, setNameToNumber] = useState({});
   const [numberToDepartment, setNumberToDepartment] = useState({});
-  const [biometricToName, setBiometricToName] = useState({});
-  const [biometricToEmpNum, setBiometricToEmpNum] = useState({});
-  const [empNumToBiometric, setEmpNumToBiometric] = useState({});
   const [showDeptDropdown, setShowDeptDropdown] = useState(false);
   const [departmentsLoaded, setDepartmentsLoaded] = useState(false);
   const [employeesLoaded, setEmployeesLoaded] = useState(false);
@@ -128,21 +125,24 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
   // Define fields for each model with user-friendly labels
   const modelFields = {
     attendance: [
-      { name: 'attendanceId', label: 'Attendance ID' },
+      { name: 'employeeName', label: 'Employee Name' },
       { name: 'employeeNumber', label: 'Employee Number' },
+      { name: 'attendanceId', label: 'Attendance ID' },
       { name: 'attendanceDate', label: 'Date' },
       { name: 'attendanceStatus', label: 'Status' },
     ],
     punches: [
+      { name: 'employeeName', label: 'Employee Name' },
+      { name: 'employeeNumber', label: 'Employee Number' },
       { name: 'punchId', label: 'Punch ID' },
-      { name: 'biometricNumber', label: 'Biometric Number (Employee Name)' },
+      { name: 'biometricNumber', label: 'Biometric Number' },
       { name: 'deviceIp', label: 'Device IP' },
       { name: 'punchTimestamp', label: 'Punch Timestamp' },
-      { name: 'employeeNumber', label: 'Employee Number' },
     ],
     leaves: [
-      { name: 'leaveId', label: 'Leave ID' },
+      { name: 'employeeName', label: 'Employee Name' },
       { name: 'employeeNumber', label: 'Employee Number' },
+      { name: 'leaveId', label: 'Leave ID' },
       { name: 'leaveTypeId', label: 'Leave Type ID' },
       { name: 'startDate', label: 'Start Date' },
       { name: 'endDate', label: 'End Date' },
@@ -169,9 +169,9 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
     setDepartmentsLoaded(false);
     setEmployeesLoaded(false);
     setRetryCount(0);
-    setBiometricToName({});
-    setBiometricToEmpNum({});
-    setEmpNumToBiometric({});
+    setNumberToName({});
+    setNameToNumber({});
+    setNumberToDepartment({});
   }, [selectedCompanyId]);
 
   // Fetch data only when selectedCompanyId is present
@@ -257,9 +257,6 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
       const numToName = {};
       const nameToNum = {};
       const numToDept = {};
-      const biometricToName = {};
-      const biometricToEmpNum = {};
-      const empNumToBiometric = {};
       processedEmployees.forEach(emp => {
         if (emp.employeeNumber && emp.employeeName) {
           numToName[emp.employeeNumber] = emp.employeeName;
@@ -267,20 +264,12 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
           // Ensure departmentId is number
           numToDept[emp.employeeNumber] = Number(emp.departmentId);
         }
-        if (emp.biometricNumber && emp.employeeNumber && emp.employeeName) {
-          biometricToName[emp.biometricNumber] = emp.employeeName;
-          biometricToEmpNum[emp.biometricNumber] = emp.employeeNumber;
-          empNumToBiometric[emp.employeeNumber] = emp.biometricNumber;
-        }
       });
       setNumberToName(numToName);
       setNameToNumber(nameToNum);
       setNumberToDepartment(numToDept);
-      setBiometricToName(biometricToName);
-      setBiometricToEmpNum(biometricToEmpNum);
-      setEmpNumToBiometric(empNumToBiometric);
       setRetryCount(0);
-      console.log('Employee Mappings:', { numToName, nameToNum, numToDept, biometricToName, biometricToEmpNum, empNumToBiometric, employees: processedEmployees });
+      console.log('Employee Mappings:', { numToName, nameToNum, numToDept, employees: processedEmployees });
       showToast('Employees loaded successfully', 'success');
     } catch (error) {
       console.error('Error fetching employees:', error);
@@ -306,13 +295,13 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
 
   const handleModelSelect = (model) => {
     setSelectedModel(model);
-    setSelectedFields([]);
+    setSelectedFields(['employeeName', 'employeeNumber']);
     setData([]);
     setError(null);
     setSelectedDepartments([]);
     setSelectedEmployees([]);
     setEmployeeSearch('');
-    const initialReportType = model === 'leaves' ? 'monthly' : 'all';
+    const initialReportType = model === 'punches' ? 'monthly' : (model === 'leaves' ? 'monthly' : 'all');  // Force monthly for punches
     setReportType(initialReportType);
     setDateFilter(new Date().toISOString().split('T')[0]);
     setMonthFilter('1');
@@ -321,6 +310,7 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
   };
 
   const handleFieldToggle = (fieldName) => {
+    if (fieldName === 'employeeName' || fieldName === 'employeeNumber') return; // Prevent deselection of defaults
     setSelectedFields((prev) =>
       prev.includes(fieldName)
         ? prev.filter((f) => f !== fieldName)
@@ -329,11 +319,13 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
   };
 
   const handleSelectAllFields = () => {
+    const defaults = ['employeeName', 'employeeNumber'];
     if (selectedFields.length === modelFields[selectedModel]?.length) {
-      setSelectedFields([]);
-      showToast('All fields deselected', 'info');
+      setSelectedFields(defaults);
+      showToast('Non-default fields deselected', 'info');
     } else {
-      setSelectedFields(modelFields[selectedModel].map((field) => field.name));
+      const allNonDefaults = modelFields[selectedModel].filter(field => !defaults.includes(field.name)).map(field => field.name);
+      setSelectedFields([...defaults, ...allNonDefaults]);
       showToast('All fields selected', 'success');
     }
   };
@@ -442,28 +434,13 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
           .map(emp => emp.employeeNumber);
       }
 
-      if (selectedModel === 'punches') {
-        // For punches, collect biometricNumbers from targetEmpNums
-        if (targetEmpNums.length > 0) {
-          const biometricNumbers = targetEmpNums
-            .map(empNum => empNumToBiometric[empNum])
-            .filter(bio => bio);
-          if (biometricNumbers.length > 0) {
-            params.biometricNumber = biometricNumbers;
-          } else {
-            // No biometrics for selected, treat as no data
-            throw new Error('No biometric numbers found for selected employees/departments.');
-          }
-        }
-      } else {
-        // For other models, use employeeNumber
-        if (targetEmpNums.length > 0) {
-          params.employeeNumber = targetEmpNums;
-        }
-        // Add department filter if selected (as array for backend)
-        if (selectedDepartments.length > 0 && targetEmpNums.length === 0) {
-          params.departmentId = selectedDepartments;  // Backend can handle array
-        }
+      // For punches, do not send employeeNumber to avoid backend error; filter in frontend
+      if (selectedModel !== 'punches' && targetEmpNums.length > 0) {
+        params.employeeNumber = targetEmpNums;
+      }
+      // Add department filter if selected (as array for backend)
+      if (selectedDepartments.length > 0 && targetEmpNums.length === 0) {
+        params.departmentId = selectedDepartments;  // Backend can handle array
       }
 
       // Model-specific time filters
@@ -489,8 +466,47 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
         }
       }
 
+      // Validation for punches: Ensure date range is provided
+      if (selectedModel === 'punches' && !params.date && !params.startDate && !params.endDate) {
+        const errorMessage = 'Please select a date range (daily/monthly/yearly) for punches - "All Time" fetches too much data.';
+        setError(errorMessage);
+        showToast(errorMessage, 'warning');
+        Swal.fire({
+          title: 'Validation Error',
+          text: errorMessage,
+          icon: 'warning',
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#3085d6',
+        });
+        setLoading(false);
+        return;
+      }
+
       console.log('Fetching data with params:', params);
-      const response = await axios.get(endpoint, { params, headers });
+
+      // Add timeout and retry logic
+      let retryAttempts = 0;
+      const maxRetries = 2;
+      let response;
+      while (retryAttempts <= maxRetries) {
+        try {
+          response = await axios.get(endpoint, { 
+            params, 
+            headers,
+              // 30s timeout
+          });
+          break;  // Success, exit loop
+        } catch (fetchError) {
+          if (fetchError.code === 'ECONNABORTED' || (fetchError.response?.status === 500 && retryAttempts < maxRetries)) {
+            retryAttempts++;
+            showToast(`Retry ${retryAttempts}/${maxRetries + 1} for slow query...`, 'warning');
+            await new Promise(resolve => setTimeout(resolve, 2000 * retryAttempts));  // Exponential backoff
+          } else {
+            throw fetchError;  // Re-throw non-retryable errors
+          }
+        }
+      }
+
       let fetchedData = response.data;
 
       // Handle cases where data might be wrapped inside an object
@@ -506,6 +522,13 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
           throw new Error(`${selectedModel} data is not an array`);
         }
       }
+
+      // Cap data for punches to prevent overload
+      if (selectedModel === 'punches' && fetchedData.length > 10000) {
+        fetchedData = fetchedData.slice(0, 10000);  // Take first 10k
+        showToast('Capped at 10k records for preview - use filters for more.', 'warning');
+      }
+
       if (fetchedData.length === 0) {
         const errorMessage = `No ${selectedModel} data found for the selected filters.`;
         setError(errorMessage);
@@ -522,26 +545,38 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
         return;
       }
 
-      // Frontend filtering as fallback (ensure numbers for comparison)
+      // Frontend filtering and enriching
       let filteredData = fetchedData;
       if (selectedModel === 'punches') {
+        // For punches, match biometricNumber with employees
         filteredData = fetchedData.filter(item => {
-          const bioNum = item.biometricNumber;
-          const empNumFromBio = biometricToEmpNum[bioNum];
-          const empNum = empNumFromBio || item.employeeNumber;
-          const empDept = empNum ? Number(numberToDepartment[empNum]) : null;
-          const inDepts = selectedDepartments.length === 0 || (empDept && selectedDepartments.includes(empDept));
+          const matchingEmp = allEmployees.find(emp => emp.biometricNumber === item.biometricNumber);
+          if (!matchingEmp) return false; // Skip if no matching employee
+          const empNum = matchingEmp.employeeNumber;
+          const empDept = Number(matchingEmp.departmentId);
+          const inDepts = selectedDepartments.length === 0 || selectedDepartments.includes(empDept);
           const inEmps = selectedEmployees.length === 0 || selectedEmployees.includes(empNum);
           return inDepts && inEmps;
+        }).map(record => {
+          const matchingEmp = allEmployees.find(emp => emp.biometricNumber === record.biometricNumber);
+          return {
+            ...record,
+            employeeName: matchingEmp ? matchingEmp.employeeName : '',
+            employeeNumber: matchingEmp ? matchingEmp.employeeNumber : '',
+          };
         });
       } else {
+        // For other models
         filteredData = fetchedData.filter(item => {
           const empNum = item.employeeNumber;
           const empDept = Number(numberToDepartment[empNum]);  // Ensure number
           const inDepts = selectedDepartments.length === 0 || selectedDepartments.includes(empDept);
           const inEmps = selectedEmployees.length === 0 || selectedEmployees.includes(empNum);
           return inDepts && inEmps;
-        });
+        }).map(record => ({
+          ...record,
+          employeeName: numberToName[record.employeeNumber] || '',
+        }));
       }
 
       setData(filteredData);
@@ -612,16 +647,11 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
         return field ? field.label : fieldName;
       });
 
-      // Prepare data rows, optionally replace employeeNumber or biometricNumber with name if mapping exists
+      // Prepare data rows
       const rows = data.map(record => {
         const row = {};
         selectedFields.forEach(fieldName => {
           let value = record[fieldName];
-          if (fieldName === 'employeeNumber' && numberToName[value]) {
-            value = numberToName[value];  // Replace number with name
-          } else if (fieldName === 'biometricNumber' && biometricToName[value]) {
-            value = biometricToName[value];  // Replace biometric with name
-          }
           row[fieldName] = value || '';
         });
         return row;
@@ -751,7 +781,7 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
                 onClick={handleSelectAllFields}
                 className="mb-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
               >
-                {selectedFields.length === modelFields[selectedModel].length ? 'Deselect All' : 'Select All'}
+                {selectedFields.length > 2 ? 'Deselect Non-Defaults' : 'Select All'}
               </button>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-48 overflow-y-auto">
                 {modelFields[selectedModel].map(field => (
@@ -760,6 +790,7 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
                       type="checkbox"
                       checked={selectedFields.includes(field.name)}
                       onChange={() => handleFieldToggle(field.name)}
+                      disabled={field.name === 'employeeName' || field.name === 'employeeNumber'}
                       className="mr-2"
                     />
                     {field.label}
@@ -779,7 +810,7 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
                     onChange={(e) => handleReportTypeChange(e.target.value)}
                     className="w-full p-2 border rounded"
                   >
-                    <option value="all">All Time</option>
+                    {selectedModel !== 'punches' && <option value="all">All Time</option>}
                     <option value="daily">Daily</option>
                     <option value="monthly">Monthly</option>
                     <option value="yearly">Yearly</option>
@@ -924,12 +955,17 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
 
             {/* Actions */}
             <div className="bg-white p-6 rounded-lg shadow mb-6 flex gap-4">
+              {!employeesLoaded && (
+                <div className="text-red-500 mb-2">
+                  Employees data is loading or failed. Please wait or retry.
+                </div>
+              )}
               <button
                 onClick={loadPreview}
-                disabled={loading}
-                className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+                disabled={loading || !employeesLoaded}
+                className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Loading...' : 'Load Preview'}
+                {loading ? 'Loading...' : (!employeesLoaded ? 'Employees Loading...' : 'Load Preview')}
               </button>
               <button
                 onClick={generateExcelReport}
@@ -967,11 +1003,6 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
                         <tr key={index}>
                           {selectedFields.map(fieldName => {
                             let value = record[fieldName];
-                            if (fieldName === 'employeeNumber' && numberToName[value]) {
-                              value = numberToName[value];
-                            } else if (fieldName === 'biometricNumber' && biometricToName[value]) {
-                              value = biometricToName[value];
-                            }
                             return <td key={fieldName} className="px-4 py-2 border-b">{value || ''}</td>;
                           })}
                         </tr>

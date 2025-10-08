@@ -872,6 +872,7 @@ const EmployeeProfilePage = () => {
                     value={formData.shiftId}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors bg-white h-12"
+                    disabled
                   >
                     <option value="">Select Shift</option>
                     {options.shifts.map((s) => (
