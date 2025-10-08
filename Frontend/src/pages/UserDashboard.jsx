@@ -13,7 +13,7 @@ import { toast } from "react-toastify";
 
 let token = sessionStorage.getItem("token");
 let decoded = token ? jwtDecode(token) : "";
-let userNumber = decoded?.userNumber || "system";
+let userNumber = decoded?.userNumber;
 
 export default function DashboardPage() {
   const [modalContent, setModalContent] = useState(null);
@@ -60,7 +60,7 @@ export default function DashboardPage() {
         }
 
         if (employee.photo) {
-          const photoPath = employee.photo.startsWith("/Uploads/") ? employee.photo : `/Uploads/${employee.photo}`;
+          const photoPath = employee.photo.startsWith("/uploads/") ? employee.photo : `/uploads/${employee.photo}`;
           setPhotoUrl(photoPath);
         } else {
           setPhotoUrl(null);

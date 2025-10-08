@@ -766,7 +766,7 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
                 <div className="text-4xl mb-3">
                   {model === 'attendance' && '📋'}
                   {model === 'punches' && '👆'}
-                  {model === 'leaves' && '🍃'}
+                  {model === 'leaves' && '🗓️'}
                 </div>
                 <h3 className="font-bold text-lg text-gray-900 mb-2 capitalize">{model}</h3>
                 <p className="text-gray-600 text-sm">{modelFields[model].length} fields available</p>

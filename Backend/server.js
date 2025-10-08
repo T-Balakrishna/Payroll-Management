@@ -4,18 +4,24 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const seq = require('./config/db');
 const cron = require("node-cron");
-
+const path = require("path");
 const app = express();
 
 // ✅ Middlewares
 app.use(helmet());
 app.use(morgan('dev'));
 app.use(cors({
-  origin: "http://localhost:5173", // your React frontend
-  credentials: true,
+  origin: 'http://localhost:5173', // React dev server
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true, // if you use cookies/auth
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+
+// Serve employee photos
+app.use('/uploads/', express.static(path.join(__dirname, 'uploads/employees')));
+
 
 // ✅ Routes
 const attendanceRoutes = require("./routes/attendanceRoute");
