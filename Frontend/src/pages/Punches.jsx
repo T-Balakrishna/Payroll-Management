@@ -25,7 +25,7 @@ function Punches({ userRole, selectedCompanyId, selectedCompanyName }) {
       return;
     }
     try {
-      let punchUrl = "http://localhost:5000/api/punches/get";
+      let punchUrl = "http://localhost:5000/api/punches/";
       if (selectedCompanyId) punchUrl += `?companyId=${selectedCompanyId}`;
       let deviceUrl = "http://localhost:5000/api/biometricDevices";
       if (selectedCompanyId) deviceUrl += `?companyId=${selectedCompanyId}`;

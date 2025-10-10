@@ -13,7 +13,7 @@ import { toast } from "react-toastify";
 
 let token = sessionStorage.getItem("token");
 let decoded = token ? jwtDecode(token) : "";
-let userNumber = decoded?.userNumber || "system";
+let userNumber = decoded?.userNumber;
 
 export default function DashboardPage() {
   const [modalContent, setModalContent] = useState(null);
@@ -33,9 +33,16 @@ export default function DashboardPage() {
   const openCalendarModal = () => setModalContent("calendar");
   const closeModal = () => setModalContent(null);
 
+  useEffect(() => {
+    token = sessionStorage.getItem("token");
+    decoded = token ? jwtDecode(token) : "";
+    userNumber = decoded?.userNumber;
+  }, []);
+  
   // Fetch employee info
   useEffect(() => {
-    if (!userNumber) {
+      
+    if (!userNumber) {      
       console.error("No userNumber found in sessionStorage");
       setUserName("Guest");
       setPhotoUrl(null);

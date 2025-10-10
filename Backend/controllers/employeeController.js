@@ -338,3 +338,22 @@ exports.uploadPhoto = async (req, res) => {
     res.status(500).json({ error: "Failed to upload photo", details: error.message });
   }
 };
+
+exports.getEmployeeByBiometric = async (req, res) => {
+  try {
+    const { biometricNumber } = req.params;
+    const employee = await Employee.findOne({
+      where: { biometricNumber },
+      attributes: ["employeeNumber", "departmentId"]
+    });
+
+    if (!employee) {
+      return res.status(404).json({ message: "Employee not found" });
+    }
+
+    res.json(employee);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+};
