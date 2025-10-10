@@ -4,18 +4,24 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const seq = require('./config/db');
 const cron = require("node-cron");
-
+const path = require("path");
 const app = express();
 
 // ✅ Middlewares
 app.use(helmet());
 app.use(morgan('dev'));
 app.use(cors({
-  origin: "http://localhost:5173", // your React frontend
-  credentials: true,
+  origin: 'http://localhost:5173', // React dev server
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true, // if you use cookies/auth
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+
+// Serve employee photos
+app.use('/uploads/', express.static(path.join(__dirname, 'uploads/employees')));
+
 
 // ✅ Routes
 const attendanceRoutes = require("./routes/attendanceRoute");
@@ -68,26 +74,8 @@ app.use('/api/users', userRoute);
 app.use('/api/auth', authRoute);
 app.use("/api/shiftAllocation", shiftAllocationRoutes);
 
-// Import models for Sequelize
-require('./models/Attendance');
-require('./models/BiometricDevice');
-require('./models/Bus');
-require('./models/Caste');
-require('./models/Company');
-require('./models/Department');
-require('./models/Designation');
-require('./models/Employee');
-require('./models/EmployeeGrade');
-require('./models/EmployeeType');
-require('./models/Holiday');
-require('./models/HolidayPlan');
-require('./models/LeaveAllocation');
-require('./models/Leave');
-require('./models/LeaveType');
-require('./models/Punch');
-require('./models/Religion');
-require('./models/Shift');
-require('./models/User');
+// ✅ Central model loading (replaces individual requires)
+require('./models');  // Triggers index.js: loads all models + associations
 
 // ✅ Start server
 const startServer = async () => {
@@ -96,44 +84,31 @@ const startServer = async () => {
     console.log("✅ DB Connected successfully");
 
     // ⚠️ safer: alter = keep data, adjust schema if needed
-    await seq.sync({ alter:false, }); 
+    await seq.sync({ alter: false, logging: false });
     console.log("✅ Tables synced");
 
     app.listen(5000, () => {
       console.log("🚀 Listening at http://localhost:5000");
     });
 
-    // // 🕛 Hourly biometric fetch
-    // cron.schedule("* * * * *", async () => {
-    //   try {
-    //     console.log("🕛 Running hourly biometric fetch...");
-    //     await fetchBiometrics();
-    //   } catch (err) {
-    //     console.error("❌ Error fetching biometrics:", err.message);
-    //   }
-    // });
-
-    // // 🕛 Daily attendance processor at 12:00 AM
-    // cron.schedule("* * * * *", async () => {
-    //   try {
-    //     console.log("🕛 Running daily attendance processor...");
-    //     await processAttendance();
-    //   } catch (err) {
-    //     console.error("❌ Error processing attendance:", err.message);
-    //   }
-    // });
-
-    // 🕛 Daily auto email service at 00:00 IST
-    cron.schedule('* * * * *', async () => {
+    // 🕛 Hourly biometric fetch (uncomment if needed)
+    cron.schedule("* * * * *", async () => {
       try {
-        console.log("🕛 Running daily auto email service...");
-        await autoEmailService();
+        console.log("🕛 Running hourly biometric fetch...");
+        await fetchBiometrics();
       } catch (err) {
-        console.error("❌ Error in auto email service:", err.message);
+        console.error("❌ Error fetching biometrics:", err.message);
       }
-    }, {
-      scheduled: true,
-      timezone: 'Asia/Kolkata'
+    });
+
+    // 🕛 Daily attendance processor at 12:00 AM (uncomment if needed)
+    cron.schedule("* * * * *", async () => {  // Fixed: proper cron for midnight
+      try {
+        console.log("🕛 Running daily attendance processor...");
+        await processAttendance();
+      } catch (err) {
+        console.error("❌ Error processing attendance:", err.message);
+      }
     });
 
   } catch (error) {

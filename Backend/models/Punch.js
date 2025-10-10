@@ -6,11 +6,10 @@ const Punch = seq.define('Punch', {
   biometricNumber: { type: DataTypes.STRING, allowNull: false },
   deviceIp: { type: DataTypes.STRING, allowNull: true },
   punchTimestamp: { type: DataTypes.DATE, allowNull: false },
-  createdBy: { type: DataTypes.STRING, allowNull: true },
-  updatedBy: { type: DataTypes.STRING, allowNull: true },
+  companyId: { type: DataTypes.INTEGER, allowNull: false },
 }, {
   tableName: 'Punch',
-  timestamps: true
+  timestamps: false
 });
 
 module.exports = Punch;

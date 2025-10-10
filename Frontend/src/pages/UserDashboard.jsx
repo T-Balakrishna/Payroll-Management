@@ -13,7 +13,7 @@ import { toast } from "react-toastify";
 
 let token = sessionStorage.getItem("token");
 let decoded = token ? jwtDecode(token) : "";
-let userNumber = decoded?.userNumber || "system";
+let userNumber = decoded?.userNumber;
 
 export default function DashboardPage() {
   const [modalContent, setModalContent] = useState(null);
@@ -23,8 +23,8 @@ export default function DashboardPage() {
   const [punches, setPunches] = useState([]);
   const [biometricId, setBiometricId] = useState(null);
   const [leaves, setLeaves] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [companyId, setCompanyId] = useState(null); // Added
+  const [departmentId, setDepartmentId] = useState(null); // Added
 
   const hasFetchedRef = useRef(false);
   const abortControllerRef = useRef(null);
@@ -53,7 +53,8 @@ export default function DashboardPage() {
     if (!userNumber) {
       setUserName("Guest");
       setPhotoUrl(null);
-      setError("No user number found. Please log in again.");
+      setCompanyId(null); // Added
+      setDepartmentId(null); // Added
       return;
     }
 
@@ -69,9 +70,10 @@ export default function DashboardPage() {
           timeout: 10000,
         });
         const employee = res.data;
-
-        const fullName = `${employee.firstName || employee.employeeName || ''} ${employee.lastName || ''}`.trim() || 'New User';
-        setUserName(fullName);
+        if (employee.firstName && employee.lastName) {
+          const fullName = `${employee.firstName || employee.employeeName || ''} ${employee.lastName || ''}`.trim() || 'New User';
+          setUserName(fullName);
+        }
 
         if (employee.photo) {
           const photoPath = employee.photo.startsWith("/uploads/") ? employee.photo : `/uploads/${employee.photo}`;
@@ -79,14 +81,21 @@ export default function DashboardPage() {
         } else {
           setPhotoUrl(null);
         }
+
+        // Set companyId and departmentId
+        setCompanyId(employee.companyId || null);
+        setDepartmentId(employee.departmentId || null);
+
+        hasFetchedRef.current = true;
       } catch (err) {
         if (err.name === 'AbortError') return;
         console.error("Error fetching user data:", err.response?.data?.error || err.message);
         setError("Failed to fetch user data. Please try again.");
         setUserName("New User");
         setPhotoUrl(null);
-      } finally {
-        setIsLoading(false);
+        setCompanyId(null); // Added
+        setDepartmentId(null); // Added
+        hasFetchedRef.current = true;
       }
     };
 
@@ -106,13 +115,10 @@ export default function DashboardPage() {
 
     const fetchBiometricId = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/biometrics", {
-          timeout: 10000,
-        });
-        const allBiometrics = res.data;
-        const bio = allBiometrics.find(b => b.employeeNumber === userNumber);
+        const res = await axios.get(`http://localhost:5000/api/users/getBiometricNumber/${userNumber}`);        
+        const bio = res.data.biometricNumber;
         if (bio) {
-          setBiometricId(bio.biometricNumber);
+          setBiometricId(bio);
         } else {
           console.warn("No biometric linked to employeeNumber:", userNumber);
           setError("No biometric data linked to your account.");
@@ -372,7 +378,13 @@ export default function DashboardPage() {
             <div className="h-full overflow-y-auto">
               {modalContent === "profile" && <EmployeeProfile />}
               {modalContent === "calendar" && <CalendarPage />}
-              {modalContent === "takeleave" && <TakeLeavePage empId={userNumber} />}
+              {modalContent === "takeleave" && (
+                <TakeLeavePage
+                  empId={userNumber}
+                  companyId={companyId}
+                  departmentId={departmentId}
+                />
+              )}
             </div>
           </div>
         </div>

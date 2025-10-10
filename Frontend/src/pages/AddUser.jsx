@@ -7,7 +7,7 @@ import { toast } from "react-toastify";
 
 let token = sessionStorage.getItem("token");
 let decoded = token ? jwtDecode(token) : "";
-let userNumber = decoded?.userNumber || "system";
+let userNumber = decoded?.userNumber;
 
 // 🔹 Modal Component
 function AddOrEditUser({
@@ -22,6 +22,7 @@ function AddOrEditUser({
   userRole,
   companies,
   autoGenerate,
+  setAutoGenerate, // Added to allow updating autoGenerate state
   handleAutoGenerate,
   isEdit,
 }) {
@@ -29,14 +30,25 @@ function AddOrEditUser({
     const { name, value } = e.target;
     if (name === "role") {
       if (value === "Admin" && userRole === "Super Admin") {
-        setFormData({ ...formData, role: value, departmentId: 1 });
+        setFormData({ ...formData, role: value, departmentId: 1, biometricNumber: "" });
+        setAutoGenerate(false); // Uncheck Auto Generate
       } else if (value === "Super Admin") {
-        setFormData({ ...formData, role: value, companyId: 1, departmentId: 1 });
+        setFormData({ ...formData, role: value, companyId: 1, departmentId: 1, biometricNumber: "" });
+        setAutoGenerate(false); // Uncheck Auto Generate
       } else {
-        setFormData({ ...formData, role: value, departmentId: "" });
+        setFormData({ ...formData, role: value, departmentId: "", biometricNumber: "" });
+        setAutoGenerate(false); // Uncheck Auto Generate
       }
     } else if (name === "companyId") {
-      setFormData({ ...formData, companyId: value, departmentId: "" });
+      setFormData({ ...formData, companyId: value, departmentId: "", biometricNumber: "" });
+      setAutoGenerate(false); // Uncheck Auto Generate
+    } else if (name === "departmentId") {
+      setFormData({ ...formData, departmentId: value });
+      setAutoGenerate(false); // Uncheck Auto Generate
+    } else if (name === "biometricNumber") {
+      // Ensure only integer values or empty string
+      const intValue = value === "" ? "" : parseInt(value, 10);
+      setFormData({ ...formData, [name]: isNaN(intValue) ? "" : intValue.toString() });
     } else {
       setFormData({ ...formData, [name]: value });
     }
@@ -79,63 +91,67 @@ function AddOrEditUser({
     return formData.role === "Staff" || formData.role === "Department Admin";
   };
 
+  const showBiometricNumberField = () => {
+    return formData.role === "Staff";
+  };
+
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm">
-      <div className="max-w-xl w-full bg-white rounded-2xl shadow-xl p-8 py-2 relative">
+    <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm overflow-y-auto">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6 relative">
         <button
           onClick={onCancel}
-          className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-100 transition"
+          className="absolute top-2 right-2 p-1 rounded-full hover:bg-gray-100 transition"
         >
-          <X size={20} />
+          <X size={16} />
         </button>
 
-        <div className="flex justify-center mb-6">
-          <div className="bg-blue-100 rounded-full">
-            <Cpu className="text-blue-600" size={40} />
+        <div className="flex justify-center mb-4">
+          <div className="bg-blue-100 rounded-full p-2">
+            <Cpu className="text-blue-600" size={24} />
           </div>
         </div>
 
-        <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">
+        <h2 className="text-lg font-bold text-gray-800 text-center mb-1">
           {isEdit ? "Edit User" : "Add New User"}
         </h2>
 
-        <form onSubmit={onSave} className="space-y-2">
+        <form onSubmit={onSave} className="space-y-3">
           {/* Email */}
           <div>
-            <label className="block font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <input
               type="email"
               name="userMail"
               placeholder="Email"
               value={formData.userMail}
               onChange={handleChange}
-              className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              className="w-full border border-gray-300 rounded-md p-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               required
             />
           </div>
 
           {/* Password */}
           <div>
-            <label className="block font-medium text-gray-700 mb-1">Password</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
             <input
               type="password"
               name="password"
               placeholder="Password"
               value={formData.password}
               onChange={handleChange}
-              className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              className="w-full border border-gray-300 rounded-md p-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               required={!isEdit}
             />
           </div>
 
           {/* Role */}
           <div>
-            <label className="block font-medium text-gray-700 mb-1">Role</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
             <select
               name="role"
               value={formData.role}
               onChange={handleChange}
-              className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              className="w-full border border-gray-300 rounded-md p-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               required
             >
               <option value="">Select Role</option>
@@ -156,12 +172,12 @@ function AddOrEditUser({
           {/* Company */}
           {showCompanyField() && (
             <div>
-              <label className="block font-medium text-gray-700 mb-1">Company</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
               <select
                 name="companyId"
                 value={formData.companyId || ""}
                 onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                className="w-full border border-gray-300 rounded-md p-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               >
                 <option value="">Select Company</option>
                 {companies
@@ -178,12 +194,12 @@ function AddOrEditUser({
           {/* Department */}
           {showDepartmentField() && (
             <div>
-              <label className="block font-medium text-gray-700 mb-1">Department</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
               <select
                 name="departmentId"
                 value={formData.departmentId ?? ""}
                 onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                className="w-full border border-gray-300 rounded-md p-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                 required
               >
                 <option value="">Select Department</option>
@@ -196,21 +212,38 @@ function AddOrEditUser({
             </div>
           )}
 
+          {/* Biometric Number */}
+          {showBiometricNumberField() && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Biometric Number</label>
+              <input
+                type="text"
+                name="biometricNumber"
+                placeholder="Biometric Number"
+                value={formData.biometricNumber || ""}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-md p-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                pattern="[0-9]*"
+                title="Please enter a valid integer"
+              />
+            </div>
+          )}
+
           {/* User Number */}
           <div>
-            <label className="block font-medium text-gray-700 mb-1">User Number</label>
-            <div className="flex items-center gap-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">User Number</label>
+            <div className="flex items-center gap-2 py-1">
               <input
                 type="text"
                 name="userNumber"
                 placeholder="User Number"
                 value={formData.userNumber}
                 onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                className="w-full border border-gray-300 rounded-md p-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                 disabled={autoGenerate || isEdit}
                 required
               />
-              <label className="flex items-center gap-1">
+              <label className="flex items-center gap-1 text-sm">
                 <input
                   type="checkbox"
                   checked={autoGenerate}
@@ -225,17 +258,17 @@ function AddOrEditUser({
           </div>
 
           {/* Buttons */}
-          <div className="flex justify-end gap-3 pt-4">
+          <div className="flex justify-end gap-2 pt-3">
             <button
               type="button"
               onClick={onCancel}
-              className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition"
+              className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-1.5 rounded-md transition text-sm"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow-md transition"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-md transition text-sm"
             >
               {isEdit ? "Update" : "Save"}
             </button>
@@ -258,8 +291,9 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
     userMail: "",
     role: "",
     departmentId: "",
-    companyId: selectedCompanyId || "", // Initialize with selectedCompanyId
+    companyId: selectedCompanyId || "",
     password: "",
+    biometricNumber: "",
   });
   const [autoGenerate, setAutoGenerate] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -312,8 +346,8 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
         setUsers(res.data);
 
         const allDept = await axios.get("http://localhost:5000/api/departments", {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+          headers: { Authorization: `Bearer ${token}` } }
+        );
         setAllDepartments(allDept.data);
       } catch (err) {
         console.error("Error fetching data:", err.response?.data || err.message);
@@ -338,8 +372,9 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
       userMail: "",
       role: "",
       departmentId: "",
-      companyId: selectedCompanyId || (currentUserRole === "Super Admin" ? "" : 1), // Set companyId for non-Super Admins
+      companyId: selectedCompanyId || (currentUserRole === "Super Admin" ? "" : 1),
       password: "",
+      biometricNumber: "",
     });
     setAutoGenerate(false);
     setIsEdit(false);
@@ -547,6 +582,7 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
           userRole={currentUserRole}
           companies={companies}
           autoGenerate={autoGenerate}
+          setAutoGenerate={setAutoGenerate} // Pass setAutoGenerate
           handleAutoGenerate={handleAutoGenerate}
           isEdit={isEdit}
         />

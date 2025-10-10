@@ -8,7 +8,10 @@ import { toast } from "react-toastify";
 
 let token = sessionStorage.getItem("token");
 let decoded = token ? jwtDecode(token) : "";
-let userNumber = decoded?.userNumber || "system";
+let userNumber = decoded?.userNumber;
+
+// Add this constant for the backend base URL (adjust for production, e.g., via env vars)
+const API_BASE_URL = "http://localhost:5000";
 
 const EmployeeProfilePage = () => {
   const navigate = useNavigate();
@@ -93,11 +96,16 @@ const EmployeeProfilePage = () => {
       return () => URL.revokeObjectURL(url);
     } else if (formData.photoPath) {
       // Transform photoPath to match static route (/uploads/<filename>)
-      const correctedPhotoPath = formData.photoPath.includes('/uploads/employees/')
-        ? `/uploads/${formData.photoPath.split('/').pop()}`
-        : formData.photoPath;
-      console.log('Corrected photoPath:', correctedPhotoPath); // Debug log
-      setPhotoPreview(correctedPhotoPath);
+      let correctedPhotoPath = formData.photoPath;
+      if (formData.photoPath.includes('/uploads/employees/')) {
+        correctedPhotoPath = `/uploads/${formData.photoPath.split('/').pop()}`;
+      } else if (!formData.photoPath.startsWith('/uploads/')) {
+        correctedPhotoPath = `/uploads/${formData.photoPath}`;
+      }
+      // Prefix with full backend URL to avoid 404 on frontend server
+      const fullPhotoUrl = `${API_BASE_URL}${correctedPhotoPath}`;
+      console.log('Corrected full photo URL:', fullPhotoUrl); // Debug log
+      setPhotoPreview(fullPhotoUrl);
     } else {
       setPhotoPreview("/placeholder-image.jpg");
     }
@@ -106,7 +114,7 @@ const EmployeeProfilePage = () => {
   useEffect(() => {
     const fetchDepartments = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/departments");
+        const res = await axios.get(`${API_BASE_URL}/api/departments`);
         setDepartments(res.data);
       } catch (err) {
         console.error("Error fetching departments:", err);
@@ -129,7 +137,7 @@ const EmployeeProfilePage = () => {
           return;
         }
         console.log('Fetching user data for userNumber:', userNumber); // Debug log
-        const res = await axios.get(`http://localhost:5000/api/employees/fromUser/${userNumber}`);
+        const res = await axios.get(`${API_BASE_URL}/api/employees/fromUser/${userNumber}`);
         setFormData((prev) => ({
           ...prev,
           employeeMail: res.data.employeeMail,
@@ -155,7 +163,7 @@ const EmployeeProfilePage = () => {
         }
         console.log('Fetching employee data for employeeNumber:', employeeNumber); // Debug log
         const res = await axios.get(
-          `http://localhost:5000/api/employees/full/${employeeNumber}`
+          `${API_BASE_URL}/api/employees/full/${employeeNumber}`
         );
         if (res.data) {
           console.log('Fetched employee data:', res.data); // Debug log
@@ -186,15 +194,15 @@ const EmployeeProfilePage = () => {
   useEffect(() => {
     const fetchOptions = async () => {
       const requests = [
-        axios.get("http://localhost:5000/api/designations"),
-        axios.get("http://localhost:5000/api/employeeGrades"),
-        axios.get("http://localhost:5000/api/employeeTypes"),
-        axios.get("http://localhost:5000/api/holidayPlans"),
-        axios.get("http://localhost:5000/api/religions"),
-        axios.get("http://localhost:5000/api/castes"),
-        axios.get("http://localhost:5000/api/buses"),
-        axios.get("http://localhost:5000/api/employees"),
-        axios.get("http://localhost:5000/api/shifts"),
+        axios.get(`${API_BASE_URL}/api/designations`),
+        axios.get(`${API_BASE_URL}/api/employeeGrades`),
+        axios.get(`${API_BASE_URL}/api/employeeTypes`),
+        axios.get(`${API_BASE_URL}/api/holidayPlans`),
+        axios.get(`${API_BASE_URL}/api/religions`),
+        axios.get(`${API_BASE_URL}/api/castes`),
+        axios.get(`${API_BASE_URL}/api/buses`),
+        axios.get(`${API_BASE_URL}/api/employees`),
+        axios.get(`${API_BASE_URL}/api/shifts`),
       ];
 
       try {
@@ -306,12 +314,12 @@ const EmployeeProfilePage = () => {
       // Check if employee exists
       let employee;
       try {
-        const response = await axios.get(`http://localhost:5000/api/employees/full/${employeeNumber}`);
+        const response = await axios.get(`${API_BASE_URL}/api/employees/full/${employeeNumber}`);
         employee = response.data;
       } catch (err) {
         if (err.response?.status === 404) {
           console.log('Employee not found, creating new employee');
-          const createResponse = await axios.post(`http://localhost:5000/api/employees`, {
+          const createResponse = await axios.post(`${API_BASE_URL}/api/employees`, {
             employeeNumber,
             firstName: formData.firstName || "Default",
             lastName: formData.lastName || "User",
@@ -337,7 +345,7 @@ const EmployeeProfilePage = () => {
         photoFormData.append("photo", formData.photo);
         try {
           const photoResponse = await axios.post(
-            `http://localhost:5000/api/employees/${formData.employeeId || employee.employeeId}/photo`,
+            `${API_BASE_URL}/api/employees/${formData.employeeId || employee.employeeId}/photo`,
             photoFormData,
             {
               headers: {
@@ -345,7 +353,7 @@ const EmployeeProfilePage = () => {
               },
             }
           );
-          console.log('Photo upload response:', photoResponse.data); // Debug log
+          console.log('Photo upload response (new photoPath):', photoResponse.data.employee.photo); // Debug log
           setFormData((prev) => ({
             ...prev,
             photoPath: photoResponse.data.employee.photo,
@@ -365,7 +373,7 @@ const EmployeeProfilePage = () => {
       );
 
       console.log('Sending PUT with data:', filteredData); // Debug log
-      await axios.put(`http://localhost:5000/api/employees/${employeeNumber}`, filteredData, {
+      await axios.put(`${API_BASE_URL}/api/employees/${employeeNumber}`, filteredData, {
         headers: {
           "Content-Type": "application/json",
         },
@@ -610,9 +618,12 @@ const EmployeeProfilePage = () => {
                         alt="Profile"
                         className="w-32 h-32 object-cover rounded-full mx-auto border-2 border-slate-200"
                         onError={(e) => {
-                          console.error('Failed to load image:', photoPreview); // Debug log
+                          console.error('Failed to load image from URL:', photoPreview); // Enhanced debug log
                           e.currentTarget.src = "/placeholder-image.jpg";
-                          setErrorMessage("Failed to load profile photo");
+                          // Only set error if not already handling a fallback
+                          if (!errorMessage.includes("profile photo")) {
+                            setErrorMessage("Failed to load profile photo");
+                          }
                         }}
                       />
                     </div>
@@ -872,6 +883,7 @@ const EmployeeProfilePage = () => {
                     value={formData.shiftId}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors bg-white h-12"
+                    disabled
                   >
                     <option value="">Select Shift</option>
                     {options.shifts.map((s) => (

@@ -12,6 +12,7 @@ const User = sequelize.define("User", {
   createdBy: { type: DataTypes.STRING, allowNull: true },
   updatedBy: { type: DataTypes.STRING, allowNull: true },
   companyId: { type: DataTypes.INTEGER, allowNull: false ,defaultValue:"0"},
+  biometricNumber: { type: DataTypes.STRING,allowNull:true},
 }, {
   timestamps: true,
   tableName: "User"

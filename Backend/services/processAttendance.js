@@ -11,7 +11,7 @@ async function processAttendance() {
     // ✅ Fetch all punches for today based on punchTimestamp
     const punches = await Punch.findAll({
       include: [
-        { model: Employee, include: [{ model: Shift, as: "shift" }] },
+        { model: Employee,as:'employee'},
       ],
       where: {
         punchTimestamp: {
@@ -20,7 +20,6 @@ async function processAttendance() {
         }
       },
       order: [
-        ["employeeNumber", "ASC"],
         ["punchTimestamp", "ASC"]
       ],
     });

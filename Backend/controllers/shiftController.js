@@ -1,6 +1,5 @@
 const Shift = require('../models/Shift'); // Sequelize model
 
-
 // Create
 exports.createShift = async (req, res) => {
   try {
@@ -11,9 +10,13 @@ exports.createShift = async (req, res) => {
       shiftOutStartTime,
       shiftMinHours,
       shiftNextDay,
+      companyId,
       createdBy
     } = req.body;
 
+    if (!companyId) {
+      return res.status(400).send("Company ID is required");
+    }
 
     const newShift = await Shift.create({
       shiftName,
@@ -22,9 +25,9 @@ exports.createShift = async (req, res) => {
       shiftOutStartTime,
       shiftMinHours,
       shiftNextDay,
+      companyId,
       createdBy
     });
-
 
     res.status(201).json(newShift);
   } catch (error) {
@@ -33,22 +36,28 @@ exports.createShift = async (req, res) => {
   }
 };
 
-
 // Read All (only active)
 exports.getAllShifts = async (req, res) => {
   try {
-    const shifts = await Shift.findAll({ where: { status: 'active' } });
+    const whereClause = { status: 'active' };
+    if (req.query.companyId) {
+      whereClause.companyId = req.query.companyId;
+    }
+    const shifts = await Shift.findAll({ where: whereClause });
     res.json(shifts);
   } catch (error) {
     res.status(500).send("Error fetching shifts: " + error.message);
   }
 };
 
-
 // Read One by ID (only active)
 exports.getShiftById = async (req, res) => {
   try {
-    const shift = await Shift.findOne({ where: { shiftId: req.params.id, status: 'active' } });
+    const whereClause = { shiftId: req.params.id, status: 'active' };
+    if (req.query.companyId) {
+      whereClause.companyId = req.query.companyId;
+    }
+    const shift = await Shift.findOne({ where: whereClause });
     if (!shift) return res.status(404).send("Shift not found or inactive");
     res.json(shift);
   } catch (error) {
@@ -56,15 +65,19 @@ exports.getShiftById = async (req, res) => {
   }
 };
 
-
 // Update
 exports.updateShift = async (req, res) => {
   try {
-    const shift = await Shift.findOne({ where: { shiftId: req.params.id, status: 'active' } });
+    const whereClause = { shiftId: req.params.id, status: 'active' };
+    if (req.query.companyId) {
+      whereClause.companyId = req.query.companyId;
+    }
+    const shift = await Shift.findOne({ where: whereClause });
     if (!shift) return res.status(404).send("Shift not found or inactive");
 
-
-    await shift.update({ ...req.body, updatedBy: req.body.updatedBy });
+    // Prevent updating companyId
+    const { companyId, ...updateData } = req.body;
+    await shift.update({ ...updateData, updatedBy: req.body.updatedBy });
     res.json(shift);
   } catch (error) {
     console.error("❌ Error updating shift:", error);
@@ -72,13 +85,15 @@ exports.updateShift = async (req, res) => {
   }
 };
 
-
 // Soft Delete (set status to inactive)
 exports.deleteShift = async (req, res) => {
   try {
-    const shift = await Shift.findOne({ where: { shiftId: req.params.id, status: 'active' } });
+    const whereClause = { shiftId: req.params.id, status: 'active' };
+    if (req.query.companyId) {
+      whereClause.companyId = req.query.companyId;
+    }
+    const shift = await Shift.findOne({ where: whereClause });
     if (!shift) return res.status(404).send("Shift not found or already inactive");
-
 
     await shift.update({ status: 'inactive', updatedBy: req.body.updatedBy });
     res.json({ message: "Shift deactivated successfully" });

@@ -6,7 +6,7 @@ function Punches({ userRole, selectedCompanyId, selectedCompanyName }) {
   const [punches, setPunches] = useState([]);
   const [devices, setDevices] = useState([]);
   const [filteredPunches, setFilteredPunches] = useState([]);
-  const [searchBy, setSearchBy] = useState("employeeNumber");
+  const [searchBy, setSearchBy] = useState("biometricNumber");
   const [query, setQuery] = useState("");
 
   useEffect(() => {
@@ -45,13 +45,15 @@ function Punches({ userRole, selectedCompanyId, selectedCompanyName }) {
   const getLocation = (deviceIp) => {
     if (!deviceIp) return "?-?";
     const dev = devices.find(d => String(d.deviceIp).trim() === String(deviceIp).trim());
-    // console.log(devices,dev);
     return dev ? dev.location : "?-";
   };
 
   const handleSearch = () => {
-    // if(!query)return;
-    const q = query.toLowerCase();
+    if ((!query.trim() && searchBy !== "date") || (!query && searchBy === "date")) {
+      setFilteredPunches(punches);
+      return;
+    }
+    const q = query.toLowerCase().trim();
     let results = punches;
 
     if (searchBy === "biometricNumber") {
@@ -82,32 +84,34 @@ function Punches({ userRole, selectedCompanyId, selectedCompanyName }) {
       {/* Header */}
       <div className="flex flex-wrap justify-between items-center mb-6 gap-3">
         <div className="flex gap-2 items-center">
-          <select
-            value={searchBy}
-            onChange={(e) => setSearchBy(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2"
-          >
-            <option value="biometricNumber">Biometric  Number</option>
-            <option value="location">Location</option>
-            <option value="date">Date</option>
-          </select>
+          <div className="flex gap-2 items-center">
+            <select
+              value={searchBy}
+              onChange={(e) => setSearchBy(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2"
+            >
+              <option value="biometricNumber">Biometric Number</option>
+              <option value="location">Location</option>
+              <option value="date">Date</option>
+            </select>
 
-          {searchBy === "date" ? (
-            <input
-              type="date"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2"
-            />
-          ) : (
-            <input
-              type="text"
-              placeholder={`Search by ${searchBy}`}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2"
-            />
-          )}
+            {searchBy === "date" ? (
+              <input
+                type="date"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-2"
+              />
+            ) : (
+              <input
+                type="text"
+                placeholder={`Search by ${searchBy}`}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-2"
+              />
+            )}
+          </div>
         </div>
       </div>
 

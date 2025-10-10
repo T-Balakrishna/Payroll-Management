@@ -49,7 +49,7 @@ exports.getAllAttendances = async (req, res) => {
 
     const attendances = await Attendance.findAll({
       where,
-      include: [{ model: Employee, as: 'employee' }]
+      include: [{ model: Employee,as:'employee' }]
     });
 
     res.json(attendances);

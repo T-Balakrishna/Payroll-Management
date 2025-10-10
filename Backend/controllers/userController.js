@@ -9,7 +9,7 @@ const { Op } = require('sequelize');
 // ------------------ CREATE USER ------------------
 exports.createUser = async (req, res) => {
   try {
-    const { userMail, userName, userNumber, role, departmentId, companyId, password, createdBy } = req.body;
+    const { userMail, userName, userNumber, role, departmentId, companyId, password, createdBy,biometricNumber } = req.body;
 
     const existing = await User.findOne({ where: { userMail } });
     if (existing) return res.status(400).json({ error: "User already exists" });
@@ -24,7 +24,8 @@ exports.createUser = async (req, res) => {
       departmentId,
       companyId,
       password: hashedPassword,
-      createdBy
+      createdBy,
+      biometricNumber
     });
 
     if(role==="Staff"){
@@ -36,7 +37,8 @@ exports.createUser = async (req, res) => {
           departmentId,
           companyId,
           password: hashedPassword,
-          createdBy
+          createdBy,
+          biometricNumber
         });
     }
 
@@ -241,5 +243,18 @@ exports.getCompanyId = async (req, res) => {
     res.status(200).json({ companyId: user.companyId, companyName: company.companyName });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+};
+
+exports.getBio = async (req, res) => {
+  try {
+    const userNumber=req.params.userNumber;
+    // console.log("hi");
+    
+    const user = await User.findOne({where:{userNumber}});
+    if (!user) return res.status(404).json({ error: "User hell not found" });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };

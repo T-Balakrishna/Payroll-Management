@@ -18,6 +18,7 @@ function AddOrEdit({ onSave, onCancel, editData, userRole, selectedCompanyId, se
   const [companies, setCompanies] = useState([]);
   const [companyId, setCompanyId] = useState(editData?.companyId || selectedCompanyId || "");
   const [companyName, setCompanyName] = useState(editData?.companyName || selectedCompanyName || "");
+  const [isEdit,setIsEdit] = useState(false);
 
   // Fetch companies for Super Admin and set company for Admin
   useEffect(() => {
@@ -111,7 +112,7 @@ function AddOrEdit({ onSave, onCancel, editData, userRole, selectedCompanyId, se
                   const selected = companies.find((c) => c.companyId === e.target.value);
                   setCompanyName(selected ? selected.companyName : "");
                 }}
-                // disabled
+                disabled={editData}
                 className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               >
                 <option value="">Select Company</option>

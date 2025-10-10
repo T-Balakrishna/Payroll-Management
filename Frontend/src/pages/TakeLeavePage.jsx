@@ -3,52 +3,72 @@ import { FileText, User, Calendar, Plus } from "lucide-react";
 import axios from "axios";
 import dayjs from "dayjs";
 import Swal from "sweetalert2";
+import { toast } from "react-toastify";
 
-const TakeLeavePage = () => {
-  const employeeNumber = sessionStorage.getItem("userNumber");
-
+const TakeLeavePage = ({ empId, companyId, departmentId }) => {
   const [leaveTypes, setLeaveTypes] = useState([]);
   const [allocation, setAllocation] = useState(null);
   const [requestedDays, setRequestedDays] = useState(0);
   const [formData, setFormData] = useState({
-    employeeNumber: employeeNumber || "",
+    employeeNumber: empId || "",
     leaveTypeId: "",
     reason: "",
     fromDate: "",
     toDate: ""
   });
 
-  // Fetch leave types
+  // Fetch leave types filtered by companyId
   useEffect(() => {
-    axios.get("http://localhost:5000/api/leavetypes")
-      .then(res => setLeaveTypes(res.data))
-      .catch(err => console.error("❌ Error fetching leave types:", err));
-  }, []);
+    const fetchLeaveTypes = async () => {
+      try {
+        const url = companyId
+          ? `http://localhost:5000/api/leavetypes?companyId=${companyId}`
+          : "http://localhost:5000/api/leavetypes";
+        const res = await axios.get(url);
+        setLeaveTypes(res.data || []);
+      } catch (err) {
+        console.error("❌ Error fetching leave types:", err.response?.data?.error || err.message);
+        setLeaveTypes([]);
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "Failed to fetch leave types. Please try again.",
+        });
+      }
+    };
+    fetchLeaveTypes();
+  }, [companyId]);
 
   // Calculate leave period based on month
   const getLeavePeriod = (date) => {
+    if (!date) return "";
     const year = dayjs(date).year();
     const month = dayjs(date).month() + 1; // 0-based
     return month >= 6 ? `${year}-${year + 1}` : `${year - 1}-${year}`;
   };
 
-  // Fetch allocation whenever leaveType changes
+  // Fetch allocation whenever leaveType or dates change
   useEffect(() => {
     const fetchAllocation = async () => {
-      if (!formData.leaveTypeId) return;
+      if (!formData.leaveTypeId || !formData.fromDate) return;
       try {
         const period = getLeavePeriod(formData.fromDate);
         const res = await axios.get("http://localhost:5000/api/leaveAllocations", {
-          params: { employeeNumber, leaveTypeId: formData.leaveTypeId, leavePeriod: period }
+          params: {
+            employeeNumber: empId,
+            leaveTypeId: formData.leaveTypeId,
+            leavePeriod: period
+          }
         });
-        console.log(res.data);
+        console.log("Allocation data:", res.data);
         setAllocation(res.data[0] || null);
       } catch (err) {
-        console.error("❌ Error fetching allocation:", err);
+        console.error("❌ Error fetching allocation:", err.response?.data?.error || err.message);
+        setAllocation(null);
       }
     };
     fetchAllocation();
-  }, [formData.leaveTypeId, employeeNumber,formData.fromDate,formData.toDate]);
+  }, [formData.leaveTypeId, formData.fromDate, formData.toDate, empId]);
 
   // Handle input changes
   const handleChange = (e) => {
@@ -76,30 +96,50 @@ const TakeLeavePage = () => {
 
     // Validate dates
     if (dayjs(toDate).isBefore(dayjs(fromDate))) {
-      return Swal.fire({ icon: "error", title: "Invalid Dates", text: "To Date cannot be earlier than From Date" });
+      return Swal.fire({
+        icon: "error",
+        title: "Invalid Dates",
+        text: "To Date cannot be earlier than From Date"
+      });
     }
-    console.log(allocation,requestedDays,allocation?.balance);
+
+    // Validate leave balance
     if (!allocation || requestedDays > allocation.balance) {
-      return Swal.fire({ icon: "warning", title: "Insufficient Balance", text: "Not enough leave balance available." });
+      return Swal.fire({
+        icon: "warning",
+        title: "Insufficient Balance",
+        text: "Not enough leave balance available."
+      });
     }
 
     try {
       await axios.post("http://localhost:5000/api/leaves", {
-        employeeNumber,
+        employeeNumber: empId,
         leaveTypeId,
         startDate: fromDate,
         endDate: toDate,
         reason,
+        departmentId, // Added
+        companyId,
         status: "Pending",
-        createdBy: employeeNumber
+        createdBy: empId
       });
 
-      Swal.fire({ icon: "success", title: "Success", text: "Leave request submitted successfully!" });
-      setFormData({ ...formData, reason: "", fromDate: "", toDate: "" });
+      Swal.fire({
+        icon: "success",
+        title: "Success",
+        text: "Leave request submitted successfully!"
+      });
+      setFormData({ ...formData, leaveTypeId: "", reason: "", fromDate: "", toDate: "" });
       setRequestedDays(0);
+      setAllocation(null);
     } catch (err) {
-      console.error("❌ Error submitting leave request:", err);
-      Swal.fire({ icon: "error", title: "Error", text: "Failed to submit leave request. Try again." });
+      console.error("❌ Error submitting leave request:", err.response?.data?.error || err.message);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to submit leave request. Try again."
+      });
     }
   };
 
@@ -156,7 +196,7 @@ const TakeLeavePage = () => {
               {/* Available Leaves */}
               {allocation && (
                 <p className={`mt-2 font-semibold ${requestedDays > allocation.balance ? 'text-red-600' : 'text-blue-700'}`}>
-                  Available Leaves: {allocation.balance}  
+                  Available Leaves: {allocation.balance}
                   {requestedDays > allocation.balance && ' ⚠ Requested exceeds balance'}
                 </p>
               )}
