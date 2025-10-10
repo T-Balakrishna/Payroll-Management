@@ -5,17 +5,31 @@ const Company = require('../models/Company');
 const bcrypt = require('bcryptjs');
 const { Op } = require('sequelize');
 
-
-// ------------------ CREATE USER ------------------
+// ------------------ CREATE USER (FIXED VERSION) ------------------
 exports.createUser = async (req, res) => {
   try {
-    const { userMail, userName, userNumber, role, departmentId, companyId, password, createdBy,biometricNumber } = req.body;
-
-    const existing = await User.findOne({ where: { userMail } });
+    const {
+      userMail,
+      userName,
+      userNumber,
+      role,
+      departmentId,
+      companyId,
+      password,
+      createdBy,
+      biometricNumber
+    } = req.body;
+    
+    // 🔹 Check if user already exists
+    const existing = await User.findOne({
+      where: { [Op.or]: [{ userMail }, { userNumber }] }
+    });
     if (existing) return res.status(400).json({ error: "User already exists" });
 
+    // 🔹 Hash password securely
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // 🔹 Create user record
     const newUser = await User.create({
       userMail,
       userName,
@@ -25,25 +39,28 @@ exports.createUser = async (req, res) => {
       companyId,
       password: hashedPassword,
       createdBy,
-      biometricNumber
+      biometricNumber,
+      status: "active"
     });
 
-    if(role==="Staff"){
-
-        await Employee.create({
-          employeeMail: userMail,
-          employeeName: userName,
-          employeeNumber: userNumber,
-          departmentId,
-          companyId,
-          password: hashedPassword,
-          createdBy,
-          biometricNumber
-        });
+    // 🔹 If Staff, create employee record also
+    if (role === "Staff") {
+      await Employee.create({
+        employeeMail: userMail,
+        employeeName: userName,
+        employeeNumber: userNumber,
+        departmentId,
+        companyId,
+        password: hashedPassword,
+        createdBy,
+        biometricNumber,
+        status: "active"
+      });
     }
 
-    res.status(201).json({ message: "User & Employee created", user: newUser });
+    res.status(201).json({ message: "User & Employee created successfully", user: newUser });
   } catch (err) {
+    console.error("❌ Error creating user:", err);
     res.status(500).json({ error: err.message });
   }
 };

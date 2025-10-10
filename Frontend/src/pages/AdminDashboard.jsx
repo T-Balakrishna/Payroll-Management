@@ -86,7 +86,9 @@ const AdminDashboard = () => {
   const [activePage, setActivePage] = useState("dashboard");
   const [role, setRole] = useState(null);
   const [companyId, setCompanyId] = useState(null);
+  const [departmentId, setDepartmentId] = useState(null);
   const [companyName, setCompanyName] = useState("");
+  const [departmentName, setDepartmentName] = useState("");
   const [companies, setCompanies] = useState([]);
   const [dashboardData, setDashboardData] = useState({
     totalActiveEmployees: 0,
@@ -122,55 +124,64 @@ const AdminDashboard = () => {
   const fetchDashboardData = async () => {
     const token = sessionStorage.getItem("token");
     if (!token || !companyId) return;
-    
+
+    // Build query params based on role
+    const params = new URLSearchParams();
+    params.append('companyId', companyId);
+    if (role === "departmentAdmin" && departmentId) {
+      params.append('departmentId', departmentId);
+    }
+
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+
     try {
       // Fetch total active employees
-      const activeEmployeesRes = await axios.get(`http://localhost:5000/api/employees/active-count/${companyId}`, {
+      const activeEmployeesRes = await axios.get(`http://localhost:5000/api/employees/active-count/${companyId}${queryString}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
       // Fetch department-wise active count
-      const deptActiveRes = await axios.get(`http://localhost:5000/api/employees/department-wise-active/${companyId}`, {
+      const deptActiveRes = await axios.get(`http://localhost:5000/api/employees/department-wise-active/${companyId}${queryString}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
       // Fetch department count
-      const deptCountRes = await axios.get(`http://localhost:5000/api/departments/count/${companyId}`, {
+      const deptCountRes = await axios.get(`http://localhost:5000/api/departments/count/${companyId}${queryString}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
       // Fetch designation-wise count
-      const desigRes = await axios.get(`http://localhost:5000/api/employees/designation-wise/${companyId}`, {
+      const desigRes = await axios.get(`http://localhost:5000/api/employees/designation-wise/${companyId}${queryString}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
       // Fetch monthly attendance
-      const attendanceRes = await axios.get(`http://localhost:5000/api/attendance/monthly/${companyId}`, {
+      const attendanceRes = await axios.get(`http://localhost:5000/api/attendance/monthly/${companyId}${queryString}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
       // Fetch leave statistics
-      const leaveRes = await axios.get(`http://localhost:5000/api/leaves/stats/${companyId}`, {
+      const leaveRes = await axios.get(`http://localhost:5000/api/leaves/stats/${companyId}${queryString}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      // Fetch report summaries (assuming backend endpoints for quick stats)
-      const leaveBalanceRes = await axios.get(`http://localhost:5000/api/leaves/balance-summary/${companyId}`, {
+      // Fetch report summaries (assuming backend endpoints for quick stats support the params)
+      const leaveBalanceRes = await axios.get(`http://localhost:5000/api/leaves/balance-summary/${companyId}${queryString}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const leaveTakenRes = await axios.get(`http://localhost:5000/api/leaves/taken-summary/${companyId}`, {
+      const leaveTakenRes = await axios.get(`http://localhost:5000/api/leaves/taken-summary/${companyId}${queryString}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const permissionTakenRes = await axios.get(`http://localhost:5000/api/permissions/taken-summary/${companyId}`, {
+      const permissionTakenRes = await axios.get(`http://localhost:5000/api/permissions/taken-summary/${companyId}${queryString}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const presentAbsentRes = await axios.get(`http://localhost:5000/api/attendance/present-absent-summary/${companyId}`, {
+      const presentAbsentRes = await axios.get(`http://localhost:5000/api/attendance/present-absent-summary/${companyId}${queryString}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const shiftWiseRes = await axios.get(`http://localhost:5000/api/shifts/wise-summary/${companyId}`, {
+      const shiftWiseRes = await axios.get(`http://localhost:5000/api/shifts/wise-summary/${companyId}${queryString}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const pfNonPfRes = await axios.get(`http://localhost:5000/api/employees/pf-summary/${companyId}`, {
+      const pfNonPfRes = await axios.get(`http://localhost:5000/api/employees/pf-summary/${companyId}${queryString}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -217,9 +228,24 @@ const AdminDashboard = () => {
               console.error("Error fetching user company:", err);
               setCompanyName("Error fetching company");
             });
-        }
-
-        if (decoded.role === "Super Admin") {
+        } else if (decoded.role === "departmentAdmin") {
+          // Fetch department and company for departmentAdmin
+          axios
+            .get(`http://localhost:5000/api/users/getDepartment/${userNumber}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            })
+            .then((res) => {
+              const { companyId, companyName, departmentId, departmentName } = res.data;
+              setCompanyId(companyId || null);
+              setDepartmentId(departmentId || null);
+              setCompanyName(companyName || "Unknown Company");
+              setDepartmentName(departmentName || "Unknown Department");
+            })
+            .catch((err) => {
+              console.error("Error fetching user department:", err);
+              setCompanyName("Error fetching company");
+            });
+        } else if (decoded.role === "Super Admin") {
           fetchCompanies();
         }
       } catch (err) {
@@ -232,30 +258,58 @@ const AdminDashboard = () => {
     if (activePage === 'dashboard' && companyId) {
       fetchDashboardData();
     }
-  }, [activePage, companyId]);
+  }, [activePage, companyId, departmentId]); // Add departmentId dependency
 
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: Home, color: 'text-blue-600' },
-    { id: 'users', label: 'Add User', icon: Users, color: 'text-green-600' },
-    { id: 'bus', label: 'Bus Master', icon: Bus, color: 'text-purple-600' },
-    { id: 'biometricDevice', label: 'Biometric Device Master', icon: Monitor, color: 'text-purple-600' },
-    { id: 'caste', label: 'Caste Master', icon: List, color: 'text-orange-600' },
-    ...(role === "Super Admin" ? [{ id: 'company', label: 'Company Master', icon: Building, color: 'text-red-600' }] : []),
-    { id: 'department', label: 'Department Master', icon: Building2, color: 'text-indigo-600' },
-    { id: 'designation', label: 'Designation Master', icon: Award, color: 'text-pink-600' },
-    { id: 'employeeGrade', label: 'Employee Grade Master', icon: Users, color: 'text-amber-600' },
-    { id: 'employeeType', label: 'Employee Type Master', icon: Users, color: 'text-cyan-600' },
-    { id: 'attendance', label: 'Attendance Master', icon: Activity, color: 'text-emerald-600'},
-    { id: 'holiday', label: 'Holiday Master', icon: Calendar, color: 'text-yellow-600' },
-    { id: 'leaveApproval', label: 'Leave Approval Master', icon: CheckCircle, color: 'text-lime-600' },
-    { id: 'leaveType', label: 'Leave Type Master', icon: Clock, color: 'text-lime-600' },
-    { id: 'leaveAllocation', label: 'Leave Allocation', icon: Clock, color: 'text-lime-600' },
-    { id: 'punches', label: 'Punch Details', icon: Activity, color: 'text-indigo-600' },
-    { id: 'religion', label: 'Religion Master', icon: Building, color: 'text-amber-600' },
-    { id: 'shift', label: 'Shift Master', icon: Activity, color: 'text-emerald-600' },
-    { id: 'shiftallocation', label: 'Shift Allocation Master', icon: Activity, color: 'text-emerald-600'},
-    { id: 'reportgenerator', label: 'Report Generator', icon: Settings, color: 'text-gray-600' },
-  ];
+  // Filter menu items based on role
+  const getFilteredMenuItems = () => {
+    let items = [
+      { id: 'dashboard', label: 'Dashboard', icon: Home, color: 'text-blue-600' },
+      { id: 'users', label: 'Add User', icon: Users, color: 'text-green-600' },
+      { id: 'bus', label: 'Bus Master', icon: Bus, color: 'text-purple-600' },
+      { id: 'biometricDevice', label: 'Biometric Device Master', icon: Monitor, color: 'text-purple-600' },
+      { id: 'caste', label: 'Caste Master', icon: List, color: 'text-orange-600' },
+      { id: 'department', label: 'Department Master', icon: Building2, color: 'text-indigo-600' },
+      { id: 'designation', label: 'Designation Master', icon: Award, color: 'text-pink-600' },
+      { id: 'employeeGrade', label: 'Employee Grade Master', icon: Users, color: 'text-amber-600' },
+      { id: 'employeeType', label: 'Employee Type Master', icon: Users, color: 'text-cyan-600' },
+      { id: 'attendance', label: 'Attendance Master', icon: Activity, color: 'text-emerald-600'},
+      { id: 'holiday', label: 'Holiday Master', icon: Calendar, color: 'text-yellow-600' },
+      { id: 'leaveApproval', label: 'Leave Approval Master', icon: CheckCircle, color: 'text-lime-600' },
+      { id: 'leaveType', label: 'Leave Type Master', icon: Clock, color: 'text-lime-600' },
+      { id: 'leaveAllocation', label: 'Leave Allocation', icon: Clock, color: 'text-lime-600' },
+      { id: 'punches', label: 'Punch Details', icon: Activity, color: 'text-indigo-600' },
+      { id: 'religion', label: 'Religion Master', icon: Building, color: 'text-amber-600' },
+      { id: 'shift', label: 'Shift Master', icon: Activity, color: 'text-emerald-600' },
+      { id: 'shiftallocation', label: 'Shift Allocation Master', icon: Activity, color: 'text-emerald-600'},
+      { id: 'reportgenerator', label: 'Report Generator', icon: Settings, color: 'text-gray-600' },
+    ];
+
+    // Super Admin sees Company Master
+    if (role === "Super Admin") {
+      items.splice(5, 0, { id: 'company', label: 'Company Master', icon: Building, color: 'text-red-600' });
+    }
+
+    // DepartmentAdmin hides company-wide masters like Company, Bus, BiometricDevice, etc.
+    if (role === "departmentAdmin") {
+      items = items.filter(item => 
+        !['company', 'bus', 'biometricDevice', 'holiday', 'shift', 'shiftallocation'].includes(item.id)
+      );
+      // Limit Add User to department users
+      const userIndex = items.findIndex(item => item.id === 'users');
+      if (userIndex !== -1) {
+        items[userIndex].label = 'Add Department User';
+      }
+    }
+
+    // Admin sees limited masters (no Company Master, but others)
+    if (role === "Admin") {
+      items = items.filter(item => item.id !== 'company');
+    }
+
+    return items;
+  };
+
+  const menuItems = getFilteredMenuItems();
 
   const pageTitles = {
     dashboard: "Dashboard Overview",
@@ -556,27 +610,37 @@ const AdminDashboard = () => {
   };
 
   const renderPage = () => {
+    // Pass departmentId to child components if applicable
+    const commonProps = {
+      selectedCompanyId: companyId,
+      selectedCompanyName: companyName,
+      selectedDepartmentId: departmentId,
+      selectedDepartmentName: departmentName,
+      userRole: role,
+      refreshCompanies: fetchCompanies
+    };
+
     switch(activePage) {
       case "dashboard": return renderDashboard();
-      case "bus": return <BusMaster selectedCompanyId={companyId} selectedCompanyName={companyName} />;
-      case "biometricDevice": return <BiometricDeviceMaster selectedCompanyId={companyId} selectedCompanyName={companyName} />;
-      case "caste": return <CasteMaster selectedCompanyId={companyId} selectedCompanyName={companyName} />;
-      case "company": return (<CompanyMaster selectedCompanyId={companyId} selectedCompanyName={companyName} refreshCompanies={fetchCompanies}/> );
-      case "department": return <DepartmentMaster selectedCompanyId={companyId} selectedCompanyName={companyName} userRole={role} />;
-      case "designation": return <DesignationMaster selectedCompanyId={companyId} selectedCompanyName={companyName} />;
-      case "employeeGrade": return <EmployeeGradeMaster selectedCompanyId={companyId} selectedCompanyName={companyName} />;
-      case "employeeType": return <EmployeeTypeMaster selectedCompanyId={companyId} selectedCompanyName={companyName} />;
-      case "holiday": return <HolidayMaster selectedCompanyId={companyId} selectedCompanyName={companyName} />;
-      case "leaveApproval": return <LeaveApproval selectedCompanyId={companyId} selectedCompanyName={companyName} />;
-      case "leaveType": return <LeaveTypeMaster selectedCompanyId={companyId} selectedCompanyName={companyName} />;
-      case "leaveAllocation": return <LeaveAllocation selectedCompanyId={companyId} selectedCompanyName={companyName} />;
-      case "punches": return <Punches selectedCompanyId={companyId} selectedCompanyName={companyName} />;
-      case "religion": return <ReligionMaster selectedCompanyId={companyId} selectedCompanyName={companyName} />;
-      case "shift": return <ShiftMaster selectedCompanyId={companyId} selectedCompanyName={companyName} />;
-      case "shiftallocation": return <ShiftAllocationMaster selectedCompanyId={companyId} selectedCompanyName={companyName} />;
-      case "users": return <AddUser selectedCompanyId={companyId} selectedCompanyName={companyName} />;
-      case "attendance": return <AttendanceMaster selectedCompanyId={companyId} selectedCompanyName={companyName} />;
-      case "reportgenerator": return <ReportGenerator selectedCompanyId={companyId} selectedCompanyName={companyName} />;
+      case "bus": return <BusMaster {...commonProps} />;
+      case "biometricDevice": return <BiometricDeviceMaster {...commonProps} />;
+      case "caste": return <CasteMaster {...commonProps} />;
+      case "company": return <CompanyMaster {...commonProps} />;
+      case "department": return <DepartmentMaster {...commonProps} />;
+      case "designation": return <DesignationMaster {...commonProps} />;
+      case "employeeGrade": return <EmployeeGradeMaster {...commonProps} />;
+      case "employeeType": return <EmployeeTypeMaster {...commonProps} />;
+      case "holiday": return <HolidayMaster {...commonProps} />;
+      case "leaveApproval": return <LeaveApproval {...commonProps} />;
+      case "leaveType": return <LeaveTypeMaster {...commonProps} />;
+      case "leaveAllocation": return <LeaveAllocation {...commonProps} />;
+      case "punches": return <Punches {...commonProps} />;
+      case "religion": return <ReligionMaster {...commonProps} />;
+      case "shift": return <ShiftMaster {...commonProps} />;
+      case "shiftallocation": return <ShiftAllocationMaster {...commonProps} />;
+      case "users": return <AddUser {...commonProps} />;
+      case "attendance": return <AttendanceMaster {...commonProps} />;
+      case "reportgenerator": return <ReportGenerator {...commonProps} />;
       default: return renderDashboard();
     }
   };
@@ -658,6 +722,8 @@ const AdminDashboard = () => {
                     const selected = companies.find(c => c.companyId === parseInt(e.target.value));
                     setCompanyId(selected?.companyId || null);
                     setCompanyName(selected?.companyName || "");
+                    setDepartmentId(null); // Reset department when changing company
+                    setDepartmentName("");
                   }}
                   className="border border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm text-gray-700 font-medium"
                 >
@@ -666,10 +732,12 @@ const AdminDashboard = () => {
                 </select>
               )}
               
-              {role === "Admin" && (
+              {(role === "Admin" || role === "departmentAdmin") && (
                 <div className="flex items-center space-x-2 bg-gradient-to-r from-blue-50 to-purple-50 px-4 py-2 rounded-lg border border-blue-200">
                   <Building className="w-5 h-5 text-blue-600" />
-                  <span className="text-gray-700 font-medium">{companyName}</span>
+                  <span className="text-gray-700 font-medium">
+                    {companyName} {role === "departmentAdmin" ? ` - ${departmentName}` : ''}
+                  </span>
                 </div>
               )}
             </div>
