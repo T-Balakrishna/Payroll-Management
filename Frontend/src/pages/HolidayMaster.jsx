@@ -6,10 +6,10 @@ import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 
 // Decode JWT token to get userNumber and role
-const token = sessionStorage.getItem("token");
+let token = sessionStorage.getItem("token");
 let decoded   = (token)?jwtDecode(token):"";
-const userNumber = decoded.userNumber || "";
-const userRole = decoded.role || "";
+let userNumber = decoded.userNumber || "";
+let userRole = decoded.role || "";
 
 function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
   const [holidayPlans, setHolidayPlans] = useState([]);
@@ -39,6 +39,12 @@ function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
   });
 
   const weekDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+useEffect(() => {
+    token = sessionStorage.getItem("token");
+    decoded = token ? jwtDecode(token) : "";
+    userNumber = decoded?.userNumber;
+  }, []);
 
   // Fetch companies for Super Admin and Admin's company details
   useEffect(() => {

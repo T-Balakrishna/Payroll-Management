@@ -24,6 +24,12 @@ const LeaveApproval = ({ selectedCompanyId, selectedCompanyName }) => {
     return type ? type.leaveTypeName : "Unknown";
   };
 
+  useEffect(() => {
+        token = sessionStorage.getItem("token");
+        decoded = token ? jwtDecode(token) : "";
+        userNumber = decoded?.userNumber;
+      }, []);
+      
   // Fetch user role and department (if applicable)
   useEffect(() => {
     const fetchUserDetails = async () => {

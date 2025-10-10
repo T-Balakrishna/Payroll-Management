@@ -67,7 +67,7 @@ export default function DashboardPage() {
         }
 
         if (employee.photo) {
-          const photoPath = employee.photo.startsWith("/Uploads/") ? employee.photo : `/Uploads/${employee.photo}`;
+          const photoPath = employee.photo.startsWith("/uploads/") ? employee.photo : `/uploads/${employee.photo}`;
           setPhotoUrl(photoPath);
         } else {
           setPhotoUrl(null);
@@ -233,9 +233,9 @@ export default function DashboardPage() {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
+                  <th className="text-left py-4 px-6 font-semibold text-gray-700">Date</th>
                   <th className="text-left py-4 px-6 font-semibold text-gray-700">Time</th>
                   <th className="text-left py-4 px-6 font-semibold text-gray-700">Location</th>
-                  <th className="text-left py-4 px-6 font-semibold text-gray-700">Date</th>
                 </tr>
               </thead>
               <tbody>
@@ -305,7 +305,7 @@ export default function DashboardPage() {
             <Plus className="w-5 h-5" /> Apply Leave
           </button>
           <button onClick={() => setTableType("biometric")} className={`px-6 py-3 font-semibold rounded-xl flex items-center gap-2 ${tableType === "biometric" ? "bg-blue-600 text-white" : "bg-white text-gray-700 border border-gray-200"}`}>
-            <UserCheck className="w-5 h-5" /> Attendance History
+            <UserCheck className="w-5 h-5" /> Biometric Punch History
           </button>
           <button onClick={() => setTableType("leave")} className={`px-6 py-3 font-semibold rounded-xl flex items-center gap-2 ${tableType === "leave" ? "bg-blue-600 text-white" : "bg-white text-gray-700 border border-gray-200"}`}>
             <FileText className="w-5 h-5" /> Leave History
