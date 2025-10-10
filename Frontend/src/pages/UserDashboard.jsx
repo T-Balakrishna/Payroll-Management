@@ -33,24 +33,17 @@ export default function DashboardPage() {
   const openCalendarModal = () => setModalContent("calendar");
   const closeModal = () => setModalContent(null);
 
-  // Format date for display
-  const formatDate = (dateString) => {
-    if (!dateString) return "N/A";
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-    } catch {
-      return "Invalid Date";
-    }
-  };
-
+  useEffect(() => {
+    token = sessionStorage.getItem("token");
+    decoded = token ? jwtDecode(token) : "";
+    userNumber = decoded?.userNumber;
+  }, []);
+  
   // Fetch employee info
   useEffect(() => {
-    if (!userNumber) {
+      
+    if (!userNumber) {      
+      console.error("No userNumber found in sessionStorage");
       setUserName("Guest");
       setPhotoUrl(null);
       setCompanyId(null); // Added
@@ -286,9 +279,9 @@ export default function DashboardPage() {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
+                  <th className="text-left py-4 px-6 font-semibold text-gray-700">Date</th>
                   <th className="text-left py-4 px-6 font-semibold text-gray-700">Time</th>
                   <th className="text-left py-4 px-6 font-semibold text-gray-700">Location</th>
-                  <th className="text-left py-4 px-6 font-semibold text-gray-700">Date</th>
                 </tr>
               </thead>
               <tbody>
@@ -357,8 +350,8 @@ export default function DashboardPage() {
           <button onClick={() => setModalContent("takeleave")} className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl flex items-center gap-2 transition-colors duration-150">
             <Plus className="w-5 h-5" /> Apply Leave
           </button>
-          <button onClick={() => setTableType("biometric")} className={`px-6 py-3 font-semibold rounded-xl flex items-center gap-2 transition-colors duration-150 ${tableType === "biometric" ? "bg-blue-600 text-white" : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"}`}>
-            <UserCheck className="w-5 h-5" /> Attendance History
+          <button onClick={() => setTableType("biometric")} className={`px-6 py-3 font-semibold rounded-xl flex items-center gap-2 ${tableType === "biometric" ? "bg-blue-600 text-white" : "bg-white text-gray-700 border border-gray-200"}`}>
+            <UserCheck className="w-5 h-5" /> Biometric Punch History
           </button>
           <button onClick={() => setTableType("leave")} className={`px-6 py-3 font-semibold rounded-xl flex items-center gap-2 transition-colors duration-150 ${tableType === "leave" ? "bg-blue-600 text-white" : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"}`}>
             <FileText className="w-5 h-5" /> Leave History

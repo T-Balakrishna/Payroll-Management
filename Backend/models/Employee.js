@@ -29,7 +29,7 @@ const Employee = sequelize.define('Employee', {
   pincode: { type: DataTypes.STRING },
 
   // Job details
-  remainingPermissionHours: { type: DataTypes.FLOAT, allowNull: true },
+  remainingPermissionHours: { type: DataTypes.INTEGER, allowNull: true },
   designationId: { type: DataTypes.INTEGER },
   employeeGradeId: { type: DataTypes.INTEGER },
   reportsTo: { type: DataTypes.INTEGER },
@@ -66,7 +66,7 @@ const Employee = sequelize.define('Employee', {
 
   // Extra
   personalMail: { type: DataTypes.STRING },
-  biometricNumber: { type: DataTypes.STRING, allowNull: false},
+  biometricNumber: { type: DataTypes.STRING, allowNull: false,unique: true },
   acctNumber: { type: DataTypes.STRING },
   qualification: { type: DataTypes.STRING },
   experience: { type: DataTypes.STRING },

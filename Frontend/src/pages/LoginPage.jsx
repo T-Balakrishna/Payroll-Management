@@ -22,8 +22,10 @@ export default function LoginPage() {
 
       sessionStorage.setItem("token", token);
 
-      const role = jwtDecode(token).role;
-      navigate(adminRoles.includes(role) ? "/adminDashboard" : "/userDashboard");
+      setTimeout(() => {
+        const role = jwtDecode(token).role;
+        navigate(adminRoles.includes(role) ? "/adminDashboard" : "/userDashboard");
+      }, 0);
       toast.success("Login Success")
     } catch (err) {
       console.error(err);
