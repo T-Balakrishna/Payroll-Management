@@ -90,6 +90,15 @@ const startServer = async () => {
       console.log("🚀 Listening at http://localhost:5000");
     });
 
+    // 🕛 Monthly permission hours reset at midnight on the 1st
+    cron.schedule("0 0 1 * *", async () => {
+      try {
+        const { resetPermissionHours } = require("./services/fillRemainingPermissionHours");
+        await resetPermissionHours();
+      } catch (err) {
+        console.error("❌ Error resetting permission hours:", err.message);
+      }
+    });
     // 🕛 Hourly biometric fetch (uncomment if needed)
     cron.schedule("* * * * *", async () => {
       try {

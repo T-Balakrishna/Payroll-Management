@@ -59,3 +59,17 @@ exports.deleteCompany = async (req, res) => {
     res.status(500).send("Error deleting company: " + error.message);
   }
 };
+
+exports.setPermissionHours = async (req, res) => {
+  try {
+    const { companyId, permissionHoursPerMonth,updatedBy} = req.body;
+    const company = await Company.findOne({ where: { companyId, status: 'active' } });
+    if (!company) return res.status(404).send("Company not found or inactive");
+    await company.update({ permissionHoursPerMonth, updatedBy: updatedBy });
+    res.json({ message: "Permission hours updated successfully", company });
+  } catch (error) {
+    console.error("❌ Error setting permission hours:", error);
+    res.status(500).send("Error setting permission hours: " + error.message);
+  }
+};
+
