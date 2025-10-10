@@ -3,8 +3,8 @@ const router = express.Router();
 const punchController = require("../controllers/punchController");
 
 // Fetch new punches from biometric
-router.get("/", punchController.fetchPunches);
-router.get("/get", punchController.getPunches);
+router.get("/", punchController.getPunches);
+router.get("/bio", punchController.fetchPunches);
 
 // Get today’s punches (all employees)
 router.get("/today", punchController.getTodayPunches);

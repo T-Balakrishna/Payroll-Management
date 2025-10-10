@@ -176,6 +176,12 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
     setBiometricToEmployee({});
   }, [selectedCompanyId]);
 
+  useEffect(() => {
+          token = sessionStorage.getItem("token");
+          decoded = token ? jwtDecode(token) : "";
+          userNumber = decoded?.userNumber;
+    }, []);
+
   // Fetch data only when selectedCompanyId is present
   useEffect(() => {
     if (selectedCompanyId) {
@@ -203,6 +209,26 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
       setEmployeesLoaded(true);
     }
   }, [allEmployees]);
+
+      async function getEmployeeData(biometricNumber) {
+      try {
+        const res = await axios.get(`/api/employees/by-biometric/${biometricNumber}`);
+        console.log({empDept:res.departmentId,empNum:res.employeeNumber});
+        return res.json({empDept:res.departmentId,empNum:res.employeeNumber}); // { employeeNumber, departmentId }
+      } catch (err) {
+        console.error(err);
+        return null;
+      }
+    }
+
+    // Example usage in a React component
+    useEffect(() => {
+      const fetchData = async () => {
+        const empData = await getEmployeeData(punch.biometricNumber);
+        console.log(empData); // { employeeNumber: "...", departmentId: ... }
+      };
+      fetchData();
+    }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -239,6 +265,8 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
       setDepartmentsLoaded(false);
     }
   };
+
+  
 
   const fetchAllEmployees = async (retry = false) => {
     if (!selectedCompanyId) return;
@@ -506,10 +534,11 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
       
       while (retryAttempts <= maxRetries) {
         try {
+          console.log(endpoint);
           response = await axios.get(endpoint, {
             params,
             ...headers,
-            timeout: 30000
+            // timeout: 30000
           });
           break;
         } catch (fetchError) {
@@ -581,8 +610,9 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
           .filter(punch => {
             if (!punch) return false;
             
-            const empDept = punch.departmentId;
-            const empNum = punch.employeeNumber;
+            // const empDept = punch.biometricNumber;
+            // const empNum = punch.biom;
+            const {empDept,empNum} = getEmployeeData(punch.biometricNumber);
             
             // Filter by selected departments
             const inDepts = selectedDepartments.length === 0 || selectedDepartments.includes(empDept);
@@ -591,6 +621,7 @@ const ReportGenerator = ({ userRole, selectedCompanyId, selectedCompanyName }) =
             
             return inDepts && inEmps;
           });
+          console.log(filteredData)
       } else {
         // For other models (attendance, leaves)
         filteredData = fetchedData.filter(item => {

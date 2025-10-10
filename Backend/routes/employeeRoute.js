@@ -14,6 +14,7 @@ router.put('/:employeeNumber', employeeController.updateEmployee);
 router.delete('/:id', employeeController.deleteEmployee);
 router.get("/full/:employeeNumber", employeeController.getEmployeeFullByNumber);
 router.post('/byDepartments', employeeController.getEmployeesByDepartment);
+router.get("/by-biometric/:biometricNumber", employeeController.getEmployeeByBiometric);
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {

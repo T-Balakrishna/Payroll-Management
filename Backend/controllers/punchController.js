@@ -71,7 +71,7 @@ exports.fetchPunches = async (req, res) => {
 
     res.json({ message: "✅ Punches fetched and stored successfully", newLogs });
   } catch (err) {
-    console.error("❌ Error fetching punches:", err);
+    console.error("❌ Error fetching punches from fetchPunches:", err);
     res.status(500).send("Error fetching punches: " + err.message);
   }
 };
@@ -115,7 +115,7 @@ exports.getTodayPunches = async (req, res) => {
 exports.getPunchesById = async (req, res) => {
   try {
     const { bioNumber } = req.params;
-    const { companyId, limit = 10000, offset = 0 } = req.query;
+    const { companyId, offset = 0 } = req.query;
 
     let where = { biometricNumber: bioNumber };
     if (companyId) {
@@ -126,7 +126,7 @@ exports.getPunchesById = async (req, res) => {
       Punch.findAll({
         where,
         order: [["punchTimestamp", "DESC"]],
-        limit: parseInt(limit),
+        // limit: parseInt(limit),
         offset: parseInt(offset),
         raw: true
       })

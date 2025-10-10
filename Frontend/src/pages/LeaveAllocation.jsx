@@ -401,6 +401,11 @@ const LeaveAllocation = () => {
 
       {/* Filters */}
       <div className="flex gap-4 mb-4">
+        <select value={filterCompany} onChange={e => setFilterCompany(e.target.value)} className="border rounded p-2">
+          <option value="">All Companies</option>
+          {companies.filter(c => c.companyId !== 1).map(c => <option key={c.companyId} value={c.companyId}>{c.companyName}</option>)}
+        </select>
+        
         <select value={filterDept} onChange={e => setFilterDept(e.target.value)} className="border rounded p-2">
           <option value="">All Departments</option>
           {filteredDepartments.map(d => <option key={d.departmentId} value={d.departmentId}>{d.departmentName}</option>)}
@@ -420,11 +425,7 @@ const LeaveAllocation = () => {
           <option value="">All Types</option>
           {filteredEmployeeTypes.map(t => <option key={t.employeeTypeId} value={t.employeeTypeId}>{t.employeeTypeAckr}</option>)}
         </select>
-
-        <select value={filterCompany} onChange={e => setFilterCompany(e.target.value)} className="border rounded p-2">
-          <option value="">All Companies</option>
-          {companies.filter(c => c.companyId !== 1).map(c => <option key={c.companyId} value={c.companyId}>{c.companyName}</option>)}
-        </select>
+        
       </div>
 
       {/* Employee Table */}

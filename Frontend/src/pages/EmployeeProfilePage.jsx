@@ -90,6 +90,12 @@ const EmployeeProfilePage = () => {
   const [photoPreview, setPhotoPreview] = useState("/placeholder-image.jpg");
 
   useEffect(() => {
+      token = sessionStorage.getItem("token");
+      decoded = token ? jwtDecode(token) : "";
+      userNumber = decoded?.userNumber;
+    }, []);
+    
+  useEffect(() => {
     if (formData.photo instanceof File) {
       const url = URL.createObjectURL(formData.photo);
       setPhotoPreview(url);
