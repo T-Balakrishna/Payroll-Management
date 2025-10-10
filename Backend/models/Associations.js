@@ -1,3 +1,4 @@
+
 const defineAssociations = (models) => {
   const { 
     Attendance, 
@@ -18,7 +19,8 @@ const defineAssociations = (models) => {
     LeaveType, 
     LeaveAllocation, 
     Punch, 
-    User 
+    User,
+    Permission
   } = models;
 
   // BelongsTo associations (many-to-one)
@@ -112,6 +114,11 @@ const defineAssociations = (models) => {
 
   // BiometricDevice
   BiometricDevice.hasMany(Punch, { foreignKey: 'deviceIp', as: 'punches' });
+
+  Permission.belongsTo(Employee, { foreignKey: 'employeeNumber', as: 'employee' });
+  Employee.hasMany(Permission, { foreignKey: 'employeeNumber', as: 'permissions' });
+  Company.hasMany(Permission, { foreignKey: 'companyId', as: 'permissions' });
+  Permission.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
 };
 
 module.exports = defineAssociations;

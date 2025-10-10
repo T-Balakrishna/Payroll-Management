@@ -7,5 +7,6 @@ router.get('/', companyController.getAllCompanies);
 router.get('/:id', companyController.getCompanyById);
 router.put('/:id', companyController.updateCompany);
 router.delete('/:id', companyController.deleteCompany);
+router.post('/permission', companyController.setPermissionHours);
 
 module.exports = router;
