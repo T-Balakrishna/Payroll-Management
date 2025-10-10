@@ -3,7 +3,7 @@ const Employee = require('../models/Employee');
 const { Op } = require('sequelize');
 
 exports.createPermission = async (req, res) => {
-  const { employeeNumber, permissionDate, permissionHours, companyId, createdBy } = req.body;
+  const { employeeNumber, permissionDate, permissionHours, companyId } = req.body;
 
   if (!employeeNumber || !permissionDate || !permissionHours || !companyId) {
     return res.status(400).json({ error: 'employeeNumber, permissionDate, permissionHours, and companyId are required' });
@@ -23,7 +23,6 @@ exports.createPermission = async (req, res) => {
       permissionHours,
       remainingHours: permissionHours, // Initially, remaining equals requested
       companyId,
-      createdBy,
     });
 
     res.status(201).json({ message: 'Permission record created successfully', permission });
@@ -113,7 +112,7 @@ exports.getRemainingForMonth = async (req, res) => {
 
 exports.reducePermissionHours = async (req, res) => {
   const { employeeNumber, month } = req.params;
-  const { hours, updatedBy } = req.body;
+  const { hours } = req.body;
   const monthIndex = parseInt(month, 10);
 
   if (isNaN(monthIndex) || monthIndex < 0 || monthIndex > 11) {
@@ -154,7 +153,7 @@ exports.reducePermissionHours = async (req, res) => {
       perm.remainingHours -= reduceBy;
       remainingToReduce -= reduceBy;
 
-      await perm.update({ remainingHours: perm.remainingHours, updatedBy });
+      await perm.update({ remainingHours: perm.remainingHours });
     }
 
     if (remainingToReduce > 0) {

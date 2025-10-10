@@ -11,8 +11,13 @@ async function processAttendance() {
   try {
     const today = new Date().toISOString().split("T")[0];
 
+    // ✅ Fetch all employees
+    const employees = await Employee.findAll({
+      include: [{ model: Shift, as: "shift" }],
+    });
+
+    // ✅ Fetch all today's punches
     const punches = await Punch.findAll({
-      include: [{ model: Employee, as: 'employee' }],
       where: {
         punchTimestamp: {
           [Op.gte]: new Date(`${today}T00:00:00`),
@@ -22,18 +27,7 @@ async function processAttendance() {
       order: [["punchTimestamp", "ASC"]],
     });
 
-    // Pre-fetch holidays and leaves for today
-    const holidayToday = await Holiday.findOne({ where: { date: today } });
-    const leavesToday = await Leave.findAll({
-      where: {
-        status: 'Approved',
-        startDate: { [Op.lte]: today },
-        endDate: { [Op.gte]: today }
-      }
-    });
-    const leaveMap = {};
-    leavesToday.forEach(l => leaveMap[l.employeeNumber] = true);
-
+    // Group punches by employee
     const grouped = {};
     punches.forEach((p) => {
       const empNum = p.employeeNumber;
@@ -41,79 +35,95 @@ async function processAttendance() {
       grouped[empNum].push(p);
     });
 
-    for (const empNum in grouped) {
-      const empPunches = grouped[empNum];
-      const firstPunch = empPunches[0].punchTimestamp;
-      const lastPunch = empPunches[empPunches.length - 1].punchTimestamp;
-
-      const employee = await Employee.findOne({
-        where: { employeeNumber: empNum },
-        include: [{ model: Shift, as: "shift" }],
-      });
-
-      if (!employee || !employee.shift) continue;
-
-      const shift = employee.shift;
-      let workedHours = (lastPunch - firstPunch) / 1000 / 3600;
+    // ✅ Process all employees — even if no punches
+    for (const employee of employees) {
+      const empNum = employee.employeeNumber;
+      const empPunches = grouped[empNum] || [];
       let status = "Absent";
-      let permissionUsed = 0;
+      let usedPermission = 0;
+      let workedHours = 0;
 
-      // ------------------ Permission deduction ------------------
-      const remainingPermission = employee.remainingPermissionHours || 0;
-
-      if (workedHours >= shift.shiftMinHours) {
-        status = "Present";
-      } else if (workedHours >= shift.shiftMinHours - 1) {
-        if (remainingPermission >= 1) {
-          permissionUsed = 1;
-          employee.remainingPermissionHours -= 1;
-          status = "Present";
-        } else if (workedHours >= shift.shiftMinHours / 2) {
-          status = "Half-Day";
-        }
-      } else if (workedHours >= shift.shiftMinHours - 2) {
-        if (remainingPermission >= 2) {
-          permissionUsed = 2;
-          employee.remainingPermissionHours -= 2;
-          status = "Present";
-        } else if (workedHours >= shift.shiftMinHours / 2) {
-          status = "Half-Day";
-        }
-      } else if (workedHours >= shift.shiftMinHours / 2) {
-        status = "Half-Day";
-      }
-
-      await employee.save(); // update remainingPermissionHours
-
-      // ------------------ Holiday & Leave check ------------------
-      if (status === "Absent") {
-        if (holidayToday) {
-          status = "Holiday";
-        } else if (leaveMap[empNum]) {
+      // Step 1️⃣ Holiday check
+      const isHoliday = await Holiday.findOne({
+        where: { date: today, companyId: employee.companyId },
+      });
+      if (isHoliday) {
+        status = "Holiday";
+      } 
+      else {
+        // Step 2️⃣ Leave check
+        const leave = await Leave.findOne({
+          where: {
+            employeeNumber: empNum,
+            fromDate: { [Op.lte]: today },
+            toDate: { [Op.gte]: today },
+            status: "Approved"
+          },
+        });
+        if (leave) {
           status = "Leave";
+        } 
+        else if (empPunches.length > 0) {
+          // Step 3️⃣ Attendance + Permission Logic
+          const firstPunch = empPunches[0].punchTimestamp;
+          const lastPunch = empPunches[empPunches.length - 1].punchTimestamp;
+          const shift = employee.shift;
+          const minHours = shift?.shiftMinHours || 6.5;
+          const remPerm = employee.remainingPermissionHours || 0;
+
+          const shiftInEnd = new Date(`${today}T${shift?.shiftInEndTime || "10:00:00"}`);
+          const shiftOutStart = new Date(`${today}T${shift?.shiftOutStartTime || "17:00:00"}`);
+
+          workedHours = (lastPunch - firstPunch) / 1000 / 3600;
+
+          if (firstPunch <= shiftInEnd && lastPunch >= shiftOutStart && workedHours >= minHours) {
+            status = "Present";
+          } 
+          else if (workedHours >= minHours - 0.5) {
+            status = "Present";
+          } 
+          else if (workedHours >= minHours - 1 && remPerm >= 1) {
+            status = "Present";
+            usedPermission = 1;
+          } 
+          else if (workedHours >= minHours - 2 && remPerm >= 2) {
+            status = "Present";
+            usedPermission = 2;
+          } 
+          else if (workedHours >= minHours / 2) {
+            status = "Half-Day";
+          } 
+          else {
+            status = "Absent";
+          }
         }
       }
 
-      // ------------------ Save attendance ------------------
+      // Step 4️⃣ Save Attendance
       await Attendance.create({
         employeeId: employee.employeeId,
         attendanceDate: today,
         attendanceStatus: status,
-        companyId:employee.companyId,
       });
 
-      // ------------------ Log permission usage ------------------
-      if (permissionUsed > 0) {
+      // Step 5️⃣ Permission Update
+      if (usedPermission > 0) {
+        employee.remainingPermissionHours -= usedPermission;
+        await employee.save();
+
         await Permission.create({
           employeeNumber: empNum,
           permissionDate: today,
-          permissionHours: permissionUsed,
+          permissionHours: usedPermission,
           remainingHours: employee.remainingPermissionHours,
           companyId: employee.companyId,
+          createdBy: "System",
         });
       }
 
-      console.log(`✅ ${employee.employeeName}: ${status} (Permission used: ${permissionUsed}h)`);
+      console.log(
+        `✅ ${employee.employeeName}: ${status} (${workedHours.toFixed(2)} hrs)`
+      );
     }
 
     console.log("🎯 Attendance processing completed!");
