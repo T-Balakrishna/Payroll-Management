@@ -83,7 +83,7 @@ const startServer = async () => {
     console.log("✅ DB Connected successfully");
 
     // ⚠️ safer: alter = keep data, adjust schema if needed
-    await seq.sync({ alter: false, logging: false });
+    await seq.sync({ alter: true, logging: false });
     console.log("✅ Tables synced");
 
     app.listen(5000, () => {
