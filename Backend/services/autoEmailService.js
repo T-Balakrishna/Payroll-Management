@@ -5,7 +5,6 @@ const Employee = require('../models/Employee');
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
-
 });
 
 const sendEmail = async (to, subject, text) => {
@@ -43,9 +42,10 @@ const autoEmailService = async () => {
   const attendanceIssues = [];
 
   employees.forEach(employee => {
-    const dob = employee.DOB?.toISOString().split('T')[0];
-    const doj = employee.DOJ?.toISOString().split('T')[0];
-    const weddingDate = employee.weddingDate?.toISOString().split('T')[0];
+    // ✅ Convert to Date objects first
+    const dob = employee.DOB ? new Date(employee.DOB).toISOString().split('T')[0] : null;
+    const doj = employee.DOJ ? new Date(employee.DOJ).toISOString().split('T')[0] : null;
+    const weddingDate = employee.weddingDate ? new Date(employee.weddingDate).toISOString().split('T')[0] : null;
 
     if (dob && dob.split('-')[1] + '-' + dob.split('-')[2] === today.split('-')[1] + '-' + today.split('-')[2]) {
       birthdays.push(employee);
@@ -56,9 +56,11 @@ const autoEmailService = async () => {
     if (weddingDate && weddingDate.split('-')[1] + '-' + weddingDate.split('-')[2] === today.split('-')[1] + '-' + today.split('-')[2]) {
       marriageAnniversaries.push(employee);
     }
-    // Assuming attendance status is calculated in processAttendance and stored elsewhere
+
+    // ✅ Attach attendanceStatus to employee so it's available later
     const attendanceStatus = 'Absent'; // Replace with actual logic to get attendance
     if (attendanceStatus !== 'Present') {
+      employee.attendanceStatus = attendanceStatus;
       attendanceIssues.push(employee);
     }
   });
@@ -66,21 +68,19 @@ const autoEmailService = async () => {
   // Send emails for attendance issues
   attendanceIssues.forEach(employee => {
     sendEmail(employee.employeeMail, 'Attendance Notification', 
-      `Dear ${employee.firstName},\nYour attendance status for today is ${attendanceStatus}. Please check with HR.`);
+      `Dear ${employee.firstName},\nYour attendance status for today is ${employee.attendanceStatus}. Please check with HR.`);
   });
 
   // Send emails for birthdays
-  if (birthdays.length > 0) {
-    birthdays.forEach(employee => {
-      sendEmail(employee.employeeMail, 'Happy Birthday!', 
-        `Dear ${employee.firstName},\nWishing you a very happy birthday!`);
-    });
-  }
+  birthdays.forEach(employee => {
+    sendEmail(employee.employeeMail, 'Happy Birthday!', 
+      `Dear ${employee.firstName},\nWishing you a very happy birthday!`);
+  });
 
   // Send emails for work anniversaries
   if (workAnniversaries.length > 0) {
     const groupedByDate = workAnniversaries.reduce((acc, emp) => {
-      const key = emp.DOJ.toISOString().split('T')[0];
+      const key = new Date(emp.DOJ).toISOString().split('T')[0];
       if (!acc[key]) acc[key] = [];
       acc[key].push(emp);
       return acc;
@@ -105,7 +105,7 @@ const autoEmailService = async () => {
   // Send emails for marriage anniversaries
   if (marriageAnniversaries.length > 0) {
     const groupedByDate = marriageAnniversaries.reduce((acc, emp) => {
-      const key = emp.weddingDate.toISOString().split('T')[0];
+      const key = new Date(emp.weddingDate).toISOString().split('T')[0];
       if (!acc[key]) acc[key] = [];
       acc[key].push(emp);
       return acc;

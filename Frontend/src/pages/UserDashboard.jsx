@@ -4,6 +4,8 @@ import {
   User, Calendar, LogOut, Clock, FileText, UserCheck,
   Plus, XCircle, CheckCircle, AlertCircle
 } from "lucide-react";
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 import EmployeeProfile from './EmployeeProfilePage';
 import CalendarPage from './CalendarPage';
 import TakeLeavePage from './TakeLeavePage';
@@ -16,15 +18,18 @@ let decoded = token ? jwtDecode(token) : "";
 let userNumber = decoded?.userNumber;
 
 export default function DashboardPage() {
+  const { t } = useTranslation();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [modalContent, setModalContent] = useState(null);
   const [tableType, setTableType] = useState("biometric");
-  const [userName, setUserName] = useState("New User");
+  const [userName, setUserName] = useState(t('newUser'));
   const [photoUrl, setPhotoUrl] = useState(null);
   const [punches, setPunches] = useState([]);
   const [biometricId, setBiometricId] = useState(null);
   const [leaves, setLeaves] = useState([]);
-  const [companyId, setCompanyId] = useState(null); // Added
-  const [departmentId, setDepartmentId] = useState(null); // Added
+  const [companyId, setCompanyId] = useState(null);
+  const [departmentId, setDepartmentId] = useState(null);
 
   const hasFetchedRef = useRef(false);
   const abortControllerRef = useRef(null);
@@ -32,6 +37,16 @@ export default function DashboardPage() {
   const openProfileModal = () => setModalContent("profile");
   const openCalendarModal = () => setModalContent("calendar");
   const closeModal = () => setModalContent(null);
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  };
 
   useEffect(() => {
     token = sessionStorage.getItem("token");
@@ -44,10 +59,10 @@ export default function DashboardPage() {
       
     if (!userNumber) {      
       console.error("No userNumber found in sessionStorage");
-      setUserName("Guest");
+      setUserName(t('guest'));
       setPhotoUrl(null);
-      setCompanyId(null); // Added
-      setDepartmentId(null); // Added
+      setCompanyId(null);
+      setDepartmentId(null);
       return;
     }
 
@@ -64,7 +79,7 @@ export default function DashboardPage() {
         });
         const employee = res.data;
         if (employee.firstName && employee.lastName) {
-          const fullName = `${employee.firstName || employee.employeeName || ''} ${employee.lastName || ''}`.trim() || 'New User';
+          const fullName = `${employee.firstName || employee.employeeName || ''} ${employee.lastName || ''}`.trim() || t('newUser');
           setUserName(fullName);
         }
 
@@ -83,12 +98,14 @@ export default function DashboardPage() {
       } catch (err) {
         if (err.name === 'AbortError') return;
         console.error("Error fetching user data:", err.response?.data?.error || err.message);
-        setError("Failed to fetch user data. Please try again.");
-        setUserName("New User");
+        setError(t('failedToFetchUserData'));
+        setUserName(t('newUser'));
         setPhotoUrl(null);
-        setCompanyId(null); // Added
-        setDepartmentId(null); // Added
+        setCompanyId(null);
+        setDepartmentId(null);
         hasFetchedRef.current = true;
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -99,14 +116,14 @@ export default function DashboardPage() {
         abortControllerRef.current.abort();
       }
     };
-  }, [userNumber]);
+  }, [userNumber, t]);
 
   // Fetch biometricId using employeeNumber
   useEffect(() => {
     if (!userNumber) return;
     setIsLoading(true);
 
-    const fetchBiometricId = async () => {
+    const fetchBiometricByIp = async () => {
       try {
         const res = await axios.get(`http://localhost:5000/api/users/getBiometricNumber/${userNumber}`);        
         const bio = res.data.biometricNumber;
@@ -114,28 +131,28 @@ export default function DashboardPage() {
           setBiometricId(bio);
         } else {
           console.warn("No biometric linked to employeeNumber:", userNumber);
-          setError("No biometric data linked to your account.");
+          setError(t('noBiometricData'));
         }
       } catch (err) {
         console.error("Error fetching biometrics:", err.message);
-        setError("Failed to fetch biometric data.");
+        setError(t('failedToFetchBiometricData'));
       } finally {
         setIsLoading(false);
       }
     };
-    fetchBiometricId();
-  }, [userNumber]);
+    fetchBiometricByIp();
+  }, [userNumber, t]);
 
-  // Fetch device info by IP
+  // Fetch device by IP
   const fetchDeviceByIp = async (ip) => {
     try {
       const res = await axios.get(`http://localhost:5000/api/biometricDevices/ip/${ip}`, {
         timeout: 5000,
       });
-      return res.data.location || "Unknown Location";
+      return res.data.location || t('unknownLocation');
     } catch (err) {
       console.error("Error fetching device by IP:", err.message);
-      return "Unknown Location";
+      return t('unknownLocation');
     }
   };
 
@@ -157,21 +174,21 @@ export default function DashboardPage() {
             return {
               ...row,
               punchTimestamp: row.punchTimestamp || new Date().toISOString(),
-              location: row.location || "Unknown",
+              location: row.location || t('unknownLocation'),
             };
           })
         );
         setPunches(punchesData.sort((a, b) => new Date(b.punchTimestamp) - new Date(a.punchTimestamp)));
       } catch (err) {
         console.error("Error fetching punches:", err.message);
-        setError("Failed to fetch attendance data.");
+        setError(t('failedToFetchAttendanceData'));
         setPunches([]);
       } finally {
         setIsLoading(false);
       }
     };
     fetchPunches();
-  }, [biometricId]);
+  }, [biometricId, t]);
 
   // Fetch leaves for this employee
   useEffect(() => {
@@ -187,24 +204,24 @@ export default function DashboardPage() {
           from_date: l.startDate ? formatDate(l.startDate) : "N/A",
           to_date: l.endDate ? formatDate(l.endDate) : "N/A",
           description: l.reason || l.LeaveType?.leaveTypeName || "N/A",
-          status: l.status || "Pending",
+          status: l.status || t('pending'),
         }));
         setLeaves(leaveData.sort((a, b) => new Date(b.from_date) - new Date(a.from_date)));
       } catch (err) {
         console.error("Error fetching leaves:", err.message);
-        setError("Failed to fetch leave data.");
+        setError(t('failedToFetchLeaveData'));
         setLeaves([]);
       } finally {
         setIsLoading(false);
       }
     };
     fetchLeaves();
-  }, [userNumber]);
+  }, [userNumber, t]);
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case "Approved": return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case "Rejected": return <XCircle className="w-4 h-4 text-red-600" />;
+      case t('approved'): return <CheckCircle className="w-4 h-4 text-green-600" />;
+      case t('rejected'): return <XCircle className="w-4 h-4 text-red-600" />;
       default: return <AlertCircle className="w-4 h-4 text-yellow-600" />;
     }
   };
@@ -213,7 +230,7 @@ export default function DashboardPage() {
     if (isLoading) {
       return (
         <div className="bg-white rounded-2xl border border-gray-100 p-6 text-center">
-          <p className="text-gray-600">Loading data...</p>
+          <p className="text-gray-600">{t('loadingData')}</p>
         </div>
       );
     }
@@ -231,17 +248,17 @@ export default function DashboardPage() {
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           <div className="bg-gray-50 px-6 py-4 border-b border-gray-100">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-blue-600" /> Leave History
+              <FileText className="w-5 h-5 text-blue-600" /> {t('leaveHistory')}
             </h3>
           </div>
           <div className="overflow-x-auto max-h-96 overflow-y-auto">
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="text-left py-4 px-6 font-semibold text-gray-700">From Date</th>
-                  <th className="text-left py-4 px-6 font-semibold text-gray-700">To Date</th>
-                  <th className="text-left py-4 px-6 font-semibold text-gray-700">Reason</th>
-                  <th className="text-left py-4 px-6 font-semibold text-gray-700">Status</th>
+                  <th className="text-left py-4 px-6 font-semibold text-gray-700">{t('fromDate')}</th>
+                  <th className="text-left py-4 px-6 font-semibold text-gray-700">{t('toDate')}</th>
+                  <th className="text-left py-4 px-6 font-semibold text-gray-700">{t('reason')}</th>
+                  <th className="text-left py-4 px-6 font-semibold text-gray-700">{t('status')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -252,14 +269,14 @@ export default function DashboardPage() {
                     <td className="py-4 px-6 border-b border-gray-100">{row.description}</td>
                     <td className="py-4 px-6 border-b border-gray-100 flex items-center gap-2">
                       {getStatusIcon(row.status)}
-                      <span className={`font-medium ${row.status === "Approved" ? "text-green-700" : row.status === "Rejected" ? "text-red-700" : "text-yellow-700"}`}>
+                      <span className={`font-medium ${row.status === t('approved') ? "text-green-700" : row.status === t('rejected') ? "text-red-700" : "text-yellow-700"}`}>
                         {row.status}
                       </span>
                     </td>
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan="4" className="text-center py-6 text-gray-500">No leave data available</td>
+                    <td colSpan="4" className="text-center py-6 text-gray-500">{t('noLeaveDataAvailable')}</td>
                   </tr>
                 )}
               </tbody>
@@ -272,16 +289,16 @@ export default function DashboardPage() {
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           <div className="bg-gray-50 px-6 py-4 border-b border-gray-100">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-blue-600" /> Biometric History
+              <Clock className="w-5 h-5 text-blue-600" /> {t('biometricHistory')}
             </h3>
           </div>
           <div className="overflow-x-auto max-h-96 overflow-y-auto">
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="text-left py-4 px-6 font-semibold text-gray-700">Date</th>
-                  <th className="text-left py-4 px-6 font-semibold text-gray-700">Time</th>
-                  <th className="text-left py-4 px-6 font-semibold text-gray-700">Location</th>
+                  <th className="text-left py-4 px-6 font-semibold text-gray-700">{t('date')}</th>
+                  <th className="text-left py-4 px-6 font-semibold text-gray-700">{t('time')}</th>
+                  <th className="text-left py-4 px-6 font-semibold text-gray-700">{t('location')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -291,14 +308,14 @@ export default function DashboardPage() {
                   const date = formatDate(row.punchTimestamp);
                   return (
                     <tr key={idx} className="hover:bg-gray-50 transition-colors duration-150">
+                      <td className="py-4 px-6 border-b border-gray-100">{date}</td>
                       <td className="py-4 px-6 border-b border-gray-100">{time}</td>
                       <td className="py-4 px-6 border-b border-gray-100">{row.location}</td>
-                      <td className="py-4 px-6 border-b border-gray-100">{date}</td>
                     </tr>
                   );
                 }) : (
                   <tr>
-                    <td colSpan="3" className="text-center py-6 text-gray-500">No punch data available</td>
+                    <td colSpan="3" className="text-center py-6 text-gray-500">{t('noPunchDataAvailable')}</td>
                   </tr>
                 )}
               </tbody>
@@ -318,15 +335,15 @@ export default function DashboardPage() {
           </button>
 
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900">Welcome back, {userName}</h1>
-            <p className="text-gray-600">Have a great day at work</p>
+            <h1 className="text-2xl font-bold text-gray-900">{t('welcomeBack', { name: userName })}</h1>
+            <p className="text-gray-600">{t('haveAGreatDay')}</p>
           </div>
 
           <div className="flex items-center gap-3">
             <button onClick={openProfileModal} className="w-12 h-12 bg-gray-100 hover:bg-gray-200 rounded-xl flex items-center justify-center overflow-hidden relative transition-colors duration-150">
               <img
                 src={photoUrl || "/placeholder-image.jpg"}
-                alt="Profile"
+                alt={t('profile')}
                 className="w-full h-full object-cover"
                 onError={(e) => { e.currentTarget.src = "/placeholder-image.jpg"; }}
               />
@@ -341,6 +358,7 @@ export default function DashboardPage() {
             >
               <LogOut className="w-6 h-6 text-red-600" />
             </button>
+            <LanguageSwitcher />
           </div>
         </div>
       </div>
@@ -348,13 +366,13 @@ export default function DashboardPage() {
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="flex flex-wrap justify-center gap-4 mb-8">
           <button onClick={() => setModalContent("takeleave")} className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl flex items-center gap-2 transition-colors duration-150">
-            <Plus className="w-5 h-5" /> Apply Leave
+            <Plus className="w-5 h-5" /> {t('applyLeave')}
           </button>
           <button onClick={() => setTableType("biometric")} className={`px-6 py-3 font-semibold rounded-xl flex items-center gap-2 ${tableType === "biometric" ? "bg-blue-600 text-white" : "bg-white text-gray-700 border border-gray-200"}`}>
-            <UserCheck className="w-5 h-5" /> Biometric Punch History
+            <UserCheck className="w-5 h-5" /> {t('attendanceHistory')}
           </button>
           <button onClick={() => setTableType("leave")} className={`px-6 py-3 font-semibold rounded-xl flex items-center gap-2 transition-colors duration-150 ${tableType === "leave" ? "bg-blue-600 text-white" : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"}`}>
-            <FileText className="w-5 h-5" /> Leave History
+            <FileText className="w-5 h-5" /> {t('leaveHistory')}
           </button>
         </div>
 

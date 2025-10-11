@@ -19,7 +19,8 @@ const defineAssociations = (models) => {
     LeaveAllocation, 
     Punch, 
     User,
-    Permission
+    Permission,
+    ResetToken // Add ResetToken
   } = models;
 
   /** ================= BELONGS TO (Many → One) ================= **/
@@ -49,7 +50,7 @@ const defineAssociations = (models) => {
   LeaveAllocation.belongsTo(Employee, { foreignKey: 'employeeNumber', targetKey: 'employeeNumber', as: 'employee' });
   LeaveAllocation.belongsTo(LeaveType, { foreignKey: 'leaveTypeId', targetKey: 'leaveTypeId', as: 'leaveType' });
 
-  // Punch (if employee deleted, punch also deleted)
+  // Punch
   Punch.belongsTo(Employee, { 
     foreignKey: 'biometricNumber', 
     targetKey: 'biometricNumber', 
@@ -58,7 +59,6 @@ const defineAssociations = (models) => {
     onUpdate: 'CASCADE' 
   });
 
-  // Correct device relationship (assuming Punch.deviceIp → BiometricDevice.deviceIp)
   Punch.belongsTo(BiometricDevice, { 
     foreignKey: 'deviceIp', 
     targetKey: 'deviceIp', 
@@ -81,6 +81,9 @@ const defineAssociations = (models) => {
   // User
   User.belongsTo(Department, { foreignKey: 'departmentId', targetKey: 'departmentId', as: 'department' });
   User.belongsTo(Company, { foreignKey: 'companyId', targetKey: 'companyId', as: 'company' });
+
+  // ResetToken
+  ResetToken.belongsTo(User, { foreignKey: 'userId', targetKey: 'userId', as: 'user', onDelete: 'CASCADE' });
 
   /** ================= HAS MANY (One → Many) ================= **/
 
@@ -140,6 +143,9 @@ const defineAssociations = (models) => {
   // Permission
   Permission.belongsTo(Employee, { foreignKey: 'employeeNumber', targetKey: 'employeeNumber', as: 'employee' });
   Employee.hasMany(Permission, { foreignKey: 'employeeNumber', sourceKey: 'employeeNumber', as: 'permissions' });
+
+  // User one-to-many
+  User.hasMany(ResetToken, { foreignKey: 'userId', sourceKey: 'userId', as: 'resetTokens', onDelete: 'CASCADE' });
 };
 
 module.exports = defineAssociations;
