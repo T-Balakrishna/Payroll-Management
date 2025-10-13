@@ -15,6 +15,12 @@ router.delete('/:id', employeeController.deleteEmployee);
 router.get("/full/:employeeNumber", employeeController.getEmployeeFullByNumber);
 router.post('/byDepartments', employeeController.getEmployeesByDepartment);
 router.get("/by-biometric/:biometricNumber", employeeController.getEmployeeByBiometric);
+router.get("/activecount/:companyId", employeeController.getActiveEmployeeCount);
+router.get("/departmentwiseactive/:companyId", employeeController.getDepartmentWiseActive);
+router.get("/designationwise/:companyId", employeeController.getDesignationWise);
+router.get("/pfsummary/:companyId", employeeController.getPfSummary);
+
+
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {

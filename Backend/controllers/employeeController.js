@@ -357,3 +357,100 @@ exports.getEmployeeByBiometric = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+exports.countEmployeesInCompany = async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    if (!companyId) {
+      return res.status(400).json({ error: "Company ID is required" });
+    }
+    const count = await Employee.count({ where: { companyId, status: 'active' } });
+    res.json({ companyId, count: count });
+  } catch (err) {
+      console.error("❌ Error in countEmployeesInCompany:"); 
+      res.status(500).json({ error: "Failed to count employees", details: err.message });
+    }
+    
+};
+
+exports.getActiveEmployeeCount = async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    if (!companyId) {
+      return res.status(400).json({ error: "Company ID is required" });
+    }
+    const count = await Employee.count({ where: { companyId, status: 'active' } });
+    res.json({ count });
+  } catch (err) {
+      console.error("❌ Error in getActiveEmployeeCount:"); 
+      res.status(500).json({ error: "Failed to get active employee count", details: err.message });
+    }
+  };
+
+exports.getDepartmentWiseActive = async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    if (!companyId) {
+      return res.status(400).json({ error: "Company ID is required" });
+    }
+    const result = await Employee.findAll({
+      where: { companyId, status: 'active' },
+      attributes: [
+        'departmentId',
+        [Employee.sequelize.fn('COUNT', Employee.sequelize.col('employeeId')), 'activeCount']
+      ],
+      group: ['departmentId'],
+      include: [
+        { model: Department, as: 'department', attributes: ['departmentName'], required: false }  
+      ]
+    });
+    res.json(result);
+  } catch (err) {
+      console.error("❌ Error in getDepartmentWiseActive:"); 
+      res.status(500).json({ error: "Failed to get department-wise active employees", details: err.message });
+    }
+  };
+
+exports.getDesignationWise = async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    if (!companyId) {
+      return res.status(400).json({ error: "Company ID is required" });
+    }
+    const result = await Employee.findAll({
+      where: { companyId, status: 'active' },
+      attributes: [
+        'designationId',
+        [Employee.sequelize.fn('COUNT', Employee.sequelize.col('employeeId')), 'activeCount']
+      ],
+      group: ['designationId'],
+      include: [
+        { model: Designation, as: 'designation', attributes: ['designationName'], required: false }
+      ]
+    });
+    res.json(result);
+  } catch (err) {
+      console.error("❌ Error in getDesignationWise:"); 
+      res.status(500).json({ error: "Failed to get designation-wise active employees", details: err.message });
+    }
+  };
+
+exports.getPfSummary = async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    if (!companyId) {
+      return res.status(400).json({ error: "Company ID is required" });
+    }
+    const result = await Employee.findAll({
+      where: { companyId, status: 'active' },
+      attributes: [
+        [Employee.sequelize.fn('SUM', Employee.sequelize.col('costToCompany')), 'totalCTC'],
+        [Employee.sequelize.fn('SUM', Employee.sequelize.col('pfNumber')), 'pfCount']
+      ]
+    });
+    res.json(result[0]); // Return the single summary object
+  } catch (err) {
+      console.error("❌ Error in getPfSummary:"); 
+      res.status(500).json({ error: "Failed to get PF summary", details: err.message });
+    }
+  };

@@ -88,3 +88,21 @@ exports.deleteDepartment = async (req, res) => {
     res.status(500).send("Error deleting department: " + error.message);
   }
 };
+
+// Additional functions like getDepartmentCount can be added here
+exports.getDepartmentCount = async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    if (!companyId) {
+      return res.status(400).json({ message: "companyId parameter is required" });
+    }
+    const count = await Department.count({
+      where: { companyId, status: 'active' }
+    });
+    res.json({ count });
+  } catch (error) {
+    console.error("❌ Error fetching department count:", error);
+    res.status(500).json({ message: "Error fetching department count: " + error.message });
+  }
+};
+
