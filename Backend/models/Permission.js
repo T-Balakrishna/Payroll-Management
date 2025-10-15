@@ -7,9 +7,7 @@ const Permission = seq.define('Permission', {
   permissionHours: { type: DataTypes.INTEGER, allowNull: false },
   remainingHours: { type: DataTypes.INTEGER, allowNull: false },
   companyId:{ type: DataTypes.INTEGER, allowNull: false },
-  createdBy: { type: DataTypes.STRING, allowNull: true },
-  updatedBy: { type: DataTypes.STRING, allowNull: true },
-}, {
+}, { 
   tableName: 'Permission',
   timestamps: true 
 });

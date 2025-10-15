@@ -73,15 +73,12 @@ export default function DashboardPage() {
 
     const fetchUserData = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/api/employees/full/${userNumber}`, {
-          signal: abortControllerRef.current.signal,
-          timeout: 10000,
-        });
+        const res = await axios.get(`http://localhost:5000/api/employees/full/${userNumber}`);
+        console.log(res.data);
         const employee = res.data;
-        if (employee.firstName && employee.lastName) {
-          const fullName = `${employee.firstName || employee.employeeName || ''} ${employee.lastName || ''}`.trim() || t('newUser');
-          setUserName(fullName);
-        }
+        const fullName = `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || employee.employeeName || t('newUser');
+        setUserName(fullName);
+
 
         if (employee.photo) {
           const photoPath = employee.photo.startsWith("/uploads/") ? employee.photo : `/uploads/${employee.photo}`;
@@ -97,7 +94,7 @@ export default function DashboardPage() {
         hasFetchedRef.current = true;
       } catch (err) {
         if (err.name === 'AbortError') return;
-        console.error("Error fetching user data:", err.response?.data?.error || err.message);
+        console.error("Error fetching user data:", err);
         setError(t('failedToFetchUserData'));
         setUserName(t('newUser'));
         setPhotoUrl(null);

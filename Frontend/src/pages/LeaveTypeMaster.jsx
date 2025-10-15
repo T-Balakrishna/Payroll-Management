@@ -31,6 +31,12 @@ function AddOrEdit({ onSave, onCancel, editData }) {
     });
   };
 
+  useEffect(() => {
+    token = sessionStorage.getItem("token");
+    decoded = token ? jwtDecode(token) : "";
+    userNumber = decoded?.userNumber;
+  }, []);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.leaveTypeName) return alert("Please enter leave type name");

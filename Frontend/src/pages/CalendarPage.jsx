@@ -17,7 +17,7 @@ const CalendarPage = () => {
   const statusConfig = {
     "Present":    { color: "#3B82F6", bg: "#EFF6FF", icon: <CheckCircle className="w-4 h-4" /> },
     "Holiday":    { color: "#10B981", bg: "#ECFDF5", icon: <Sun className="w-4 h-4" /> },
-    "Leave":      { color: "#EF4444", bg: "#FEF2F2", icon: <CheckCircle className="w-4 h-4" /> },
+    "Leave":      { color: "#392e2eff", bg: "#FEF2F2", icon: <CheckCircle className="w-4 h-4" /> },
     "Absent":     { color: "#EF4444", bg: "#FEF2F2", icon: <XCircle className="w-4 h-4" /> },
     "Half-Day":   { color: "#F59E0B", bg: "#FFF7ED", icon: <CheckCircle className="w-4 h-4" /> },
     "Permission": { color: "#8B5CF6", bg: "#F3E8FF", icon: <CheckCircle className="w-4 h-4" /> },

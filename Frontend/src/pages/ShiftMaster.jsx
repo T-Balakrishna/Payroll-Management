@@ -6,10 +6,10 @@ import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 
 // Decode token to get user info
-const token = sessionStorage.getItem("token");
-const decoded = token ? jwtDecode(token) : "";
-const userNumber = decoded.userNumber;
-const userRole = decoded.role;
+let token = sessionStorage.getItem("token");
+let decoded = token ? jwtDecode(token) : "";
+let userNumber = decoded.userNumber;
+let userRole = decoded.role;
 console.log(userRole,userNumber);
 
 
@@ -24,6 +24,12 @@ function AddOrEdit({ onSave, onCancel, editData, selectedCompanyId, selectedComp
   const [companies, setCompanies] = useState([]);
   const [companyId, setCompanyId] = useState(editData?.companyId || selectedCompanyId || "");
   const [companyName, setCompanyName] = useState(editData?.companyName || selectedCompanyName || "");
+
+  useEffect(() => {
+    token = sessionStorage.getItem("token");
+    decoded = token ? jwtDecode(token) : "";
+    userNumber = decoded?.userNumber;
+  }, []);
 
   // ✅ Fetch companies for Super Admin only
   useEffect(() => {
