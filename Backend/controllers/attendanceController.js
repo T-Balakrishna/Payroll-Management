@@ -123,3 +123,18 @@ exports.deleteAttendance = async (req, res) => {
     res.status(500).send("Error deleting attendance: " + error.message);
   }
 };
+
+// Get count of active attendances by company
+exports.getAttendanceCount = async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const whereClause = {};
+    if(!companyId) return res.status(400).json({ message: 'Company ID is required' });
+    
+    const count = await Attendance.count({ where: whereClause });
+    res.status(200).json({ count });
+  } catch (error) {
+    console.error('❌ Error fetching attendance count:', error);
+    res.status(500).json({ message: 'Error fetching attendance count: ' + error.message });
+  }
+};

@@ -128,68 +128,35 @@ const AdminDashboard = () => {
     const token = sessionStorage.getItem("token");
     if (!token || !companyId) return;
 
-    // Build query params based on role
+    // Build query params based on role (avoid redundant companyId in query)
     const params = new URLSearchParams();
-    params.append('companyId', companyId);
     if (role === "departmentAdmin" && departmentId) {
       params.append('departmentId', departmentId);
     }
 
     const queryString = params.toString() ? `?${params.toString()}` : '';
 
-    try {
-      // Fetch total active employees
-      const activeEmployeesRes = await axios.get(`http://localhost:5000/api/employees/active-count/${companyId}${queryString}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      // Fetch department-wise active count
-      const deptActiveRes = await axios.get(`http://localhost:5000/api/employees/department-wise-active/${companyId}${queryString}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      // Fetch department count
-      const deptCountRes = await axios.get(`http://localhost:5000/api/departments/count/${companyId}${queryString}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      // Fetch designation-wise count
-      const desigRes = await axios.get(`http://localhost:5000/api/employees/designation-wise/${companyId}${queryString}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      // Fetch monthly attendance
-      const attendanceRes = await axios.get(`http://localhost:5000/api/attendance/monthly/${companyId}${queryString}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      // Fetch leave statistics
-      const leaveRes = await axios.get(`http://localhost:5000/api/leaves/stats/${companyId}${queryString}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+    // Define all API calls as promises
+    const apiCalls = [
+      axios.get(`http://localhost:5000/api/employees/activecount/${companyId}${queryString}`, { headers: { Authorization: `Bearer ${token}` } }),
+      axios.get(`http://localhost:5000/api/employees/departmentwiseactive/${companyId}${queryString}`, { headers: { Authorization: `Bearer ${token}` } }),
+      axios.get(`http://localhost:5000/api/departments/count/${companyId}${queryString}`, { headers: { Authorization: `Bearer ${token}` } }),
+      axios.get(`http://localhost:5000/api/employees/designationwise/${companyId}${queryString}`, { headers: { Authorization: `Bearer ${token}` } }),
+      axios.get(`http://localhost:5000/api/attendance/monthly/${companyId}${queryString}`, { headers: { Authorization: `Bearer ${token}` } }),
+      axios.get(`http://localhost:5000/api/leaves/stats/${companyId}${queryString}`, { headers: { Authorization: `Bearer ${token}` } }),
+      axios.get(`http://localhost:5000/api/leaves/balancesummary/${companyId}${queryString}`, { headers: { Authorization: `Bearer ${token}` } }),
+      axios.get(`http://localhost:5000/api/leaves/takensummary/${companyId}${queryString}`, { headers: { Authorization: `Bearer ${token}` } }),
+      axios.get(`http://localhost:5000/api/permissions/takensummary/${companyId}${queryString}`, { headers: { Authorization: `Bearer ${token}` } }),
+      axios.get(`http://localhost:5000/api/attendance/presentabsentsummary/${companyId}${queryString}`, { headers: { Authorization: `Bearer ${token}` } }),
+      axios.get(`http://localhost:5000/api/shifts/wisesummary/${companyId}${queryString}`, { headers: { Authorization: `Bearer ${token}` } }),
+      axios.get(`http://localhost:5000/api/employees/pfsummary/${companyId}${queryString}`, { headers: { Authorization: `Bearer ${token}` } }),
+    ];
 
-      // Fetch report summaries
-      const leaveBalanceRes = await axios.get(`http://localhost:5000/api/leaves/balance-summary/${companyId}${queryString}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const leaveTakenRes = await axios.get(`http://localhost:5000/api/leaves/taken-summary/${companyId}${queryString}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const permissionTakenRes = await axios.get(`http://localhost:5000/api/permissions/taken-summary/${companyId}${queryString}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const presentAbsentRes = await axios.get(`http://localhost:5000/api/attendance/present-absent-summary/${companyId}${queryString}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const shiftWiseRes = await axios.get(`http://localhost:5000/api/shifts/wise-summary/${companyId}${queryString}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const pfNonPfRes = await axios.get(`http://localhost:5000/api/employees/pf-summary/${companyId}${queryString}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+    try {
+      const [activeEmployeesRes, deptActiveRes, deptCountRes, desigRes, attendanceRes, leaveRes, leaveBalanceRes, leaveTakenRes, permissionTakenRes, presentAbsentRes, shiftWiseRes, pfNonPfRes] = await Promise.all(apiCalls);
 
       setDashboardData({
-        totalActiveEmployees: activeEmployeesRes.data.count || 0,
+        totalActiveEmployees: activeEmployeesRes.data.count,
         departmentWiseActive: deptActiveRes.data || [],
         departmentCount: deptCountRes.data.count || 0,
         designationWise: desigRes.data || [],
@@ -206,6 +173,7 @@ const AdminDashboard = () => {
       });
     } catch (err) {
       console.error("Error fetching dashboard data:", err);
+      // Optionally set partial state or show error toast, but keep initial values
     }
   };
 
