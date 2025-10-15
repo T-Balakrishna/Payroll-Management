@@ -17,6 +17,12 @@ function AddOrEditCompany({ onSave, onCancel, editData }) {
   const [companyAcr, setCompanyAcr] = useState(editData?.companyAcr || "");
   const [status, setStatus] = useState(editData?.status || "active");
 
+  useEffect(() => {
+    token = sessionStorage.getItem("token");
+    decoded = token ? jwtDecode(token) : "";
+    userNumber = decoded?.userNumber;
+  }, []);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!companyName || !companyAcr) return alert("Please fill all fields");

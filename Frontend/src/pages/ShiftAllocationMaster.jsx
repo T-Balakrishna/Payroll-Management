@@ -34,6 +34,12 @@ const ShiftAllocationMaster = ({ userRole, selectedCompanyId, selectedCompanyNam
     setSearch("");
   }, [selectedCompanyId]);
 
+  useEffect(() => {
+    token = sessionStorage.getItem("token");
+    decoded = token ? jwtDecode(token) : "";
+    userNumber = decoded?.userNumber;
+  }, []);
+
   // Fetch shifts, departments
   useEffect(() => {
     axios.get("http://localhost:5000/api/shifts", headers).then(res => setShifts(res.data));

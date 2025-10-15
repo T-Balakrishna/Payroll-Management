@@ -137,10 +137,10 @@ async function processAttendance() {
 module.exports = processAttendance;
 
 // ✅ Standalone Runner
-const { sequelize } = require("../models");
-(async () => {
-  await sequelize.authenticate();
-  console.log("✅ Database connected!");
-  await processAttendance();
-  await sequelize.close();
-})();
+// const { sequelize } = require("../models");
+// (async () => {
+//   await sequelize.authenticate();
+//   console.log("✅ Database connected!");
+//   await processAttendance();
+//   await sequelize.close();
+// })();

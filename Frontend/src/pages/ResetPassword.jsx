@@ -6,7 +6,7 @@ import { FaLock } from "react-icons/fa"; // For lock icon
 
 export default function ResetPassword() {
   const navigate = useNavigate();
-  const { token } = useParams(); // Extract token from URL
+  // const { token } = useParams(); // Extract token from URL
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -17,6 +17,12 @@ export default function ResetPassword() {
   const validatePassword = (password) => {
     return password.length >= 8; // Minimum 8 characters
   };
+
+  useEffect(() => {
+    token = sessionStorage.getItem("token");
+    decoded = token ? jwtDecode(token) : "";
+    userNumber = decoded?.userNumber;
+  }, []);
 
   // Handle form submission
   const handleSubmit = async (e) => {

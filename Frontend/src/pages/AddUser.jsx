@@ -26,6 +26,7 @@ function AddOrEditUser({
   handleAutoGenerate,
   isEdit,
 }) {
+  
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name === "role") {
@@ -53,6 +54,12 @@ function AddOrEditUser({
       setFormData({ ...formData, [name]: value });
     }
   };
+
+  useEffect(() => {
+    token = sessionStorage.getItem("token");
+    decoded = token ? jwtDecode(token) : "";
+    userNumber = decoded?.userNumber;
+  }, []);
 
   // Fetch departments dynamically when company changes
   useEffect(() => {

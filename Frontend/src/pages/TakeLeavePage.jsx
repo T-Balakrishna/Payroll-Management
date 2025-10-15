@@ -5,6 +5,11 @@ import dayjs from "dayjs";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 
+let token = sessionStorage.getItem("token");
+let decoded = token ? jwtDecode(token) : "";
+let userNumber = decoded.userNumber;
+let userRole = decoded.role;
+
 const TakeLeavePage = ({ empId, companyId, departmentId }) => {
   const [leaveTypes, setLeaveTypes] = useState([]);
   const [allocation, setAllocation] = useState(null);
@@ -16,6 +21,12 @@ const TakeLeavePage = ({ empId, companyId, departmentId }) => {
     fromDate: "",
     toDate: ""
   });
+
+  useEffect(() => {
+    token = sessionStorage.getItem("token");
+    decoded = token ? jwtDecode(token) : "";
+    userNumber = decoded?.userNumber;
+  }, []);
 
   // Fetch leave types filtered by companyId
   useEffect(() => {

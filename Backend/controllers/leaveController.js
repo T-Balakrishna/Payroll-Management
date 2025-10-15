@@ -20,13 +20,13 @@ function calculateLeaveDays(startDate, endDate) {
 // Employee apply leave
 exports.applyLeave = async (req, res) => {
   try {
-    const { employeeNumber, leaveTypeId, startDate, endDate, reason,companyId,departmentId } = req.body;
+    const { employeeNumber, leaveTypeId, startDate, endDate, reason, companyId, departmentId } = req.body;
 
     const requestedDays = calculateLeaveDays(startDate, endDate);
 
     // Determine leavePeriod
     const currentYear = dayjs(startDate).year();
-    const month = dayjs(startDate).month() + 1; // 0-based index
+    const month = dayjs(startDate).month() + 1;
     const leavePeriod = month >= 6 
       ? `${currentYear}-${currentYear + 1}` 
       : `${currentYear - 1}-${currentYear}`;
@@ -40,9 +40,15 @@ exports.applyLeave = async (req, res) => {
       return res.status(400).json({ message: "Insufficient leave balance" });
     }
 
+    // Deduct balance instantly
+    await allocation.update({
+      usedLeave: allocation.usedLeave + requestedDays,
+      balance: allocation.balance - requestedDays
+    });
+
     // Save leave application
     const leave = await Leave.create({
-      employeeNumber,  // since your Leave links by employeeId
+      employeeNumber,
       leaveTypeId,
       startDate,
       endDate,
@@ -50,7 +56,7 @@ exports.applyLeave = async (req, res) => {
       status: "Pending",
       createdBy: employeeNumber,
       companyId,
-      departmentId,
+      departmentId
     });
 
     res.status(201).json({ message: "Leave applied successfully", leave });
@@ -59,11 +65,10 @@ exports.applyLeave = async (req, res) => {
   }
 };
 
-
 // Admin get all leaves
 exports.getAllLeaves = async (req, res) => {
   try {
-    const { status } = req.query; // optional filter
+    const { status } = req.query;
     const where = status ? { status } : {};
     const leaves = await Leave.findAll({
       where,
@@ -84,33 +89,28 @@ exports.updateLeaveStatus = async (req, res) => {
     const leave = await Leave.findByPk(leaveId);
     if (!leave) return res.status(404).json({ message: "Leave not found" });
 
-    if (status === "Approved") {
-      const leavePeriod = getLeavePeriod(leave.startDate);
-      const requestedDays = calculateLeaveDays(leave.startDate, leave.endDate);
+    const leavePeriod = getLeavePeriod(leave.startDate);
+    const requestedDays = calculateLeaveDays(leave.startDate, leave.endDate);
 
-      const allocation = await LeaveAllocation.findOne({
-        where: {
-          employeeNumber: leave.employeeNumber,   // maps to LeaveAllocation
-          leaveTypeId: leave.leaveTypeId,
-          leavePeriod
-        }
-      });
-      console.log(allocation);
-      
-      if (!allocation || allocation.balance < requestedDays) {
-        return res.status(400).json({ message: "Insufficient balance at approval" });
+    // Find allocation
+    const allocation = await LeaveAllocation.findOne({
+      where: {
+        employeeNumber: leave.employeeNumber,
+        leaveTypeId: leave.leaveTypeId,
+        leavePeriod
       }
-      console.log(requestedDays,allocation.usedLeave,allocation.balance);
-      
+    });
+
+    if (status === "Rejected" && allocation) {
+      // Revert the deduction
       await allocation.update({
-        usedLeave: allocation.usedLeave + requestedDays,
-        balance: allocation.balance - requestedDays,
-        updatedBy: updatedBy
+        usedLeave: allocation.usedLeave - requestedDays,
+        balance: allocation.balance + requestedDays,
+        updatedBy
       });
-
-      console.log("After update:", allocation.toJSON());
-
     }
+
+    // For Approved: Do nothing (since already adjusted on apply)
 
     leave.status = status;
     leave.updatedBy = updatedBy;
@@ -121,6 +121,7 @@ exports.updateLeaveStatus = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
 
 exports.getLeavesByStatus = async (req, res) => {
   try {

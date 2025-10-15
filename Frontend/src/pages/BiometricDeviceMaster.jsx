@@ -120,25 +120,22 @@ function AddOrEdit({
 
           {/* Company */}
           <div>
-            <label className="block font-medium text-gray-700 mb-2">
-              Company
-            </label>
+            <label className="block font-medium text-gray-700 mb-2">Company</label>
             {userRole === "Super Admin" ? (
               <select
                 value={companyId}
                 onChange={(e) => {
                   setCompanyId(e.target.value);
-                  const selected = companies.find(
-                    (c) => String(c.companyId) === e.target.value
-                  );
+                  const selected = companies.find((c) => c.companyId === e.target.value);
                   setCompanyName(selected ? selected.companyName : "");
                 }}
+                disabled={editData}
                 className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               >
                 <option value="">Select Company</option>
                 {companies
-                  .filter((c) => c.companyId !== 1)
-                  .map((c) => (
+                  .filter(c => c.companyId !== 1)
+                  .map(c => (
                     <option key={c.companyId} value={c.companyId}>
                       {c.companyName}
                     </option>

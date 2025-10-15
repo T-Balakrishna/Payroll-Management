@@ -7,7 +7,7 @@ function Punches({ userRole, selectedCompanyId, selectedCompanyName }) {
   const [devices, setDevices] = useState([]);
   const [filteredPunches, setFilteredPunches] = useState([]);
   const [searchBy, setSearchBy] = useState("biometricNumber");
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState("");  
 
   useEffect(() => {
     fetchData();

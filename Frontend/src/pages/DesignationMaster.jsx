@@ -20,6 +20,12 @@ function AddOrEdit({ onSave, onCancel, editData, userRole, selectedCompanyId, se
   const [companyName, setCompanyName] = useState(editData?.companyName || selectedCompanyName || "");
 
   useEffect(() => {
+    token = sessionStorage.getItem("token");
+    decoded = token ? jwtDecode(token) : "";
+    userNumber = decoded?.userNumber;
+  }, []);
+
+  useEffect(() => {
     let mounted = true;
     const fetchCompanies = async () => {
       try {

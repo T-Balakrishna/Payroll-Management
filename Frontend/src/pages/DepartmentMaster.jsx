@@ -20,6 +20,12 @@ function AddOrEdit({ onSave, onCancel, editData, userRole, selectedCompanyId, se
   const [companyName, setCompanyName] = useState(editData?.companyName || selectedCompanyName || "");
   const [isEdit,setIsEdit] = useState(false);
 
+  useEffect(() => {
+    token = sessionStorage.getItem("token");
+    decoded = token ? jwtDecode(token) : "";
+    userNumber = decoded?.userNumber;
+  }, []);
+
   // Fetch companies for Super Admin and set company for Admin
   useEffect(() => {
     let mounted = true;

@@ -12,6 +12,12 @@ let userNumber= decoded.userNumber;
 function AddOrEdit({ onSave, onCancel, editData }) {
   const [casteName, setCasteName] = useState(editData?.casteName || "");
 
+  useEffect(() => {
+    token = sessionStorage.getItem("token");
+    decoded = token ? jwtDecode(token) : "";
+    userNumber = decoded?.userNumber;
+  }, []);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!casteName) return alert("Please fill all fields");
