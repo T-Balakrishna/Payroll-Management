@@ -5,7 +5,7 @@ const path = require('path');
 const Sequelize = require('sequelize');
 const basename = path.basename(__filename);
 
-// Import the shared Sequelize instance (for reference)
+// Import the shared Sequelize instance
 const sequelize = require('../config/db');
 const db = {};
 
@@ -21,7 +21,7 @@ fs
     );
   })
   .forEach(file => {
-    const model = require(path.join(__dirname, file));  // Direct require: models export using shared seq
+    const model = require(path.join(__dirname, file)); // Loads ResetToken.js
     db[model.name] = model;
   });
 
@@ -33,8 +33,7 @@ Object.keys(db).forEach(modelName => {
 });
 
 // Apply custom associations
-// models/index.js
-const defineAssociations = require('./Associations'); // match exact filename
+const defineAssociations = require('./Associations');
 defineAssociations(db);
 // Debug log
 console.log('✅ Models loaded & associations applied! Employee associations:', Object.keys(db.Employee.associations || {}));

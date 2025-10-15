@@ -1,11 +1,13 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { GoogleOAuthProvider } from "@react-oauth/google";
-import {jwtDecode} from "jwt-decode";
+import { jwtDecode } from "jwt-decode";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-
+import './i18n';
 import LoginPage from "./pages/LoginPage";
+import ForgotPassword from "./pages/ForgotPassword"; // Add ForgotPassword
+import ResetPassword from "./pages/ResetPassword"; // Add ResetPassword
 import UserDashboard from "./pages/UserDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import { CompanyProvider } from "./context/CompanyContext";
@@ -41,7 +43,7 @@ function PrivateRoute({ children, allowedRoles }) {
   }
 }
 
-// 🔹 Redirect logged-in users from login page
+// 🔹 Redirect logged-in users from public pages
 function PublicRoute({ children }) {
   const token = sessionStorage.getItem("token");
   if (token) {
@@ -60,47 +62,60 @@ function PublicRoute({ children }) {
 
 export default function App() {
   return (
-    
     <CompanyProvider>
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <BrowserRouter>
-        <Routes>
-          {/* Public login page */}
-          <Route
-            path="/"
-            element={
-              <PublicRoute>
-                <LoginPage />
-              </PublicRoute>
-            }
-          />
+      <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+        <BrowserRouter>
+          <Routes>
+            {/* Public routes */}
+            <Route
+              path="/"
+              element={
+                <PublicRoute>
+                  <LoginPage />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/forgot-password"
+              element={
+                <PublicRoute>
+                  <ForgotPassword />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/reset-password/:token"
+              element={
+                <PublicRoute>
+                  <ResetPassword />
+                </PublicRoute>
+              }
+            />
 
-          {/* User dashboard */}
-          <Route
-            path="/userDashboard"
-            element={
-              <PrivateRoute allowedRoles={["Staff"]}>
-                <UserDashboard />
-              </PrivateRoute>
-            }
-          />
+            {/* Protected routes */}
+            <Route
+              path="/userDashboard"
+              element={
+                <PrivateRoute allowedRoles={["Staff"]}>
+                  <UserDashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/adminDashboard"
+              element={
+                <PrivateRoute allowedRoles={["Admin", "Super Admin", "Department Admin"]}>
+                  <AdminDashboard />
+                </PrivateRoute>
+              }
+            />
 
-          {/* Admin dashboard */}
-          <Route
-            path="/adminDashboard"
-            element={
-              <PrivateRoute allowedRoles={["Admin", "Super Admin", "Department Admin"]}>
-                <AdminDashboard />
-              </PrivateRoute>
-            }
-          />
-
-          {/* Catch-all 404 */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </GoogleOAuthProvider>
-    `<ToastContainer />
+            {/* Catch-all 404 */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+        <ToastContainer />
+      </GoogleOAuthProvider>
     </CompanyProvider>
   );
 }

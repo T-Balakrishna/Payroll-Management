@@ -14,4 +14,7 @@ router.post('/employees/byDepartments', controller.getEmployeesByDepartments);
 // POST /api/shiftAllocation/allocate
 router.post('/allocate', controller.allocateShifts);
 
+// GET /api/shiftAllocation/wisesummary/:companyId
+router.get('/wisesummary/:companyId', controller.getShiftWiseSummary);
+
 module.exports = router;

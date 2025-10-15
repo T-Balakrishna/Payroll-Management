@@ -1,7 +1,7 @@
 const Shift  = require('../models/Shift');
 const Employee = require('../models/Employee');
 const Department=require('../models/Department');
-const { Op } = require('sequelize');
+const { Op,fn,col } = require('sequelize');
 
 const shiftAllocationController = {
   getShifts: async (req, res) => {
@@ -63,7 +63,7 @@ const shiftAllocationController = {
       return res.status(400).json({ error: 'Invalid allocations data' });
     }
     try {
-      await Employee.sequelize.transaction(async (t) => {
+      await Employee.Op.transaction(async (t) => {
         for (const allocation of allocations) {
           const { employeeNumber, shiftId, updatedBy } = allocation;
           if (!employeeNumber || !shiftId) {
@@ -84,6 +84,40 @@ const shiftAllocationController = {
       res.status(500).json({ error: 'Failed to allocate shifts' });
     }
   },
+};
+
+// Get Shift Wise Summary
+shiftAllocationController.getShiftWiseSummary = async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const { startDate, endDate } = req.query;
+    if (!companyId) {
+      return res.status(400).json({ error: 'companyId is required' });
+    }
+    const where = { companyId };
+    if (startDate && endDate) {
+      where.createdAt = { [Op.between]: [new Date(startDate), new Date(endDate)] };
+    }
+    const summary = await Employee.findAll({
+      where,
+      attributes: [
+        'shiftId',
+        [fn('COUNT', col('employeeNumber')), 'employeeCount']
+      ],
+      group: ['shiftId','shift.shiftName'],
+      include: [{
+        model: Shift,
+        as: 'shift',
+        attributes: ['shiftName']
+      }],
+      order: [[col('shift.shiftName'), 'ASC']]
+    });
+    res.json(summary);
+  }
+  catch (error) {
+    console.error('Error fetching shift wise summary:', error);
+    res.status(500).json({ error: 'Failed to fetch shift wise summary' });
+  }
 };
 
 module.exports = shiftAllocationController;
