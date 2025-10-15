@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 
 const AttendanceMaster = () => {
+  const { t } = useTranslation();
   const [attendances, setAttendances] = useState([]);
   const [employeeNumberFilter, setEmployeeNumberFilter] = useState('');
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
@@ -40,14 +42,17 @@ const AttendanceMaster = () => {
       const response = await axios.get('http://localhost:5000/api/attendance', { params });
       setAttendances(response.data);
       if (response.data.length === 0) {
-        setError(`No attendance records found for the selected ${reportType} period${employeeNumberFilter ? ' and Employee Number' : ''}.`);
+        setError(t('noAttendanceRecordsFound', { 
+          period: reportType, 
+          employeeFilter: employeeNumberFilter ? t('employeeNumber') : ''
+        }));
       }
     } catch (error) {
       console.error('Error fetching attendances:', error);
       if (error.response && error.response.status === 404) {
-        setError('Attendance endpoint not found. Please check if the backend server is correctly configured.');
+        setError(t('attendanceEndpointNotFound'));
       } else {
-        setError('Failed to fetch attendance data. Please ensure the backend server is running on port 5000.');
+        setError(t('failedToFetchAttendance'));
       }
     } finally {
       setLoading(false);
@@ -71,13 +76,13 @@ const AttendanceMaster = () => {
       fetchAttendances();
     } catch (error) {
       console.error('Error updating attendance:', error);
-      setError('Failed to update attendance. Please try again.');
+      setError(t('failedToUpdateAttendance'));
     }
   };
 
   return (
     <div className="container mx-auto mt-8 px-4">
-      <h1 className="text-3xl font-bold mb-6">Attendance Master</h1>
+      <h1 className="text-3xl font-bold mb-6">{t('attendanceMaster')}</h1>
 
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
@@ -86,18 +91,18 @@ const AttendanceMaster = () => {
       )}
 
       {loading && (
-        <div className="text-center text-gray-600 mb-4">Loading attendance records...</div>
+        <div className="text-center text-gray-600 mb-4">{t('loadingAttendanceRecords')}</div>
       )}
 
       <div className="bg-white shadow-md rounded-lg mb-6">
         <div className="bg-gray-100 px-4 py-3 rounded-t-lg">
-          <h2 className="text-lg font-semibold">Search Attendance</h2>
+          <h2 className="text-lg font-semibold">{t('searchAttendance')}</h2>
         </div>
         <div className="p-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label htmlFor="employee-number-filter" className="block text-sm font-medium text-gray-700 mb-1">
-                Employee Number
+                {t('employeeNumber')}
               </label>
               <input
                 type="text"
@@ -105,13 +110,13 @@ const AttendanceMaster = () => {
                 className="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500"
                 value={employeeNumberFilter}
                 onChange={(e) => setEmployeeNumberFilter(e.target.value)}
-                placeholder="Enter Employee Number"
+                placeholder={t('enterEmployeeNumber')}
               />
             </div>
             {reportType === 'daily' && (
               <div>
                 <label htmlFor="report-date" className="block text-sm font-medium text-gray-700 mb-1">
-                  Date
+                  {t('date')}
                 </label>
                 <input
                   type="date"
@@ -129,7 +134,8 @@ const AttendanceMaster = () => {
       <div className="bg-white shadow-md rounded-lg">
         <div className="bg-gray-100 px-4 py-3 rounded-t-lg">
           <h2 className="text-lg font-semibold">
-            {reportType === 'daily' && `Daily Attendance for ${dateFilter}${employeeNumberFilter ? ` (Employee Number: ${employeeNumberFilter})` : ''}`}
+            {reportType === 'daily' && t('dailyAttendanceFor', { date: dateFilter })}
+            {employeeNumberFilter && ` (${t('employeeNumber')}: ${employeeNumberFilter})`}
           </h2>
         </div>
         <div className="p-4">
@@ -138,16 +144,16 @@ const AttendanceMaster = () => {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Employee Number
+                    {t('employeeNumber')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date
+                    {t('date')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
+                    {t('status')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
+                    {t('actions')}
                   </th>
                 </tr>
               </thead>
@@ -164,11 +170,11 @@ const AttendanceMaster = () => {
                           className="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500"
                         >
                           {['Present', 'Absent', 'Half-Day', 'Leave', 'Holiday', 'Permission'].map((status) => (
-                            <option key={status} value={status}>{status}</option>
+                            <option key={status} value={status}>{t(status.toLowerCase())}</option>
                           ))}
                         </select>
                       ) : (
-                        attendance.attendanceStatus
+                        t(attendance.attendanceStatus.toLowerCase())
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -178,13 +184,13 @@ const AttendanceMaster = () => {
                             className="text-green-600 hover:text-green-800 mr-2"
                             onClick={() => saveEdit(attendance.attendanceId)}
                           >
-                            Save
+                            {t('save')}
                           </button>
                           <button
                             className="text-gray-600 hover:text-gray-800"
                             onClick={() => setEditingId(null)}
                           >
-                            Cancel
+                            {t('cancel')}
                           </button>
                         </>
                       ) : (
@@ -192,7 +198,7 @@ const AttendanceMaster = () => {
                           className="text-indigo-600 hover:text-indigo-800"
                           onClick={() => handleEdit(attendance)}
                         >
-                          Edit
+                          {t('edit')}
                         </button>
                       )}
                     </td>

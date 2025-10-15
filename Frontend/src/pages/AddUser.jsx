@@ -4,6 +4,7 @@ import { User, Search, Plus, X, Trash, Pencil, Cpu } from "lucide-react";
 import { jwtDecode } from "jwt-decode";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
+import { useTranslation } from "react-i18next";
 
 let token = sessionStorage.getItem("token");
 let decoded = token ? jwtDecode(token) : "";
@@ -22,49 +23,47 @@ function AddOrEditUser({
   userRole,
   companies,
   autoGenerate,
-  setAutoGenerate, // Added to allow updating autoGenerate state
+  setAutoGenerate,
   handleAutoGenerate,
   isEdit,
 }) {
-  
+  const { t } = useTranslation();
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name === "role") {
       if (value === "Admin" && userRole === "Super Admin") {
         setFormData({ ...formData, role: value, departmentId: 1, biometricNumber: "" });
-        setAutoGenerate(false); // Uncheck Auto Generate
+        setAutoGenerate(false);
       } else if (value === "Super Admin") {
         setFormData({ ...formData, role: value, companyId: 1, departmentId: 1, biometricNumber: "" });
-        setAutoGenerate(false); // Uncheck Auto Generate
+        setAutoGenerate(false);
       } else {
         setFormData({ ...formData, role: value, departmentId: "", biometricNumber: "" });
-        setAutoGenerate(false); // Uncheck Auto Generate
+        setAutoGenerate(false);
       }
     } else if (name === "companyId") {
       setFormData({ ...formData, companyId: value, departmentId: "", biometricNumber: "" });
-      setAutoGenerate(false); // Uncheck Auto Generate
+      setAutoGenerate(false);
     } else if (name === "departmentId") {
       setFormData({ ...formData, departmentId: value });
-      setAutoGenerate(false); // Uncheck Auto Generate
+      setAutoGenerate(false);
     } else if (name === "biometricNumber") {
-      // Ensure only integer values or empty string
       const intValue = value === "" ? "" : parseInt(value, 10);
       setFormData({ ...formData, [name]: isNaN(intValue) ? "" : intValue.toString() });
     } else {
       setFormData({ ...formData, [name]: value });
     }
   };
-
+  
   useEffect(() => {
     token = sessionStorage.getItem("token");
     decoded = token ? jwtDecode(token) : "";
     userNumber = decoded?.userNumber;
   }, []);
 
-  // Fetch departments dynamically when company changes
   useEffect(() => {
     const fetchDepartments = async () => {
-      // Use selectedCompanyId for non-Super Admins if companyId is not set
       const companyIdToFetch = formData.companyId || selectedCompanyId;
       if (!companyIdToFetch) {
         setDepartments([]);
@@ -75,23 +74,23 @@ function AddOrEditUser({
           `http://localhost:5000/api/departments?companyId=${companyIdToFetch}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
-        console.log("Fetched departments:", res.data); // Debug log
+        console.log("Fetched departments:", res.data);
         setDepartments(res.data || []);
       } catch (err) {
         console.error("Error fetching departments:", err.response?.data || err.message);
-        toast.error("Error fetching departments");
+        toast.error(t("errorFetchingData"));
         setDepartments([]);
       }
     };
     fetchDepartments();
-  }, [formData.companyId, selectedCompanyId, setDepartments]);
+  }, [formData.companyId, selectedCompanyId, setDepartments, t]);
 
   const showCompanyField = () => {
     if (userRole === "Super Admin") {
       if (formData.role === "Super Admin") return false;
       return true;
     }
-    return false; // Non-Super Admins don't see company field
+    return false;
   };
 
   const showDepartmentField = () => {
@@ -119,17 +118,16 @@ function AddOrEditUser({
         </div>
 
         <h2 className="text-lg font-bold text-gray-800 text-center mb-1">
-          {isEdit ? "Edit User" : "Add New User"}
+          {isEdit ? t("editUser") : t("addNewUser")}
         </h2>
 
         <form onSubmit={onSave} className="space-y-3">
-          {/* Email */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t("email")}</label>
             <input
               type="email"
               name="userMail"
-              placeholder="Email"
+              placeholder={t("email")}
               value={formData.userMail}
               onChange={handleChange}
               className="w-full border border-gray-300 rounded-md p-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
@@ -137,13 +135,12 @@ function AddOrEditUser({
             />
           </div>
 
-          {/* Password */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t("password")}</label>
             <input
               type="password"
               name="password"
-              placeholder="Password"
+              placeholder={t("password")}
               value={formData.password}
               onChange={handleChange}
               className="w-full border border-gray-300 rounded-md p-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
@@ -151,9 +148,8 @@ function AddOrEditUser({
             />
           </div>
 
-          {/* Role */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t("role")}</label>
             <select
               name="role"
               value={formData.role}
@@ -161,7 +157,7 @@ function AddOrEditUser({
               className="w-full border border-gray-300 rounded-md p-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               required
             >
-              <option value="">Select Role</option>
+              <option value="">{t("selectRole")}</option>
               {(() => {
                 let availableRoles = ["Super Admin", "Admin", "Department Admin", "Staff"];
                 if (userRole === "Admin") {
@@ -176,17 +172,16 @@ function AddOrEditUser({
             </select>
           </div>
 
-          {/* Company */}
           {showCompanyField() && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("company")}</label>
               <select
                 name="companyId"
                 value={formData.companyId || ""}
                 onChange={handleChange}
                 className="w-full border border-gray-300 rounded-md p-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               >
-                <option value="">Select Company</option>
+                <option value="">{t("selectCompany")}</option>
                 {companies
                   .filter((c) => c.companyId !== 1)
                   .map((c) => (
@@ -198,10 +193,9 @@ function AddOrEditUser({
             </div>
           )}
 
-          {/* Department */}
           {showDepartmentField() && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("department")}</label>
               <select
                 name="departmentId"
                 value={formData.departmentId ?? ""}
@@ -209,7 +203,7 @@ function AddOrEditUser({
                 className="w-full border border-gray-300 rounded-md p-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                 required
               >
-                <option value="">Select Department</option>
+                <option value="">{t("selectDepartment")}</option>
                 {departments.map((d) => (
                   <option key={d.departmentId} value={d.departmentId}>
                     {d.departmentAckr}
@@ -219,14 +213,13 @@ function AddOrEditUser({
             </div>
           )}
 
-          {/* Biometric Number */}
           {showBiometricNumberField() && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Biometric Number</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("biometricNumber")}</label>
               <input
                 type="text"
                 name="biometricNumber"
-                placeholder="Biometric Number"
+                placeholder={t("biometricNumber")}
                 value={formData.biometricNumber || ""}
                 onChange={handleChange}
                 className="w-full border border-gray-300 rounded-md p-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
@@ -236,14 +229,13 @@ function AddOrEditUser({
             </div>
           )}
 
-          {/* User Number */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">User Number</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t("userNumber")}</label>
             <div className="flex items-center gap-2 py-1">
               <input
                 type="text"
                 name="userNumber"
-                placeholder="User Number"
+                placeholder={t("userNumber")}
                 value={formData.userNumber}
                 onChange={handleChange}
                 className="w-full border border-gray-300 rounded-md p-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
@@ -259,25 +251,24 @@ function AddOrEditUser({
                   }
                   disabled={isEdit}
                 />
-                Auto Generate
+                {t("autoGenerate")}
               </label>
             </div>
           </div>
 
-          {/* Buttons */}
           <div className="flex justify-end gap-2 pt-3">
             <button
               type="button"
               onClick={onCancel}
               className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-1.5 rounded-md transition text-sm"
             >
-              Cancel
+              {t("cancel")}
             </button>
             <button
               type="submit"
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-md transition text-sm"
             >
-              {isEdit ? "Update" : "Save"}
+              {isEdit ? t("update") : t("save")}
             </button>
           </div>
         </form>
@@ -288,6 +279,7 @@ function AddOrEditUser({
 
 // 🔹 Main Component
 export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
+  const { t } = useTranslation();
   const token = sessionStorage.getItem("token");
   const [departments, setDepartments] = useState([]);
   const [allDepartments, setAllDepartments] = useState([]);
@@ -340,7 +332,7 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
             headers: { Authorization: `Bearer ${token}` } }
           );
         }
-        console.log("Initial departments:", deptRes.data); // Debug log
+        console.log("Initial departments:", deptRes.data);
         setDepartments(deptRes.data);
 
         let url = "http://localhost:5000/api/users";
@@ -358,13 +350,13 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
         setAllDepartments(allDept.data);
       } catch (err) {
         console.error("Error fetching data:", err.response?.data || err.message);
-        toast.error("Error fetching data");
+        toast.error(t("errorFetchingData"));
       } finally {
         setIsLoading(false);
       }
     };
     fetchData();
-  }, [selectedCompanyId, token, refreshFlag]);
+  }, [selectedCompanyId, token, refreshFlag, t]);
 
   useEffect(() => {
     if (token) {
@@ -407,7 +399,7 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
       setFormData((prev) => ({ ...prev, userNumber: res.data.lastEmpNumber }));
     } catch (err) {
       console.error("Error generating userNumber:", err.response?.data || err.message);
-      toast.error("Error generating user number");
+      toast.error(t("errorFetchingData"));
     }
   };
 
@@ -436,8 +428,8 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
       }
       Swal.fire({
         icon: "success",
-        title: isEdit ? "Updated" : "Added",
-        text: `User ${isEdit ? "Updated" : "Added"} Successfully`,
+        title: isEdit ? t("updated") : t("added"),
+        text: t(isEdit ? "userUpdated" : "userAdded", { userNumber: formData.userNumber }),
       });
       setShowForm(false);
       setRefreshFlag((prev) => !prev);
@@ -445,8 +437,8 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
       console.error("Error saving user:", err.response?.data || err.message);
       Swal.fire({
         icon: "error",
-        title: isEdit ? "Update Failed" : "Add Failed",
-        text: `User ${isEdit ? "Update" : "Add"} Failed`,
+        title: isEdit ? t("updateFailed") : t("addFailed"),
+        text: t(isEdit ? "userUpdateFailed" : "userAddFailed"),
       });
       setShowForm(false);
     }
@@ -454,11 +446,11 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
 
   return (
     <div className="h-full flex flex-col px-6">
-      {isLoading && <div>Loading...</div>}
+      {isLoading && <div>{t("loading")}</div>}
       <div className="flex justify-between items-center mb-4">
         <input
           type="text"
-          placeholder="Search user..."
+          placeholder={t("searchUser")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="border border-gray-300 bg-white text-black rounded-lg px-4 py-2 w-1/3 outline-none"
@@ -467,7 +459,7 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
           onClick={openAddUserForm}
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md"
         >
-          <Plus size={18} /> Add User
+          <Plus size={18} /> {t("addUser")}
         </button>
       </div>
 
@@ -478,12 +470,12 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
         <table className="w-full text-left text-sm">
           <thead className="sticky top-0">
             <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-              <th className="py-3 px-4">User Number</th>
-              <th className="py-3 px-4">Email</th>
-              <th className="py-3 px-4">Role</th>
-              {!selectedCompanyId && <th className="py-3 px-4">Company</th>}
-              <th className="py-3 px-4">Department</th>
-              <th className="py-3 px-4">Actions</th>
+              <th className="py-3 px-4">{t("userNumber")}</th>
+              <th className="py-3 px-4">{t("email")}</th>
+              <th className="py-3 px-4">{t("role")}</th>
+              {!selectedCompanyId && <th className="py-3 px-4">{t("company")}</th>}
+              <th className="py-3 px-4">{t("department")}</th>
+              <th className="py-3 px-4">{t("actions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -518,13 +510,14 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
                       className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md"
                       onClick={() => {
                         Swal.fire({
-                          title: "Are you sure?",
-                          text: "You won't be able to revert this!",
+                          title: t("areYouSure"),
+                          text: t("cannotRevert"),
                           icon: "warning",
                           showCancelButton: true,
                           confirmButtonColor: "#3085d6",
                           cancelButtonColor: "#d33",
-                          confirmButtonText: "Yes, delete it!",
+                          confirmButtonText: t("confirmDelete"),
+                          cancelButtonText: t("cancel")
                         }).then(async (result) => {
                           if (result.isConfirmed) {
                             try {
@@ -536,16 +529,16 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
                                 }
                               );
                               Swal.fire({
-                                title: "Deleted!",
-                                text: "User has been deleted.",
+                                title: t("deleted"),
+                                text: t("userDeleted"),
                                 icon: "success",
                               });
                               setRefreshFlag((prev) => !prev);
                             } catch (err) {
                               console.error("Delete error:", err.response?.data || err.message);
                               Swal.fire({
-                                title: "Error!",
-                                text: "Failed to delete user.",
+                                title: t("error"),
+                                text: t("failedToDeleteUser"),
                                 icon: "error",
                               });
                             }
@@ -568,7 +561,7 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
                   colSpan={selectedCompanyId ? 5 : 6}
                   className="text-center py-4 text-gray-500"
                 >
-                  No users found
+                  {t("noUsersFound")}
                 </td>
               </tr>
             )}
@@ -589,7 +582,7 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
           userRole={currentUserRole}
           companies={companies}
           autoGenerate={autoGenerate}
-          setAutoGenerate={setAutoGenerate} // Pass setAutoGenerate
+          setAutoGenerate={setAutoGenerate}
           handleAutoGenerate={handleAutoGenerate}
           isEdit={isEdit}
         />

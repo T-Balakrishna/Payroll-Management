@@ -4,32 +4,27 @@ import { Cpu, Pencil, Trash, Plus, X } from "lucide-react";
 import { jwtDecode } from "jwt-decode";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
+import { useTranslation } from "react-i18next";
 
 let token = sessionStorage.getItem("token");
 let decoded = token ? jwtDecode(token) : {};
 let userNumber = decoded.userNumber;
 let userRole = decoded.role;
 
-// 🔹 Modal Form Component
-function AddOrEdit({
-  onSave,
-  onCancel,
-  editData,
-  userRole,
-  selectedCompanyId,
-  selectedCompanyName,
-}) {
+function AddOrEdit({ onSave, onCancel, editData, userRole, selectedCompanyId, selectedCompanyName }) {
+  const { t } = useTranslation();
   const [deviceIp, setDeviceIp] = useState(editData?.deviceIp || "");
   const [location, setLocation] = useState(editData?.location || "");
-  const [companyId, setCompanyId] = useState(
-    editData?.companyId || selectedCompanyId || ""
-  );
-  const [companyName, setCompanyName] = useState(
-    editData?.companyName || selectedCompanyName || ""
-  );
+  const [companyId, setCompanyId] = useState(editData?.companyId || selectedCompanyId || "");
+  const [companyName, setCompanyName] = useState(editData?.companyName || selectedCompanyName || "");
   const [companies, setCompanies] = useState([]);
 
-  // 🔹 Fetch companies (only for Super Admin to choose)
+  useEffect(() => {
+    token = sessionStorage.getItem("token");
+    decoded = token ? jwtDecode(token) : "";
+    userNumber = decoded?.userNumber;
+  }, []);
+
   useEffect(() => {
     let mounted = true;
     const fetchCompanies = async () => {
@@ -46,6 +41,7 @@ function AddOrEdit({
         }
       } catch (err) {
         console.error("Error fetching companies:", err);
+        toast.error(t('errorFetchingCompanies'));
       }
     };
 
@@ -53,16 +49,16 @@ function AddOrEdit({
     return () => {
       mounted = false;
     };
-  }, [userRole, companyId]);
+  }, [userRole, companyId, t]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!deviceIp) return toast.error("Device IP is required");
+    if (!deviceIp) return toast.error(t("deviceIpRequired"));
 
     const deviceData = {
       deviceIp,
       location,
-      companyId: companyId , // ✅ allow change for super admin
+      companyId: companyId,
       createdBy: editData ? editData.createdBy : userNumber,
       updatedBy: userNumber,
     };
@@ -87,15 +83,12 @@ function AddOrEdit({
         </div>
 
         <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">
-          {editData ? "Edit Biometric Device" : "Add New Biometric Device"}
+          {editData ? t("editBiometricDevice") : t("addNewBiometricDevice")}
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Device IP */}
           <div>
-            <label className="block font-medium text-gray-700 mb-2">
-              Device IP
-            </label>
+            <label className="block font-medium text-gray-700 mb-2">{t("deviceIp")}</label>
             <input
               type="text"
               value={deviceIp}
@@ -105,11 +98,8 @@ function AddOrEdit({
             />
           </div>
 
-          {/* Location */}
           <div>
-            <label className="block font-medium text-gray-700 mb-2">
-              Location
-            </label>
+            <label className="block font-medium text-gray-700 mb-2">{t("location")}</label>
             <input
               type="text"
               value={location}
@@ -118,21 +108,20 @@ function AddOrEdit({
             />
           </div>
 
-          {/* Company */}
           <div>
-            <label className="block font-medium text-gray-700 mb-2">Company</label>
+            <label className="block font-medium text-gray-700 mb-2">{t("company")}</label>
             {userRole === "Super Admin" ? (
               <select
                 value={companyId}
                 onChange={(e) => {
                   setCompanyId(e.target.value);
-                  const selected = companies.find((c) => c.companyId === e.target.value);
+                  const selected = companies.find((c) => String(c.companyId) === e.target.value);
                   setCompanyName(selected ? selected.companyName : "");
                 }}
                 disabled={editData}
                 className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               >
-                <option value="">Select Company</option>
+                <option value="">{t("selectCompany")}</option>
                 {companies
                   .filter(c => c.companyId !== 1)
                   .map(c => (
@@ -144,27 +133,26 @@ function AddOrEdit({
             ) : (
               <input
                 type="text"
-                value={companyName || "No company selected"}
+                value={companyName || t("noCompanySelected")}
                 disabled
                 className="w-full border border-gray-300 rounded-lg p-3 bg-gray-100 cursor-not-allowed"
               />
             )}
           </div>
 
-          {/* Buttons */}
           <div className="flex justify-end gap-3 pt-4">
             <button
               type="button"
               onClick={onCancel}
               className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition"
             >
-              Cancel
+              {t("cancel")}
             </button>
             <button
               type="submit"
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow-md transition"
             >
-              {editData ? "Update Changes" : "Save"}
+              {editData ? t("update") : t("save")}
             </button>
           </div>
         </form>
@@ -173,8 +161,8 @@ function AddOrEdit({
   );
 }
 
-// 🔹 Main Component
 function BiometricDeviceMaster({ selectedCompanyId, selectedCompanyName }) {
+  const { t } = useTranslation();
   const [devices, setDevices] = useState([]);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -195,10 +183,11 @@ function BiometricDeviceMaster({ selectedCompanyId, selectedCompanyName }) {
         setCompanies(res.data || []);
       } catch (err) {
         console.error("Error fetching companies:", err);
+        toast.error(t("errorFetchingCompanies"));
       }
     };
     fetchCompanies();
-  }, []);
+  }, [t]);
 
   const fetchDevices = async () => {
     try {
@@ -211,16 +200,13 @@ function BiometricDeviceMaster({ selectedCompanyId, selectedCompanyName }) {
       });
       setDevices(res.data || []);
     } catch (err) {
-      toast.error(
-        "Error fetching devices: " +
-          (err.response?.data?.message || err.message)
-      );
+      toast.error(t("errorFetchingDevices"));
     }
   };
 
   useEffect(() => {
     fetchDevices();
-  }, [selectedCompanyId]);
+  }, [selectedCompanyId, t]);
 
   const filteredData = devices.filter(
     (d) =>
@@ -246,57 +232,52 @@ function BiometricDeviceMaster({ selectedCompanyId, selectedCompanyName }) {
       setEditData(null);
       Swal.fire({
         icon: "success",
-        title: deviceId ? "Updated" : "Added",
-        text: `Device ${deviceId ? "Updated" : "Added"} Successfully`,
+        title: deviceId ? t("deviceUpdated") : t("deviceAdded"),
+        text: deviceId ? t("deviceUpdated") : t("deviceAdded"),
       });
     } catch (err) {
-      toast.error(
-        "Error saving device: " +
-          (err.response?.data?.message || err.message)
-      );
+      toast.error(t("errorSavingDevice"));
+      Swal.fire({
+        icon: "error",
+        title: deviceId ? t("deviceUpdateFailed") : t("deviceAddFailed"),
+        text: err.response?.data?.message || err.message,
+      });
     }
-  };
-
-  const handleEdit = (device) => {
-    setEditData(device);
-    setShowForm(true);
   };
 
   const handleDelete = async (deviceId) => {
-      Swal.fire({
-        title: "Are you sure?",
-        text: "You won’t be able to revert this!",
-        icon: "warning",
-        showCancelButton: true,
-        confirmButtonColor: "#3085d6",
-        cancelButtonColor: "#d33",
-        confirmButtonText: "Yes, delete it!"
-      }).then(async (result) => {
-        if (result.isConfirmed) {
-          try {
-            await axios.delete(`http://localhost:5000/api/biometricDevices/${deviceId}`, {
-              data: { updatedBy: userNumber },
-              headers: { Authorization: `Bearer ${token}` },
-            });
-
-            Swal.fire("Deleted!", "Device has been deleted.", "success");
-            await fetchDevices();
-          } catch (err) {
-            console.error("Error deleting Device:", err);
-            Swal.fire("Error!", "Failed to delete Device.", "error");
-          }
+    Swal.fire({
+      title: t("areYouSure"),
+      text: t("cannotRevert"),
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: t("confirmDelete"),
+      cancelButtonText: t("cancel")
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          await axios.delete(`http://localhost:5000/api/biometricDevices/${deviceId}`, {
+            data: { updatedBy: userNumber },
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          Swal.fire(t("deleted"), t("deviceDeleted"), "success");
+          await fetchDevices();
+        } catch (err) {
+          console.error("Error deleting Device:", err);
+          Swal.fire(t("error"), t("failedToDeleteDevice"), "error");
         }
-      });
-    }
-
-  
+      }
+    });
+  };
 
   return (
     <div className="h-full flex flex-col px-6">
       <div className="flex justify-between items-center mb-4">
         <input
           type="text"
-          placeholder="Search device..."
+          placeholder={t("searchDevice")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="border border-gray-300 bg-white text-black rounded-lg px-4 py-2 w-1/3 outline-none"
@@ -308,7 +289,7 @@ function BiometricDeviceMaster({ selectedCompanyId, selectedCompanyName }) {
             setEditData(null);
           }}
         >
-          <Plus size={18} /> Add Device
+          <Plus size={18} /> {t("addNewBiometricDevice")}
         </button>
       </div>
 
@@ -319,10 +300,10 @@ function BiometricDeviceMaster({ selectedCompanyId, selectedCompanyName }) {
         <table className="w-full text-left text-sm">
           <thead className="sticky top-0">
             <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-              <th className="py-3 px-4">Device IP</th>
-              <th className="py-3 px-4">Location</th>
-              {!selectedCompanyId && <th className="py-3 px-4">Company</th>}
-              <th className="py-3 px-4">Actions</th>
+              <th className="py-3 px-4">{t("deviceIp")}</th>
+              <th className="py-3 px-4">{t("location")}</th>
+              {!selectedCompanyId && <th className="py-3 px-4">{t("company")}</th>}
+              <th className="py-3 px-4">{t("actions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -353,7 +334,7 @@ function BiometricDeviceMaster({ selectedCompanyId, selectedCompanyName }) {
                   colSpan="4"
                   className="text-center py-4 text-gray-500"
                 >
-                  No devices found
+                  {t("noDevicesFound")}
                 </td>
               </tr>
             )}

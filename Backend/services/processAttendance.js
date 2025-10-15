@@ -137,6 +137,7 @@ async function processAttendance() {
 module.exports = processAttendance;
 
 // ✅ Standalone Runner
+
 // const { sequelize } = require("../models");
 // (async () => {
 //   await sequelize.authenticate();

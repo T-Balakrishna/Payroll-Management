@@ -178,6 +178,12 @@ const AdminDashboard = () => {
   };
 
   useEffect(() => {
+    token = sessionStorage.getItem("token");
+    decoded = token ? jwtDecode(token) : "";
+    userNumber = decoded?.userNumber;
+  }, []);
+
+  useEffect(() => {
     const token = sessionStorage.getItem("token");
     if (token) {
       try {
