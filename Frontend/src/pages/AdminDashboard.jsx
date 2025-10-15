@@ -14,6 +14,8 @@ import {
   LineElement,
 } from 'chart.js';
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
 // Register ChartJS components
 ChartJS.register(
@@ -81,6 +83,7 @@ import {
 } from 'lucide-react';
 
 const AdminDashboard = () => {
+  const { t } = useTranslation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activePage, setActivePage] = useState("dashboard");
@@ -165,7 +168,7 @@ const AdminDashboard = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      // Fetch report summaries (assuming backend endpoints for quick stats support the params)
+      // Fetch report summaries
       const leaveBalanceRes = await axios.get(`http://localhost:5000/api/leaves/balance-summary/${companyId}${queryString}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -222,14 +225,13 @@ const AdminDashboard = () => {
             .then((res) => {
               const { companyId, companyName } = res.data;
               setCompanyId(companyId || null);
-              setCompanyName(companyName || "Unknown Company");
+              setCompanyName(companyName || t('unknownLocation'));
             })
             .catch((err) => {
               console.error("Error fetching user company:", err);
-              setCompanyName("Error fetching company");
+              setCompanyName(t('errorFetchingData'));
             });
         } else if (decoded.role === "departmentAdmin") {
-          // Fetch department and company for departmentAdmin
           axios
             .get(`http://localhost:5000/api/users/getDepartment/${userNumber}`, {
               headers: { Authorization: `Bearer ${token}` },
@@ -238,12 +240,12 @@ const AdminDashboard = () => {
               const { companyId, companyName, departmentId, departmentName } = res.data;
               setCompanyId(companyId || null);
               setDepartmentId(departmentId || null);
-              setCompanyName(companyName || "Unknown Company");
-              setDepartmentName(departmentName || "Unknown Department");
+              setCompanyName(companyName || t('unknownLocation'));
+              setDepartmentName(departmentName || t('unknownLocation'));
             })
             .catch((err) => {
               console.error("Error fetching user department:", err);
-              setCompanyName("Error fetching company");
+              setCompanyName(t('errorFetchingData'));
             });
         } else if (decoded.role === "Super Admin") {
           fetchCompanies();
@@ -252,56 +254,55 @@ const AdminDashboard = () => {
         console.error("Invalid token:", err);
       }
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (activePage === 'dashboard' && companyId) {
       fetchDashboardData();
     }
-  }, [activePage, companyId, departmentId]); // Add departmentId dependency
+  }, [activePage, companyId, departmentId]);
 
   // Filter menu items based on role
   const getFilteredMenuItems = () => {
     let items = [
-      { id: 'dashboard', label: 'Dashboard', icon: Home, color: 'text-blue-600' },
-      { id: 'users', label: 'Add User', icon: Users, color: 'text-green-600' },
-      { id: 'bus', label: 'Bus Master', icon: Bus, color: 'text-purple-600' },
-      { id: 'biometricDevice', label: 'Biometric Device Master', icon: Monitor, color: 'text-purple-600' },
-      { id: 'caste', label: 'Caste Master', icon: List, color: 'text-orange-600' },
-      { id: 'department', label: 'Department Master', icon: Building2, color: 'text-indigo-600' },
-      { id: 'designation', label: 'Designation Master', icon: Award, color: 'text-pink-600' },
-      { id: 'employeeGrade', label: 'Employee Grade Master', icon: Users, color: 'text-amber-600' },
-      { id: 'employeeType', label: 'Employee Type Master', icon: Users, color: 'text-cyan-600' },
-      { id: 'attendance', label: 'Attendance Master', icon: Activity, color: 'text-emerald-600'},
-      { id: 'holiday', label: 'Holiday Master', icon: Calendar, color: 'text-yellow-600' },
-      { id: 'leaveApproval', label: 'Leave Approval Master', icon: CheckCircle, color: 'text-lime-600' },
-      { id: 'leaveType', label: 'Leave Type Master', icon: Clock, color: 'text-lime-600' },
-      { id: 'leaveAllocation', label: 'Leave Allocation', icon: Clock, color: 'text-lime-600' },
-      { id: 'punches', label: 'Punch Details', icon: Activity, color: 'text-indigo-600' },
-      { id: 'religion', label: 'Religion Master', icon: Building, color: 'text-amber-600' },
-      { id: 'shift', label: 'Shift Master', icon: Activity, color: 'text-emerald-600' },
-      { id: 'shiftallocation', label: 'Shift Allocation Master', icon: Activity, color: 'text-emerald-600'},
-      { id: 'reportgenerator', label: 'Report Generator', icon: Settings, color: 'text-gray-600' },
+      { id: 'dashboard', label: t('dashboard'), icon: Home, color: 'text-blue-600' },
+      { id: 'users', label: t('addUser'), icon: Users, color: 'text-green-600' },
+      { id: 'bus', label: t('busMaster'), icon: Bus, color: 'text-purple-600' },
+      { id: 'biometricDevice', label: t('biometricDeviceMaster'), icon: Monitor, color: 'text-purple-600' },
+      { id: 'caste', label: t('casteMaster'), icon: List, color: 'text-orange-600' },
+      { id: 'department', label: t('departmentMaster'), icon: Building2, color: 'text-indigo-600' },
+      { id: 'designation', label: t('designationMaster'), icon: Award, color: 'text-pink-600' },
+      { id: 'employeeGrade', label: t('employeeGradeMaster'), icon: Users, color: 'text-amber-600' },
+      { id: 'employeeType', label: t('employeeTypeMaster'), icon: Users, color: 'text-cyan-600' },
+      { id: 'attendance', label: t('attendanceMaster'), icon: Activity, color: 'text-emerald-600'},
+      { id: 'holiday', label: t('holidayMaster'), icon: Calendar, color: 'text-yellow-600' },
+      { id: 'leaveApproval', label: t('leaveApprovalMaster'), icon: CheckCircle, color: 'text-lime-600' },
+      { id: 'leaveType', label: t('leaveTypeMaster'), icon: Clock, color: 'text-lime-600' },
+      { id: 'leaveAllocation', label: t('leaveAllocation'), icon: Clock, color: 'text-lime-600' },
+      { id: 'punches', label: t('punchDetails'), icon: Activity, color: 'text-indigo-600' },
+      { id: 'religion', label: t('religionMaster'), icon: Building, color: 'text-amber-600' },
+      { id: 'shift', label: t('shiftMaster'), icon: Activity, color: 'text-emerald-600' },
+      { id: 'shiftallocation', label: t('shiftAllocationMaster'), icon: Activity, color: 'text-emerald-600'},
+      { id: 'reportgenerator', label: t('reportGenerator'), icon: Settings, color: 'text-gray-600' },
     ];
 
     // Super Admin sees Company Master
     if (role === "Super Admin") {
-      items.splice(5, 0, { id: 'company', label: 'Company Master', icon: Building, color: 'text-red-600' });
+      items.splice(5, 0, { id: 'company', label: t('companyMaster'), icon: Building, color: 'text-red-600' });
     }
 
-    // DepartmentAdmin hides company-wide masters like Company, Bus, BiometricDevice, etc.
+    // DepartmentAdmin hides company-wide masters
     if (role === "departmentAdmin") {
       items = items.filter(item => 
         !['company', 'bus', 'biometricDevice', 'holiday', 'shift', 'shiftallocation'].includes(item.id)
       );
-      // Limit Add User to department users
       const userIndex = items.findIndex(item => item.id === 'users');
       if (userIndex !== -1) {
-        items[userIndex].label = 'Add Department User';
+        items[userIndex].label = t('addDepartmentUser');
       }
     }
 
-    // Admin sees limited masters (no Company Master, but others)
+    // Admin sees limited masters (no Company Master)
     if (role === "Admin") {
       items = items.filter(item => item.id !== 'company');
     }
@@ -312,33 +313,33 @@ const AdminDashboard = () => {
   const menuItems = getFilteredMenuItems();
 
   const pageTitles = {
-    dashboard: "Dashboard Overview",
-    users: "Add User",
-    bus: "Bus Master",
-    biometricDevice: "Biometric Device Master",
-    caste: "Caste Master",
-    company: "Company Master",
-    department: "Department Master",
-    designation: "Designation Master",
-    employeeGrade: "Employee Grade Master",
-    employeeType: "Employee Type Master",
-    holiday: "Holiday Master",
-    leaveApproval: "Leave Approval Master",
-    leaveType: "Leave Type Master",
-    leaveAllocation: "Leave Allocation",
-    punches: "Punch Details",
-    religion: "Religion Master",
-    shift: "Shift Master",
-    shiftallocation: "Shift Allocation Master",
-    attendance: "Attendance Master",
-    reportgenerator: "Report Generator"
+    dashboard: t('dashboardOverview'),
+    users: t('addUser'),
+    bus: t('busMaster'),
+    biometricDevice: t('biometricDeviceMaster'),
+    caste: t('casteMaster'),
+    company: t('companyMaster'),
+    department: t('departmentMaster'),
+    designation: t('designationMaster'),
+    employeeGrade: t('employeeGradeMaster'),
+    employeeType: t('employeeTypeMaster'),
+    holiday: t('holidayMaster'),
+    leaveApproval: t('leaveApprovalMaster'),
+    leaveType: t('leaveTypeMaster'),
+    leaveAllocation: t('leaveAllocation'),
+    punches: t('punchDetails'),
+    religion: t('religionMaster'),
+    shift: t('shiftMaster'),
+    shiftallocation: t('shiftAllocationMaster'),
+    attendance: t('attendanceMaster'),
+    reportgenerator: t('reportGenerator')
   };
 
   const renderDashboard = () => {
     const departmentActiveChartData = {
       labels: dashboardData.departmentWiseActive.map(d => d.department || d.departmentName),
       datasets: [{
-        label: 'Active Employees',
+        label: t('totalActiveEmployees'),
         data: dashboardData.departmentWiseActive.map(d => d.activeCount),
         backgroundColor: [
           'rgba(59, 130, 246, 0.8)',
@@ -363,7 +364,7 @@ const AdminDashboard = () => {
     const designationChartData = {
       labels: dashboardData.designationWise.map(d => d.designation || d.designationName),
       datasets: [{
-        label: 'Employees',
+        label: t('employees'),
         data: dashboardData.designationWise.map(d => d.count),
         backgroundColor: [
           'rgba(99, 102, 241, 0.8)',
@@ -378,7 +379,7 @@ const AdminDashboard = () => {
     const attendanceChartData = {
       labels: dashboardData.monthlyAttendance.map(a => a.month),
       datasets: [{
-        label: 'Attendance %',
+        label: t('attendance'),
         data: dashboardData.monthlyAttendance.map(a => a.percentage),
         borderColor: 'rgb(59, 130, 246)',
         backgroundColor: 'rgba(59, 130, 246, 0.1)',
@@ -388,7 +389,7 @@ const AdminDashboard = () => {
     };
 
     const leaveChartData = {
-      labels: ['Approved', 'Pending', 'Rejected'],
+      labels: [t('approved'), t('pending'), t('rejected')],
       datasets: [{
         data: [
           dashboardData.leaveStats.approved,
@@ -428,7 +429,7 @@ const AdminDashboard = () => {
           <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-transform duration-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-blue-100 text-sm font-medium">Total Active Employees</p>
+                <p className="text-blue-100 text-sm font-medium">{t('totalActiveEmployees')}</p>
                 <h3 className="text-3xl font-bold mt-2">{dashboardData.totalActiveEmployees}</h3>
               </div>
               <Users className="w-12 h-12 text-blue-200" />
@@ -438,7 +439,7 @@ const AdminDashboard = () => {
           <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-transform duration-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-green-100 text-sm font-medium">Total Departments</p>
+                <p className="text-green-100 text-sm font-medium">{t('totalDepartments')}</p>
                 <h3 className="text-3xl font-bold mt-2">{dashboardData.departmentCount}</h3>
               </div>
               <Building2 className="w-12 h-12 text-green-200" />
@@ -448,7 +449,7 @@ const AdminDashboard = () => {
           <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-transform duration-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-amber-100 text-sm font-medium">Pending Leaves</p>
+                <p className="text-amber-100 text-sm font-medium">{t('pendingLeaves')}</p>
                 <h3 className="text-3xl font-bold mt-2">{dashboardData.leaveStats.pending}</h3>
               </div>
               <Clock className="w-12 h-12 text-amber-200" />
@@ -458,7 +459,7 @@ const AdminDashboard = () => {
           <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-transform duration-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-purple-100 text-sm font-medium">Approved Leaves</p>
+                <p className="text-purple-100 text-sm font-medium">{t('approvedLeaves')}</p>
                 <h3 className="text-3xl font-bold mt-2">{dashboardData.leaveStats.approved}</h3>
               </div>
               <UserCheck className="w-12 h-12 text-purple-200" />
@@ -472,14 +473,14 @@ const AdminDashboard = () => {
           <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
             <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
               <Building2 className="w-5 h-5 mr-2 text-blue-600" />
-              Department-wise Active Employee Distribution
+              {t('departmentWiseActive')}
             </h3>
             <div className="h-80">
               {dashboardData.departmentWiseActive.length > 0 ? (
                 <Bar data={departmentActiveChartData} options={chartOptions} />
               ) : (
                 <div className="flex items-center justify-center h-full text-gray-400">
-                  No data available
+                  {t('noDataAvailable')}
                 </div>
               )}
             </div>
@@ -489,14 +490,14 @@ const AdminDashboard = () => {
           <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
             <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
               <Award className="w-5 h-5 mr-2 text-purple-600" />
-              Designation-wise Distribution
+              {t('designationWise')}
             </h3>
             <div className="h-80">
               {dashboardData.designationWise.length > 0 ? (
                 <Doughnut data={designationChartData} options={chartOptions} />
               ) : (
                 <div className="flex items-center justify-center h-full text-gray-400">
-                  No data available
+                  {t('noDataAvailable')}
                 </div>
               )}
             </div>
@@ -506,14 +507,14 @@ const AdminDashboard = () => {
           <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
             <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
               <TrendingUp className="w-5 h-5 mr-2 text-green-600" />
-              Monthly Attendance Trend
+              {t('monthlyAttendanceTrend')}
             </h3>
             <div className="h-80">
               {dashboardData.monthlyAttendance.length > 0 ? (
                 <Line data={attendanceChartData} options={chartOptions} />
               ) : (
                 <div className="flex items-center justify-center h-full text-gray-400">
-                  No data available
+                  {t('noDataAvailable')}
                 </div>
               )}
             </div>
@@ -523,14 +524,14 @@ const AdminDashboard = () => {
           <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
             <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
               <Calendar className="w-5 h-5 mr-2 text-amber-600" />
-              Leave Statistics
+              {t('leaveStatistics')}
             </h3>
             <div className="h-80">
               {hasLeaveData ? (
                 <Doughnut data={leaveChartData} options={chartOptions} />
               ) : (
                 <div className="flex items-center justify-center h-full text-gray-400">
-                  No data available
+                  {t('noDataAvailable')}
                 </div>
               )}
             </div>
@@ -541,13 +542,13 @@ const AdminDashboard = () => {
         <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
           <h3 className="text-lg font-semibold text-gray-800 mb-6 flex items-center">
             <FileText className="w-5 h-5 mr-2 text-gray-600" />
-            Reports Summary
+            {t('reportsSummary')}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg p-4 text-white">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-indigo-100 text-sm font-medium">Leave Balance Report</p>
+                  <p className="text-indigo-100 text-sm font-medium">{t('leaveBalanceReport')}</p>
                   <h4 className="text-xl font-bold mt-1">{dashboardData.reports.leaveBalance.total}</h4>
                 </div>
                 <FileBarChart className="w-8 h-8 text-indigo-200" />
@@ -557,7 +558,7 @@ const AdminDashboard = () => {
             <div className="bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg p-4 text-white">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-teal-100 text-sm font-medium">Leave Taken Report</p>
+                  <p className="text-teal-100 text-sm font-medium">{t('leaveTakenReport')}</p>
                   <h4 className="text-xl font-bold mt-1">{dashboardData.reports.leaveTaken.total}</h4>
                 </div>
                 <FileLineChart className="w-8 h-8 text-teal-200" />
@@ -567,7 +568,7 @@ const AdminDashboard = () => {
             <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 text-white">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-orange-100 text-sm font-medium">Permission Taken Report</p>
+                  <p className="text-orange-100 text-sm font-medium">{t('permissionTakenReport')}</p>
                   <h4 className="text-xl font-bold mt-1">{dashboardData.reports.permissionTaken.total}</h4>
                 </div>
                 <AlarmClockCheck className="w-8 h-8 text-orange-200" />
@@ -577,7 +578,7 @@ const AdminDashboard = () => {
             <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 text-white">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-green-100 text-sm font-medium">Present & Absent Report</p>
+                  <p className="text-green-100 text-sm font-medium">{t('presentAbsentReport')}</p>
                   <h4 className="text-xl font-bold mt-1">{dashboardData.reports.presentAbsent.present} / {dashboardData.reports.presentAbsent.absent}</h4>
                 </div>
                 <UserCheck className="w-8 h-8 text-green-200" />
@@ -587,7 +588,7 @@ const AdminDashboard = () => {
             <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 text-white">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-purple-100 text-sm font-medium">Shift Wise Employees Report</p>
+                  <p className="text-purple-100 text-sm font-medium">{t('shiftWiseEmployeesReport')}</p>
                   <h4 className="text-xl font-bold mt-1">{dashboardData.reports.shiftWise.totalShifts}</h4>
                 </div>
                 <Activity className="w-8 h-8 text-purple-200" />
@@ -597,7 +598,7 @@ const AdminDashboard = () => {
             <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-lg p-4 text-white">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-red-100 text-sm font-medium">PF / Non-PF Report</p>
+                  <p className="text-red-100 text-sm font-medium">{t('pfNonPfReport')}</p>
                   <h4 className="text-xl font-bold mt-1">{dashboardData.reports.pfNonPf.pf} / {dashboardData.reports.pfNonPf.nonPf}</h4>
                 </div>
                 <Shield className="w-8 h-8 text-red-200" />
@@ -610,7 +611,6 @@ const AdminDashboard = () => {
   };
 
   const renderPage = () => {
-    // Pass departmentId to child components if applicable
     const commonProps = {
       selectedCompanyId: companyId,
       selectedCompanyName: companyName,
@@ -656,7 +656,7 @@ const AdminDashboard = () => {
               <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg">
                 <Home className="w-6 h-6 text-white" />
               </div>
-              <span className="font-bold text-xl text-white">Admin Panel</span>
+              <span className="font-bold text-xl text-white">{t('adminPanel')}</span>
             </div>
           )}
           <button 
@@ -668,7 +668,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* Navigation */}
-        <nav ref={navRef} className="flex-1 overflow-y-auto py-4 px-2 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+        <nav ref={navRef} className="flex-1 overflow-y-auto py-4 px-2 h-64 [scrollbar-width:0] [-ms-overflow-style:none] [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:h-0">
           {menuItems.map(item => (
             <button
               key={item.id}
@@ -698,7 +698,7 @@ const AdminDashboard = () => {
               className="flex items-center w-full px-4 py-3 space-x-3 text-left text-gray-300 hover:bg-red-600/20 hover:text-red-400 rounded-lg transition-all duration-200 group"
             >
               <LogOut className="w-5 h-5" />
-              {!sidebarCollapsed && <span className="font-medium">Logout</span>}
+              {!sidebarCollapsed && <span className="font-medium">{t('logout')}</span>}
             </button>
           </div>
         </nav>
@@ -711,7 +711,7 @@ const AdminDashboard = () => {
           <div className="flex justify-between items-center px-8 py-4">
             <div>
               <h1 className="text-2xl font-bold text-gray-800">{pageTitles[activePage]}</h1>
-              <p className="text-sm text-gray-500 mt-1">Manage your {pageTitles[activePage].toLowerCase()}</p>
+              <p className="text-sm text-gray-500 mt-1">{t('manage', { page: pageTitles[activePage].toLowerCase() })}</p>
             </div>
             
             <div className="flex items-center space-x-4">
@@ -722,12 +722,12 @@ const AdminDashboard = () => {
                     const selected = companies.find(c => c.companyId === parseInt(e.target.value));
                     setCompanyId(selected?.companyId || null);
                     setCompanyName(selected?.companyName || "");
-                    setDepartmentId(null); // Reset department when changing company
+                    setDepartmentId(null);
                     setDepartmentName("");
                   }}
                   className="border border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm text-gray-700 font-medium"
                 >
-                  <option value="">-- Select Company --</option>
+                  <option value="">{t('selectCompany')}</option>
                   {companies.map(c => <option key={c.companyId} value={c.companyId}>{c.companyName}</option>)}
                 </select>
               )}
@@ -740,6 +740,7 @@ const AdminDashboard = () => {
                   </span>
                 </div>
               )}
+              <LanguageSwitcher />
             </div>
           </div>
         </div>

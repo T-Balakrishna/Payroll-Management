@@ -1,15 +1,21 @@
-const Attendance = require('../models/Attendance'); // Sequelize model
+const Attendance = require('../models/Attendance'); 
 const Employee = require('../models/Employee');
 const { Op } = require('sequelize');
 
-// Create
+// ✅ Create Attendance
 exports.createAttendance = async (req, res) => {
   try {
-    const { employeeNumber, attendanceDate, attendanceStatus } = req.body;
+    const { employeeNumber, attendanceDate, attendanceStatus, companyId } = req.body;
+
+    if (!employeeNumber || !attendanceDate || !attendanceStatus || !companyId) {
+      return res.status(400).json({ message: "All fields (employeeNumber, attendanceDate, attendanceStatus, companyId) are required." });
+    }
+
     const newAttendance = await Attendance.create({
       employeeNumber,
       attendanceDate,
-      attendanceStatus
+      attendanceStatus,
+      companyId
     });
 
     res.status(201).json(newAttendance);
@@ -19,32 +25,26 @@ exports.createAttendance = async (req, res) => {
   }
 };
 
-// Read All
-// Read All with optional filters
- // Make sure this is imported
-
+// ✅ Get All Attendances (with filters)
 exports.getAllAttendances = async (req, res) => {
   try {
-    const { date, employeeNumber, startDate, endDate } = req.query;
+    const { date, employeeNumber, startDate, endDate, companyId } = req.query;
     const where = {};
 
-    // Partial search for employeeNumber
     if (employeeNumber) {
-      where.employeeNumber = {
-        [Op.like]: `%${employeeNumber}%`  // % means anything before or after
-      };
+      where.employeeNumber = { [Op.like]: `%${employeeNumber}%` };
     }
 
-    // Daily filter
+    if (companyId) {
+      where.companyId = companyId;
+    }
+
     if (date) {
       where.attendanceDate = date;
     }
 
-    // Monthly / Yearly filter
     if (startDate && endDate) {
-      where.attendanceDate = {
-        [Op.between]: [startDate, endDate]
-      };
+      where.attendanceDate = { [Op.between]: [startDate, endDate] };
     }
 
     const attendances = await Attendance.findAll({
@@ -59,29 +59,45 @@ exports.getAllAttendances = async (req, res) => {
   }
 };
 
-
-
-// Read One by ID
+// ✅ Get Attendance by ID
 exports.getAttendanceById = async (req, res) => {
   try {
     const attendance = await Attendance.findOne({
       where: { attendanceId: req.params.id },
-      include: [{ model: Employee }]
+      include: [{ model: Employee, as: 'employee' }]
     });
-    if (!attendance) return res.status(404).send("Attendance not found");
+
+    if (!attendance) {
+      return res.status(404).send("Attendance not found");
+    }
+
     res.json(attendance);
   } catch (error) {
+    console.error("❌ Error fetching attendance:", error);
     res.status(500).send("Error fetching attendance: " + error.message);
   }
 };
 
-// Update
+// ✅ Update Attendance
 exports.updateAttendance = async (req, res) => {
   try {
-    const attendance = await Attendance.findOne({ where: { attendanceId: req.params.id } });
-    if (!attendance) return res.status(404).send("Attendance not found");
+    const attendance = await Attendance.findOne({
+      where: { attendanceId: req.params.id }
+    });
 
-    await attendance.update(req.body);
+    if (!attendance) {
+      return res.status(404).send("Attendance not found");
+    }
+
+    const { employeeNumber, attendanceDate, attendanceStatus, companyId } = req.body;
+
+    await attendance.update({
+      employeeNumber,
+      attendanceDate,
+      attendanceStatus,
+      companyId
+    });
+
     res.json(attendance);
   } catch (error) {
     console.error("❌ Error updating attendance:", error);
@@ -89,15 +105,21 @@ exports.updateAttendance = async (req, res) => {
   }
 };
 
-// Delete (hard delete since no status column exists)
+// ✅ Delete Attendance
 exports.deleteAttendance = async (req, res) => {
   try {
-    const attendance = await Attendance.findOne({ where: { attendanceId: req.params.id } });
-    if (!attendance) return res.status(404).send("Attendance not found");
+    const attendance = await Attendance.findOne({
+      where: { attendanceId: req.params.id }
+    });
+
+    if (!attendance) {
+      return res.status(404).send("Attendance not found");
+    }
 
     await attendance.destroy();
     res.json({ message: "Attendance deleted successfully" });
   } catch (error) {
+    console.error("❌ Error deleting attendance:", error);
     res.status(500).send("Error deleting attendance: " + error.message);
   }
 };
