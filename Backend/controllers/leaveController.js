@@ -2,7 +2,9 @@
 const dayjs = require("dayjs");
 const Leave = require("../models/Leave");
 const LeaveAllocation = require("../models/LeaveAllocation");
-const Employee = require('../models/Employee')
+const Employee = require('../models/Employee');
+const sequelize = require("../config/db");
+const {fn,col} = require("sequelize");
 
 // helper: calculate leavePeriod
 const getLeavePeriod = (date) => {
@@ -164,6 +166,40 @@ exports.getLeavesByEmployee = async (req, res) => {
       order: [["createdAt", "DESC"]],
     });
     res.json(leaves);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Admin: Get leave stats by company
+exports.getLeaveStatsByCompany = async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const totalLeaves = await Leave.count({ where: { companyId } });
+    const approvedLeaves = await Leave.count({ where: { companyId, status: 'Approved' } });
+    const pendingLeaves = await Leave.count({ where: { companyId, status: 'Pending' } });
+    const rejectedLeaves = await Leave.count({ where: { companyId, status: 'Rejected' } });
+    res.json({ totalLeaves, approvedLeaves, pendingLeaves, rejectedLeaves });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+// Admin: Get leave taken summary by company
+exports.getLeaveTakenSummary = async (req, res) => {
+  try {
+    const { companyId } = req.params;
+
+    const summary = await Leave.findAll({
+      where: { companyId, status: 'Approved' },
+      attributes: [
+        'leaveTypeId',
+        [sequelize.fn('COUNT', sequelize.col('leaveId')), 'totalLeaves'],
+        [sequelize.fn('SUM', sequelize.literal('DATEDIFF(endDate, startDate) + 1')), 'totalDays']
+      ],
+      group: ['leaveTypeId'],
+    });
+
+    res.json(summary);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

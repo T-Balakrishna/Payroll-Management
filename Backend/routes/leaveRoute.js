@@ -15,4 +15,9 @@ router.get("/status/:status", leaveController.getLeavesByStatus);
 router.put("/:leaveId/status", leaveController.updateLeaveStatus);
 
 router.get("/employee/:employeeNumber", leaveController.getLeavesByEmployee);
+
+router.get("/stats/:companyId", leaveController.getLeaveStatsByCompany);
+
+router.get("/takensummary/:companyId", leaveController.getLeaveTakenSummary);
+
 module.exports = router;

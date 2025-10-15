@@ -12,6 +12,7 @@ import {
   ArcElement,
   PointElement,
   LineElement,
+  Filler,
 } from 'chart.js';
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
 import { useTranslation } from 'react-i18next';
@@ -27,7 +28,8 @@ ChartJS.register(
   Legend,
   ArcElement,
   PointElement,
-  LineElement
+  LineElement,
+  Filler
 );
 
 // Import all your existing components
@@ -109,6 +111,7 @@ const AdminDashboard = () => {
       pfNonPf: { pf: 0, nonPf: 0 }
     }
   });
+  const [loading, setLoading] = useState(false);
   const navRef = useRef(null);
 
   const fetchCompanies = async () => {
@@ -128,7 +131,9 @@ const AdminDashboard = () => {
     const token = sessionStorage.getItem("token");
     if (!token || !companyId) return;
 
-    // Build query params based on role (avoid redundant companyId in query)
+    setLoading(true);
+    
+    // Build query params based on role
     const params = new URLSearchParams();
     if (role === "departmentAdmin" && departmentId) {
       params.append('departmentId', departmentId);
@@ -136,44 +141,190 @@ const AdminDashboard = () => {
 
     const queryString = params.toString() ? `?${params.toString()}` : '';
 
-    // Define all API calls as promises
-    const apiCalls = [
-      axios.get(`http://localhost:5000/api/employees/activecount/${companyId}${queryString}`, { headers: { Authorization: `Bearer ${token}` } }),
-      axios.get(`http://localhost:5000/api/employees/departmentwiseactive/${companyId}${queryString}`, { headers: { Authorization: `Bearer ${token}` } }),
-      axios.get(`http://localhost:5000/api/departments/count/${companyId}${queryString}`, { headers: { Authorization: `Bearer ${token}` } }),
-      axios.get(`http://localhost:5000/api/employees/designationwise/${companyId}${queryString}`, { headers: { Authorization: `Bearer ${token}` } }),
-      axios.get(`http://localhost:5000/api/attendance/monthly/${companyId}${queryString}`, { headers: { Authorization: `Bearer ${token}` } }),
-      axios.get(`http://localhost:5000/api/leaves/stats/${companyId}${queryString}`, { headers: { Authorization: `Bearer ${token}` } }),
-      axios.get(`http://localhost:5000/api/leaves/balancesummary/${companyId}${queryString}`, { headers: { Authorization: `Bearer ${token}` } }),
-      axios.get(`http://localhost:5000/api/leaves/takensummary/${companyId}${queryString}`, { headers: { Authorization: `Bearer ${token}` } }),
-      axios.get(`http://localhost:5000/api/permissions/takensummary/${companyId}${queryString}`, { headers: { Authorization: `Bearer ${token}` } }),
-      axios.get(`http://localhost:5000/api/attendance/presentabsentsummary/${companyId}${queryString}`, { headers: { Authorization: `Bearer ${token}` } }),
-      axios.get(`http://localhost:5000/api/shifts/wisesummary/${companyId}${queryString}`, { headers: { Authorization: `Bearer ${token}` } }),
-      axios.get(`http://localhost:5000/api/employees/pfsummary/${companyId}${queryString}`, { headers: { Authorization: `Bearer ${token}` } }),
-    ];
-
     try {
-      const [activeEmployeesRes, deptActiveRes, deptCountRes, desigRes, attendanceRes, leaveRes, leaveBalanceRes, leaveTakenRes, permissionTakenRes, presentAbsentRes, shiftWiseRes, pfNonPfRes] = await Promise.all(apiCalls);
+      // Fetch all data concurrently
+      const [
+        activeEmployeesRes,
+        deptActiveRes,
+        deptCountRes,
+        desigRes,
+        attendanceRes,
+        leaveRes,
+        leaveBalanceRes,
+        leaveTakenRes,
+        permissionTakenRes,
+        presentAbsentRes,
+        shiftWiseRes,
+        pfNonPfRes
+      ] = await Promise.allSettled([
+        axios.get(`http://localhost:5000/api/employees/activecount/${companyId}${queryString}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        axios.get(`http://localhost:5000/api/employees/departmentwiseactive/${companyId}${queryString}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        axios.get(`http://localhost:5000/api/departments/count/${companyId}${queryString}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        axios.get(`http://localhost:5000/api/employees/designationwise/${companyId}${queryString}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        axios.get(`http://localhost:5000/api/attendance/monthlyattendancesummary/${companyId}${queryString}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        axios.get(`http://localhost:5000/api/leaves/stats/${companyId}${queryString}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        axios.get(`http://localhost:5000/api/leaveallocations/balancesummary/${companyId}${queryString}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        axios.get(`http://localhost:5000/api/leaves/takensummary/${companyId}${queryString}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        axios.get(`http://localhost:5000/api/permissions/takensummary/${companyId}${queryString}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        axios.get(`http://localhost:5000/api/attendance/presentabsentsummary/${companyId}${queryString}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        axios.get(`http://localhost:5000/api/shiftAllocation/wisesummary/${companyId}${queryString}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        axios.get(`http://localhost:5000/api/employees/pfsummary/${companyId}${queryString}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      ]);
 
-      setDashboardData({
-        totalActiveEmployees: activeEmployeesRes.data.count,
-        departmentWiseActive: deptActiveRes.data || [],
-        departmentCount: deptCountRes.data.count || 0,
-        designationWise: desigRes.data || [],
-        monthlyAttendance: attendanceRes.data || [],
-        leaveStats: leaveRes.data || { approved: 0, pending: 0, rejected: 0 },
-        reports: {
-          leaveBalance: leaveBalanceRes.data || { total: 0 },
-          leaveTaken: leaveTakenRes.data || { total: 0 },
-          permissionTaken: permissionTakenRes.data || { total: 0 },
-          presentAbsent: presentAbsentRes.data || { present: 0, absent: 0 },
-          shiftWise: shiftWiseRes.data || { totalShifts: 0 },
-          pfNonPf: pfNonPfRes.data || { pf: 0, nonPf: 0 }
+      // Process results with flexible data extraction
+      const extractValue = (result, ...keys) => {
+        if (result.status !== 'fulfilled') return null;
+        const data = result.value?.data;
+        if (typeof data === 'number') return data;
+        if (Array.isArray(data)) return data;
+        for (let key of keys) {
+          if (data?.[key] !== undefined) return data[key];
+        }
+        return data;
+      };
+
+      const totalActiveEmployees = extractValue(activeEmployeesRes, 'count', 'total', 'activeCount') || 0;
+      
+      const departmentWiseActive = Array.isArray(extractValue(deptActiveRes)) 
+        ? extractValue(deptActiveRes) 
+        : [];
+      
+      const departmentCount = extractValue(deptCountRes, 'count', 'total') || 0;
+      
+      const designationWiseRaw = extractValue(desigRes);
+      const designationWise = Array.isArray(designationWiseRaw) 
+        ? designationWiseRaw 
+        : [];
+      
+      // Process monthly attendance
+      let monthlyAttendanceRaw = extractValue(attendanceRes);
+      monthlyAttendanceRaw = Array.isArray(monthlyAttendanceRaw) ? monthlyAttendanceRaw : [];
+      const monthlyMap = new Map();
+      monthlyAttendanceRaw.forEach(item => {
+        const monthKey = item.month;
+        if (!monthlyMap.has(monthKey)) {
+          monthlyMap.set(monthKey, { present: 0, total: 0 });
+        }
+        const monthData = monthlyMap.get(monthKey);
+        monthData.total += parseInt(item.count || 0);
+        if (item.attendanceStatus === 'Present') {
+          monthData.present += parseInt(item.count || 0);
         }
       });
+      const processedAttendance = [];
+      monthlyMap.forEach((data, month) => {
+        const percentage = data.total > 0 ? (data.present / data.total * 100) : 0;
+        processedAttendance.push({ month, percentage: percentage.toFixed(2) });
+      });
+      const monthlyAttendanceFinal = processedAttendance.sort((a, b) => a.month.localeCompare(b.month));
+      
+      const leaveData = leaveRes.status === 'fulfilled' ? leaveRes.value?.data : {};
+      const leaveStats = {
+        approved: leaveData?.approvedLeaves || leaveData?.approved || 0,
+        pending: leaveData?.pendingLeaves || leaveData?.pending || 0,
+        rejected: leaveData?.rejectedLeaves || leaveData?.rejected || 0
+      };
+
+      // Process leave balance
+      const lbData = leaveBalanceRes.status === 'fulfilled' ? leaveBalanceRes.value?.data : [];
+      let leaveBalanceTotal = 0;
+      if (Array.isArray(lbData)) {
+        leaveBalanceTotal = lbData.reduce((sum, item) => sum + parseInt(item?.totalBalance || 0), 0);
+      } else if (typeof lbData === 'number') {
+        leaveBalanceTotal = lbData;
+      }
+      const leaveBalance = { total: leaveBalanceTotal };
+
+      // Process leave taken
+      const ltData = leaveTakenRes.status === 'fulfilled' ? leaveTakenRes.value?.data : [];
+      let leaveTakenTotal = 0;
+      if (Array.isArray(ltData)) {
+        leaveTakenTotal = ltData.reduce((sum, item) => sum + parseInt(item?.totalDays || item?.totalLeaves || 0), 0);
+      } else if (typeof ltData === 'number') {
+        leaveTakenTotal = ltData;
+      }
+      const leaveTaken = { total: leaveTakenTotal };
+
+      const ptValue = extractValue(permissionTakenRes, 'total', 'count', 'taken');
+      const permissionTaken = { total: typeof ptValue === 'number' ? ptValue : 0 };
+
+      const paData = presentAbsentRes.status === 'fulfilled' ? presentAbsentRes.value?.data : {};
+      const presentAbsent = {
+        present: paData?.present || paData?.presentCount || 0,
+        absent: paData?.absent || paData?.absentCount || 0
+      };
+
+      const swValue = extractValue(shiftWiseRes, 'totalShifts', 'total', 'count');
+      const shiftWise = { totalShifts: typeof swValue === 'number' ? swValue : 0 };
+
+      const pfData = pfNonPfRes.status === 'fulfilled' ? pfNonPfRes.value?.data : {};
+      const pfNonPf = {
+        pf: pfData?.pf || pfData?.pfCount || 0,
+        nonPf: pfData?.nonPf || pfData?.nonPfCount || 0
+      };
+
+      setDashboardData({
+        totalActiveEmployees,
+        departmentWiseActive,
+        departmentCount,
+        designationWise,
+        monthlyAttendance: monthlyAttendanceFinal,
+        leaveStats,
+        reports: {
+          leaveBalance,
+          leaveTaken,
+          permissionTaken,
+          presentAbsent,
+          shiftWise,
+          pfNonPf
+        }
+      });
+
+      console.log('Dashboard data fetched:', {
+        totalActiveEmployees,
+        departmentWiseActive,
+        departmentCount,
+        designationWise,
+        monthlyAttendance: monthlyAttendanceFinal,
+        leaveStats,
+        reports: {
+          leaveBalance,
+          leaveTaken,
+          permissionTaken,
+          presentAbsent,
+          shiftWise,
+          pfNonPf
+        }
+      });
+
     } catch (err) {
       console.error("Error fetching dashboard data:", err);
-      // Optionally set partial state or show error toast, but keep initial values
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -228,7 +379,7 @@ const AdminDashboard = () => {
     if (activePage === 'dashboard' && companyId) {
       fetchDashboardData();
     }
-  }, [activePage, companyId, departmentId]);
+  }, [activePage, companyId, departmentId, role]);
 
   // Filter menu items based on role
   const getFilteredMenuItems = () => {
@@ -304,11 +455,36 @@ const AdminDashboard = () => {
   };
 
   const renderDashboard = () => {
+    // Extract and normalize data for charts
+    const getDepartmentName = (item) => {
+      return item?.department?.departmentName || item?.department || item?.name || item?.DepartmentName || 'Unknown';
+    };
+
+    const getDepartmentCount = (item) => {
+      return item?.activeCount || item?.count || item?.employeeCount || item?.total || 0;
+    };
+
+    const getDesignationName = (item) => {
+      return item?.designation?.designationName || item?.designationName || item?.designation || item?.name || item?.DesignationName || 'Unknown';
+    };
+
+    const getDesignationCount = (item) => {
+      return item?.activeCount || item?.count || item?.employeeCount || item?.total || 0;
+    };
+
+    const getMonthLabel = (item) => {
+      return item?.month || item?.label || item?.monthName || item?.Month || 'Month';
+    };
+
+    const getAttendancePercentage = (item) => {
+      return parseFloat(item?.percentage) || item?.attendancePercentage || item?.rate || item?.value || 0;
+    };
+
     const departmentActiveChartData = {
-      labels: dashboardData.departmentWiseActive.map(d => d.department || d.departmentName),
+      labels: dashboardData.departmentWiseActive.map(getDepartmentName),
       datasets: [{
         label: t('totalActiveEmployees'),
-        data: dashboardData.departmentWiseActive.map(d => d.activeCount),
+        data: dashboardData.departmentWiseActive.map(getDepartmentCount),
         backgroundColor: [
           'rgba(59, 130, 246, 0.8)',
           'rgba(16, 185, 129, 0.8)',
@@ -330,10 +506,10 @@ const AdminDashboard = () => {
     };
 
     const designationChartData = {
-      labels: dashboardData.designationWise.map(d => d.designation || d.designationName),
+      labels: dashboardData.designationWise.map(getDesignationName),
       datasets: [{
         label: t('employees'),
-        data: dashboardData.designationWise.map(d => d.count),
+        data: dashboardData.designationWise.map(getDesignationCount),
         backgroundColor: [
           'rgba(99, 102, 241, 0.8)',
           'rgba(6, 182, 212, 0.8)',
@@ -345,10 +521,10 @@ const AdminDashboard = () => {
     };
 
     const attendanceChartData = {
-      labels: dashboardData.monthlyAttendance.map(a => a.month),
+      labels: dashboardData.monthlyAttendance.map(getMonthLabel),
       datasets: [{
         label: t('attendance'),
-        data: dashboardData.monthlyAttendance.map(a => a.percentage),
+        data: dashboardData.monthlyAttendance.map(getAttendancePercentage),
         borderColor: 'rgb(59, 130, 246)',
         backgroundColor: 'rgba(59, 130, 246, 0.1)',
         tension: 0.4,
@@ -389,6 +565,14 @@ const AdminDashboard = () => {
     };
 
     const hasLeaveData = dashboardData.leaveStats.approved + dashboardData.leaveStats.pending + dashboardData.leaveStats.rejected > 0;
+
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center h-96">
+          <div className="text-gray-500">{t('loading') || 'Loading...'}</div>
+        </div>
+      );
+    }
 
     return (
       <div className="space-y-6">

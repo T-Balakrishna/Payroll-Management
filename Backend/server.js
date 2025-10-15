@@ -43,6 +43,7 @@ const shiftRoute = require('./routes/shiftRoute');
 const userRoute = require('./routes/userRoute');  
 const authRoute = require('./routes/authRoute');  
 const shiftAllocationRoutes = require("./routes/shiftAllocationRoutes");
+const permissionRoute = require("./routes/permissionRoute");
 
 // Services
 const autoEmailService = require("./services/autoEmailService");
@@ -71,6 +72,7 @@ app.use('/api/shifts', shiftRoute);
 app.use('/api/users', userRoute);
 app.use('/api/auth', authRoute);
 app.use("/api/shiftAllocation", shiftAllocationRoutes);
+app.use('/api/permissions', permissionRoute);
 
 // ✅ Central model loading
 require('./models');  // Loads all models + associations
@@ -81,8 +83,8 @@ const startServer = async () => {
     await seq.authenticate();
     console.log("✅ DB Connected successfully");
 
-    // ⚠️ safer: alter = keep data, adjust schema if needed
-    await seq.sync({ alter: false, logging: false });
+    // Sync all models, including ResetToken
+    await seq.sync({ alter: false, logging: false }); // alter: true to create/update ResetToken table
     console.log("✅ Tables synced");
 
     app.listen(5000, () => {

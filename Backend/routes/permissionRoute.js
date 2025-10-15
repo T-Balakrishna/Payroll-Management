@@ -14,4 +14,7 @@ router.get('/remaining/:employeeNumber/:month', permissionController.getRemainin
 // Reduce permission hours for a specific employee and month
 router.put('/reduce/:employeeNumber/:month', permissionController.reducePermissionHours);
 
+router.get('/takensummary/:companyId', permissionController.getPermissionTakenSummary);
+
+
 module.exports = router;

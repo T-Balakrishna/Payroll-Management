@@ -1,5 +1,6 @@
 const LeaveAllocation = require("../models/LeaveAllocation");
-
+const sequelize = require("../config/db");
+const { fn,col } = require("sequelize");
 // ✅ Create
 // Create (single + bulk)
 exports.createLeaveAllocation = async (req, res) => {
@@ -116,3 +117,25 @@ exports.deleteLeaveAllocation = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// ✅ Get Leave Balance Summary
+// Admin: Get leave balance summary by company
+exports.getLeaveBalanceSummary = async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const summary = await LeaveAllocation.findAll({
+      where: { companyId },
+      attributes: [
+        'leaveTypeId',
+        [sequelize.fn('SUM', sequelize.col('allotedLeave')), 'totalAllocated'], 
+        [sequelize.fn('SUM', sequelize.col('usedLeave')), 'totalUsed'],
+        [sequelize.fn('SUM', sequelize.col('balance')), 'totalBalance']
+      ],
+      group: ['leaveTypeId'],
+    });
+    res.json(summary);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+

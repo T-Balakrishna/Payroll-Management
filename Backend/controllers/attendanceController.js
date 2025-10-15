@@ -1,6 +1,6 @@
 const Attendance = require('../models/Attendance'); 
 const Employee = require('../models/Employee');
-const { Op } = require('sequelize');
+const { Op,fn } = require('sequelize');
 
 // ✅ Create Attendance
 exports.createAttendance = async (req, res) => {
@@ -136,5 +136,72 @@ exports.getAttendanceCount = async (req, res) => {
   } catch (error) {
     console.error('❌ Error fetching attendance count:', error);
     res.status(500).json({ message: 'Error fetching attendance count: ' + error.message });
+  }
+};
+
+// Get present absent summary
+exports.getPresentAbsentSummary = async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    if(!companyId) return res.status(400).json({ message: 'Company ID is required' });
+    const summary = await Attendance.findAll({
+      attributes: [
+        'attendanceStatus',
+        [Attendance.sequelize.fn('COUNT', Attendance.sequelize.col('attendanceStatus')), 'count']
+      ],
+      where: { companyId },
+      group: ['attendanceStatus']
+    });
+    res.status(200).json(summary);
+  } catch (error) {
+    console.error('❌ Error fetching present absent summary:', error);
+    res.status(500).json({ message: 'Error fetching present absent summary: ' + error.message });
+  }
+};
+
+// Get monthly attendance summary
+exports.getmonthlyAttendanceSummary = async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    if (!companyId)
+      return res.status(400).json({ message: 'Company ID is required' });
+
+    const summary = await Attendance.findAll({
+      attributes: [
+        [
+          Attendance.sequelize.fn(
+            'DATE_FORMAT',
+            Attendance.sequelize.col('attendanceDate'),
+            '%Y-%m'
+          ),
+          'month'
+        ],
+        'attendanceStatus',
+        [
+          Attendance.sequelize.fn(
+            'COUNT',
+            Attendance.sequelize.col('attendanceStatus')
+          ),
+          'count'
+        ]
+      ],
+      where: { companyId },
+      group: ['month', 'attendanceStatus'],
+      order: [
+        [
+          Attendance.sequelize.fn(
+            'DATE_FORMAT',
+            Attendance.sequelize.col('attendanceDate'),
+            '%Y-%m'
+          ),
+          'ASC'
+        ]
+      ]
+    });
+
+    res.status(200).json(summary);
+  } catch (error) {
+    console.error('❌ Error fetching monthly attendance summary:', error);
+    res.status(500).json({ message: 'Error fetching monthly attendance summary: ' + error.message });
   }
 };
