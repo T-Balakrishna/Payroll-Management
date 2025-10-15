@@ -45,7 +45,7 @@ async function processAttendance() {
 
       // Step 1️⃣ Holiday check
       const isHoliday = await Holiday.findOne({
-        where: { date: today, companyId: employee.companyId },
+        where: { holidayDate: today, companyId: employee.companyId },
       });
       if (isHoliday) {
         status = "Holiday";
@@ -55,8 +55,8 @@ async function processAttendance() {
         const leave = await Leave.findOne({
           where: {
             employeeNumber: empNum,
-            fromDate: { [Op.lte]: today },
-            toDate: { [Op.gte]: today },
+            startDate: { [Op.lte]: today },
+            endDate: { [Op.gte]: today },
             status: "Approved"
           },
         });
@@ -65,23 +65,26 @@ async function processAttendance() {
         } 
         else if (empPunches.length > 0) {
           // Step 3️⃣ Attendance + Permission Logic
-          const firstPunch = empPunches[0].punchTimestamp;
-          const lastPunch = empPunches[empPunches.length - 1].punchTimestamp;
-          const shift = employee.shift;
-          const minHours = shift?.shiftMinHours || 6.5;
-          const remPerm = employee.remainingPermissionHours || 0;
+          const shift = employee.shift;   // ✅ Declared before use
+          let firstPunch = empPunches[0].punchTimestamp;
 
-          const shiftInEnd = new Date(`${today}T${shift?.shiftInEndTime || "10:00:00"}`);
-          const shiftOutStart = new Date(`${today}T${shift?.shiftOutStartTime || "17:00:00"}`);
+          // ✅ Normalize if punched early
+          if (firstPunch <= new Date(`${today}T${shift.shiftInEndTime}`)) {
+            firstPunch = new Date(`${today}T09:15:00`);
+          }
+
+          const lastPunch = empPunches[empPunches.length - 1].punchTimestamp;
+          const minHours = shift?.shiftMinHours;
+          const remPerm = employee.remainingPermissionHours;
+
+          const shiftInEnd = new Date(`${today}T${shift?.shiftInEndTime}`);
+          const shiftOutStart = new Date(`${today}T${shift?.shiftOutStartTime}`);
 
           workedHours = (lastPunch - firstPunch) / 1000 / 3600;
 
-          if (firstPunch <= shiftInEnd && lastPunch >= shiftOutStart && workedHours >= minHours) {
+          if ((lastPunch >= shiftOutStart) || (workedHours >= minHours)) {
             status = "Present";
-          } 
-          else if (workedHours >= minHours - 0.5) {
-            status = "Present";
-          } 
+          }            
           else if (workedHours >= minHours - 1 && remPerm >= 1) {
             status = "Present";
             usedPermission = 1;
@@ -101,9 +104,10 @@ async function processAttendance() {
 
       // Step 4️⃣ Save Attendance
       await Attendance.create({
-        employeeId: employee.employeeId,
+        employeeNumber: employee.employeeNumber,
         attendanceDate: today,
         attendanceStatus: status,
+        companyId: employee.companyId,
       });
 
       // Step 5️⃣ Permission Update
@@ -117,13 +121,11 @@ async function processAttendance() {
           permissionHours: usedPermission,
           remainingHours: employee.remainingPermissionHours,
           companyId: employee.companyId,
-          createdBy: "System",
         });
+        console.log(`${empNum} has used permission of ${usedPermission} hr(s)`);
       }
 
-      console.log(
-        `✅ ${employee.employeeName}: ${status} (${workedHours.toFixed(2)} hrs)`
-      );
+      console.log(`✅ ${employee.employeeNumber}: ${status} (${workedHours.toFixed(2)} hrs)`);
     }
 
     console.log("🎯 Attendance processing completed!");
@@ -133,3 +135,12 @@ async function processAttendance() {
 }
 
 module.exports = processAttendance;
+
+// ✅ Standalone Runner
+const { sequelize } = require("../models");
+(async () => {
+  await sequelize.authenticate();
+  console.log("✅ Database connected!");
+  await processAttendance();
+  await sequelize.close();
+})();
