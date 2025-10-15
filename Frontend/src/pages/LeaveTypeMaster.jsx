@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { ClipboardList, Pencil, Trash, Plus, X } from "lucide-react";
+import { jwtDecode } from "jwt-decode";
+
+let token = sessionStorage.getItem("token");
+let decoded = token?jwtDecode(token): "";
+let userNumber = decoded?.userNumber || "system";
 
 // ✅ Modal Form Component
 function AddOrEdit({ onSave, onCancel, editData }) {
@@ -30,10 +35,11 @@ function AddOrEdit({ onSave, onCancel, editData }) {
       [name]: type === "checkbox" ? checked : value,
     });
   };
+  
 
   useEffect(() => {
     token = sessionStorage.getItem("token");
-    decoded = token ? jwtDecode(token) : "";
+    decoded = jwtDecode(token);
     userNumber = decoded?.userNumber;
   }, []);
 

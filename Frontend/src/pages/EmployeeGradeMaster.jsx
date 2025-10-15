@@ -8,7 +8,6 @@ import { toast } from "react-toastify";
 let token = sessionStorage.getItem("token");
 let decoded = token ? jwtDecode(token) : "";
 let userNumber = decoded?.userNumber || "system";
-let userRole = decoded?.role;
 
 // ✅ Modal Form Component
 function AddOrEditGrade({ onSave, onCancel, editData, userRole, selectedCompanyId, selectedCompanyName }) {
@@ -20,10 +19,11 @@ function AddOrEditGrade({ onSave, onCancel, editData, userRole, selectedCompanyI
   const [companyName, setCompanyName] = useState(editData?.companyName || selectedCompanyName || "");
 
   useEffect(() => {
-    token = sessionStorage.getItem("token");
-    decoded = token ? jwtDecode(token) : "";
-    userNumber = decoded?.userNumber;
-  }, []);
+      token = sessionStorage.getItem("token");
+      decoded = jwtDecode(token);
+      userNumber = decoded?.userNumber;
+      // userRole = decoded?.role;
+    }, []);
   
   useEffect(() => {
     let mounted = true;
@@ -115,7 +115,7 @@ function AddOrEditGrade({ onSave, onCancel, editData, userRole, selectedCompanyI
                   const selected = companies.find((c) => c.companyId === e.target.value);
                   setCompanyName(selected ? selected.companyName : "");
                 }}
-                // disabled
+                disabled={editData}
                 className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               >
                 <option value="">Select Company</option>
@@ -158,7 +158,7 @@ function AddOrEditGrade({ onSave, onCancel, editData, userRole, selectedCompanyI
 }
 
 // ✅ Main Component
-function EmployeeGradeMaster({ selectedCompanyId, selectedCompanyName }) {
+function EmployeeGradeMaster({userRole, selectedCompanyId, selectedCompanyName }) {
   const [grades, setGrades] = useState([]);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);

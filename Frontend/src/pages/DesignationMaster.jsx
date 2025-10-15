@@ -8,7 +8,7 @@ import { toast } from "react-toastify";
 let token = sessionStorage.getItem("token");
 let decoded = token ? jwtDecode(token) : "";
 let userNumber = decoded?.userNumber || "system";
-let userRole = decoded.role;
+// let userRole = decoded.role;
 
 // ✅ Modal Form Component
 function AddOrEdit({ onSave, onCancel, editData, userRole, selectedCompanyId, selectedCompanyName }) {
@@ -20,10 +20,10 @@ function AddOrEdit({ onSave, onCancel, editData, userRole, selectedCompanyId, se
   const [companyName, setCompanyName] = useState(editData?.companyName || selectedCompanyName || "");
 
   useEffect(() => {
-    token = sessionStorage.getItem("token");
-    decoded = token ? jwtDecode(token) : "";
-    userNumber = decoded?.userNumber;
-  }, []);
+      token = sessionStorage.getItem("token");
+      decoded = jwtDecode(token);
+      userNumber = decoded?.userNumber;
+    }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -158,7 +158,7 @@ function AddOrEdit({ onSave, onCancel, editData, userRole, selectedCompanyId, se
 }
 
 // ✅ Main Component
-function DesignationMaster({selectedCompanyId, selectedCompanyName }) {
+function DesignationMaster({userRole,selectedCompanyId, selectedCompanyName }) {
   const [designations, setDesignations] = useState([]);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);

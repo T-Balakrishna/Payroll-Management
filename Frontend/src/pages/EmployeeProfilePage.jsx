@@ -385,7 +385,11 @@ const EmployeeProfilePage = () => {
         },
       });
 
-      alert("Employee saved successfully!");
+      Swal.fire({
+              icon: "success",
+              title: "Save Successful",
+              text: `Employee Saved Successfully`
+            });
       setErrorMessage("");
 
       setFormData((prev) => ({
@@ -395,6 +399,11 @@ const EmployeeProfilePage = () => {
       }));
     } catch (error) {
       console.error("Error saving employee:", error);
+      Swal.fire({
+                  icon: "error",
+                  title: "Save Failed",
+                  text:`Employee Save Failed`
+                });
       const errorMsg = error.response?.data?.error || error.message;
       setErrorMessage(`Failed to save employee: ${errorMsg}`);
     }

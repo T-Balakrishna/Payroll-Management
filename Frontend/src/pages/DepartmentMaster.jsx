@@ -21,10 +21,10 @@ function AddOrEdit({ onSave, onCancel, editData, userRole, selectedCompanyId, se
   const [isEdit,setIsEdit] = useState(false);
 
   useEffect(() => {
-    token = sessionStorage.getItem("token");
-    decoded = token ? jwtDecode(token) : "";
-    userNumber = decoded?.userNumber;
-  }, []);
+      token = sessionStorage.getItem("token");
+      decoded = jwtDecode(token);
+      userNumber = decoded?.userNumber;
+    }, []);
 
   // Fetch companies for Super Admin and set company for Admin
   useEffect(() => {
@@ -58,14 +58,14 @@ function AddOrEdit({ onSave, onCancel, editData, userRole, selectedCompanyId, se
     if (!departmentName || !departmentAckr) return toast.error("Please fill Department Name and Acronym");
     if (userRole === "Super Admin" && !companyId) return toast.error("Please select a company");
 
-    const adminName = sessionStorage.getItem("userNumber");
+    
     const departmentData = {
       departmentName,
       departmentAckr: departmentAckr ? departmentAckr.toUpperCase() : "",
       status,
       companyId,
       createdBy: editData ? editData.createdBy : adminName,
-      updatedBy: adminName,
+      updatedBy: userNumber,
     };
     onSave(departmentData, editData?.departmentId);
   };

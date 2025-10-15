@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
+
 const AttendanceMaster = () => {
   const [attendances, setAttendances] = useState([]);
   const [employeeNumberFilter, setEmployeeNumberFilter] = useState('');
@@ -13,11 +14,11 @@ const AttendanceMaster = () => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    token = sessionStorage.getItem("token");
-    decoded = token ? jwtDecode(token) : "";
-    userNumber = decoded?.userNumber;
-  }, []);
+  // useEffect(() => {
+  //   token = sessionStorage.getItem("token");
+  //   decoded = token ? jwtDecode(token) : "";
+  //   userNumber = decoded?.userNumber;
+  // }, []);
 
   const fetchAttendances = async () => {
     setLoading(true);

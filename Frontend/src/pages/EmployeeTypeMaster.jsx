@@ -8,7 +8,6 @@ import { toast } from "react-toastify";
 let token = sessionStorage.getItem("token");
 let decoded = token ? jwtDecode(token) : "";
 let userNumber = decoded?.userNumber || "system";
-let userRole = decoded?.role;
 
 // ✅ Modal Form Component
 function AddOrEditEmployeeType({ onSave, onCancel, editData, userRole, selectedCompanyId, selectedCompanyName }) {
@@ -20,10 +19,10 @@ function AddOrEditEmployeeType({ onSave, onCancel, editData, userRole, selectedC
   const [companyName, setCompanyName] = useState(editData?.companyName || selectedCompanyName || "");
 
   useEffect(() => {
-    token = sessionStorage.getItem("token");
-    decoded = token ? jwtDecode(token) : "";
-    userNumber = decoded?.userNumber;
-  }, []);
+      token = sessionStorage.getItem("token");
+      decoded = jwtDecode(token);
+      userNumber = decoded?.userNumber;
+    }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -115,7 +114,7 @@ function AddOrEditEmployeeType({ onSave, onCancel, editData, userRole, selectedC
                   const selected = companies.find((c) => c.companyId === e.target.value);
                   setCompanyName(selected ? selected.companyName : "");
                 }}
-                // disabled
+                disabled={editData}
                 className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               >
                 <option value="">Select Company</option>
@@ -158,7 +157,7 @@ function AddOrEditEmployeeType({ onSave, onCancel, editData, userRole, selectedC
 }
 
 // ✅ Main Component
-function EmployeeTypeMaster({ selectedCompanyId, selectedCompanyName }) {
+function EmployeeTypeMaster({ userRole,selectedCompanyId, selectedCompanyName }) {
   const [employeeTypes, setEmployeeTypes] = useState([]);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
