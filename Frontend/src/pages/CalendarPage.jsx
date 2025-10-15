@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { Calendar, Sun, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { jwtDecode } from "jwt-decode";
 
 const CalendarPage = () => {
+  const { t } = useTranslation();
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [attendanceData, setAttendanceData] = useState({}); // from backend
+  const [attendanceData, setAttendanceData] = useState({});
 
   const year = selectedDate.getFullYear();
   const month = selectedDate.getMonth();
@@ -13,7 +16,6 @@ const CalendarPage = () => {
 
   const today = new Date();
 
-  // Map DB statuses to UI configs
   const statusConfig = {
     "Present":    { color: "#3B82F6", bg: "#EFF6FF", icon: <CheckCircle className="w-4 h-4" /> },
     "Holiday":    { color: "#10B981", bg: "#ECFDF5", icon: <Sun className="w-4 h-4" /> },
@@ -23,34 +25,35 @@ const CalendarPage = () => {
     "Permission": { color: "#8B5CF6", bg: "#F3E8FF", icon: <CheckCircle className="w-4 h-4" /> },
   };
 
+  useEffect(() => {
+    const token = sessionStorage.getItem("token");
+    const decoded = token ? jwtDecode(token) : "";
+    const userNumber = decoded?.userNumber;
+  }, []);
 
-  // Fetch attendance data from backend
   useEffect(() => {
     const fetchData = async () => {
       try {
         const res = await axios.get("http://localhost:5000/api/attendance");
-        // Convert array into { "2025-01-17": "Present", ... }
         const mapped = {};
         res.data.forEach((att) => {
           mapped[att.attendanceDate] = att.attendanceStatus;
         });
         setAttendanceData(mapped);
       } catch (err) {
-        console.error("❌ Error fetching attendance:", err);
+        console.error(t("errorFetchingAttendance"), err);
       }
     };
     fetchData();
-  }, []);
+  }, [t]);
 
   const renderCells = () => {
     const cells = [];
 
-    // Empty cells before 1st day
     for (let i = 0; i < firstDayIndex; i++) {
       cells.push(<div key={`empty-${i}`} className="h-16" />);
     }
 
-    // Actual days
     for (let day = 1; day <= daysInMonth; day++) {
       const cellDate = new Date(year, month, day);
       const cellKey = `${cellDate.getFullYear()}-${String(cellDate.getMonth() + 1).padStart(2, "0")}-${String(cellDate.getDate()).padStart(2, "0")}`;
@@ -85,22 +88,21 @@ const CalendarPage = () => {
   };
 
   const monthNames = [
-    "January","February","March","April","May","June",
-    "July","August","September","October","November","December"
+    "january", "february", "march", "april", "may", "june",
+    "july", "august", "september", "october", "november", "december"
   ];
 
   return (
     <div className="h-full bg-white p-6">
       <div className="max-w-4xl mx-auto h-full flex flex-col">
-        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
               <Calendar className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Attendance Calendar</h1>
-              <p className="text-gray-600">Track your attendance history</p>
+              <h1 className="text-3xl font-bold text-gray-900">{t("attendanceCalendar")}</h1>
+              <p className="text-gray-600">{t("trackAttendanceHistory")}</p>
             </div>
           </div>
 
@@ -115,32 +117,28 @@ const CalendarPage = () => {
           />
         </div>
 
-        {/* Legend */}
         <div className="flex flex-wrap gap-4 mb-6">
           {Object.entries(statusConfig).map(([status, config]) => (
             <div key={status} className="flex items-center gap-2">
               <div className="w-4 h-4 rounded" style={{ backgroundColor: config.color }} />
-              <span className="text-sm font-medium text-gray-700">{status}</span>
+              <span className="text-sm font-medium text-gray-700">{t(status.toLowerCase())}</span>
             </div>
           ))}
         </div>
 
-        {/* Calendar */}
         <div className="bg-white rounded-2xl border border-gray-100 p-6 flex-1">
           <h2 className="text-xl font-semibold text-gray-900 mb-6">
-            {monthNames[month]} {year}
+            {t(monthNames[month])} {year}
           </h2>
 
-          {/* Weekdays */}
           <div className="grid grid-cols-7 gap-2 mb-4">
-            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+            {["sun", "mon", "tue", "wed", "thu", "fri", "sat"].map((day) => (
               <div key={day} className="text-center font-semibold text-gray-600 py-2">
-                {day}
+                {t(day)}
               </div>
             ))}
           </div>
 
-          {/* Days */}
           <div className="grid grid-cols-7 gap-2">{renderCells()}</div>
         </div>
       </div>

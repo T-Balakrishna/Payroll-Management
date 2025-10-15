@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { Building2, Pencil, Trash, Plus, X } from "lucide-react";
-import Swal from 'sweetalert2'
+import Swal from 'sweetalert2';
 import { toast } from "react-toastify";
+import { useTranslation } from "react-i18next";
 import { jwtDecode } from "jwt-decode";
 
 let token = sessionStorage.getItem("token");
-let decoded = token ? jwtDecode(token) : {};
+let decoded = token ? jwtDecode(token) : "";
 let userNumber = decoded.userNumber;
 let userRole = decoded.role;
 
-
-// ✅ Modal Form Component
 function AddOrEditCompany({ onSave, onCancel, editData }) {
+  const { t } = useTranslation();
   const [companyName, setCompanyName] = useState(editData?.companyName || "");
   const [companyAcr, setCompanyAcr] = useState(editData?.companyAcr || "");
   const [status, setStatus] = useState(editData?.status || "active");
@@ -25,7 +25,7 @@ function AddOrEditCompany({ onSave, onCancel, editData }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!companyName || !companyAcr) return alert("Please fill all fields");
+    if (!companyName || !companyAcr) return toast.error(t("pleaseFillAllFields"));
 
     const adminName = userNumber
 
@@ -54,38 +54,38 @@ function AddOrEditCompany({ onSave, onCancel, editData }) {
         </div>
 
         <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">
-          {editData ? "Edit Company" : "Add New Company"}
+          {editData ? t("editCompany") : t("addNewCompany")}
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block font-medium text-gray-700 mb-2">Company Name</label>
+            <label className="block font-medium text-gray-700 mb-2">{t("companyName")}</label>
             <input
               type="text"
               value={companyName}
               onChange={(e) => setCompanyName(e.target.value)}
-              placeholder="Enter company name"
+              placeholder={t("companyName")}
               className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
             />
           </div>
 
           <div>
-            <label className="block font-medium text-gray-700 mb-2">Acronym</label>
+            <label className="block font-medium text-gray-700 mb-2">{t("acronym")}</label>
             <input
               type="text"
               value={companyAcr}
               onChange={(e) => setCompanyAcr(e.target.value)}
-              placeholder="Enter short name"
+              placeholder={t("acronym")}
               className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
             />
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
             <button type="button" onClick={onCancel} className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition">
-              Cancel
+              {t("cancel")}
             </button>
             <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow-md transition">
-              {editData ? "Update Changes" : "Save"}
+              {editData ? t("update") : t("save")}
             </button>
           </div>
         </form>
@@ -94,8 +94,8 @@ function AddOrEditCompany({ onSave, onCancel, editData }) {
   );
 }
 
-// ✅ Main Component
 function CompanyMaster({ refreshCompanies }) {
+  const { t } = useTranslation();
   const [companies, setCompanies] = useState([]);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -107,12 +107,13 @@ function CompanyMaster({ refreshCompanies }) {
       setCompanies(res.data);
     } catch (err) {
       console.error(err);
+      toast.error(t("errorFetchingData"));
     }
   };
 
   useEffect(() => {
     fetchCompanies();
-  }, []);
+  }, [t]);
 
   const filteredData = companies.filter(
     (c) =>
@@ -133,12 +134,11 @@ function CompanyMaster({ refreshCompanies }) {
         });
       }
       Swal.fire({
-            icon: "success",
-            title: `${companyId ? "Updated" : "Added"}`,
-            text: `Company ${companyId ? "Updated" : "Added"} Successfully`,
-          });
+        icon: "success",
+        title: companyId ? t("companyUpdated") : t("companyAdded"),
+        text: companyId ? t("companyUpdated") : t("companyAdded"),
+      });
 
-      // ✅ Refresh local and parent data
       fetchCompanies();
       if (refreshCompanies) refreshCompanies();
 
@@ -146,65 +146,57 @@ function CompanyMaster({ refreshCompanies }) {
       setEditData(null);
     } catch (err) {
       Swal.fire({
-            icon: "error",
-            title: `${companyId ? "Update" : "Add"}Failed`,
-            // text: `Department ${departmentId ? "Updated" : "Added"} Successfully`,
-            text:`${err.response.data}`
-        });
-      // alert("Error saving company:", err.message);
+        icon: "error",
+        title: companyId ? t("companyUpdateFailed") : t("companyAddFailed"),
+        text: err.response?.data || err.message,
+      });
     }
-  };
-
-  const handleEdit = (company) => {
-    setEditData(company);
-    setShowForm(true);
   };
 
   const handleDelete = async (companyId) => {
-  const updatedBy = userNumber;
+    const updatedBy = userNumber;
 
-  Swal.fire({
-    title: "Are you sure?",
-    text: "You won't be able to revert this!",
-    icon: "warning",
-    showCancelButton: true,
-    confirmButtonColor: "#3085d6",
-    cancelButtonColor: "#d33",
-    confirmButtonText: "Yes, deactivate it!"
-  }).then(async (result) => {
-    if (result.isConfirmed) {
-      try {
-        await axios.delete(`http://localhost:5000/api/companies/${companyId}`, {
-          data: { updatedBy },
-        });
+    Swal.fire({
+      title: t("areYouSure"),
+      text: t("cannotRevert"),
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: t("confirmDelete")
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          await axios.delete(`http://localhost:5000/api/companies/${companyId}`, {
+            data: { updatedBy },
+          });
 
-        Swal.fire({
-          title: "Deactivated!",
-          text: "Company has been deactivated successfully.",
-          icon: "success",
-        });
+          Swal.fire({
+            title: t("deactivated"),
+            text: t("companyDeactivated"),
+            icon: "success",
+          });
 
-        fetchCompanies();
-        if (refreshCompanies) refreshCompanies();
-      } catch (err) {
-        console.error("Delete error:", err.response?.data || err.message);
-        Swal.fire({
-          title: "Error!",
-          text: "Failed to deactivate company.",
-          icon: "error",
-        });
+          fetchCompanies();
+          if (refreshCompanies) refreshCompanies();
+        } catch (err) {
+          console.error("Delete error:", err.response?.data || err.message);
+          Swal.fire({
+            title: t("error"),
+            text: t("failedToDeactivateCompany"),
+            icon: "error",
+          });
+        }
       }
-    }
-  });
-};
-
+    });
+  };
 
   return (
     <div className="h-full flex flex-col px-6">
       <div className="flex justify-between items-center mb-4">
         <input
           type="text"
-          placeholder="Search company..."
+          placeholder={t("searchCompany")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="border border-gray-300 bg-white text-black rounded-lg px-4 py-2 w-1/3 outline-none"
@@ -216,7 +208,7 @@ function CompanyMaster({ refreshCompanies }) {
             setEditData(null);
           }}
         >
-          <Plus size={18} /> Add Company
+          <Plus size={18} /> {t("addNewCompany")}
         </button>
       </div>
 
@@ -227,10 +219,10 @@ function CompanyMaster({ refreshCompanies }) {
         <table className="w-full text-left text-sm">
           <thead className="sticky top-0">
             <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-              <th className="py-3 px-4">ID</th>
-              <th className="py-3 px-4">Name</th>
-              <th className="py-3 px-4">Acronym</th>
-              <th className="py-3 px-4">Actions</th>
+              <th className="py-3 px-4">{t("id")}</th>
+              <th className="py-3 px-4">{t("name")}</th>
+              <th className="py-3 px-4">{t("acronym")}</th>
+              <th className="py-3 px-4">{t("actions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -258,7 +250,7 @@ function CompanyMaster({ refreshCompanies }) {
             {filteredData.length === 0 && (
               <tr>
                 <td colSpan="5" className="text-center py-4 text-gray-500">
-                  No companies found
+                  {t("noCompaniesFound")}
                 </td>
               </tr>
             )}

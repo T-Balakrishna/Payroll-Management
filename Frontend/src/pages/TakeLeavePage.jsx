@@ -4,11 +4,11 @@ import axios from "axios";
 import dayjs from "dayjs";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
+import { jwtDecode } from "jwt-decode";
 
 let token = sessionStorage.getItem("token");
 let decoded = token ? jwtDecode(token) : "";
 let userNumber = decoded.userNumber;
-let userRole = decoded.role;
 
 const TakeLeavePage = ({ empId, companyId, departmentId }) => {
   const [leaveTypes, setLeaveTypes] = useState([]);

@@ -55,12 +55,6 @@ function AddOrEditUser({
       setFormData({ ...formData, [name]: value });
     }
   };
-  
-  useEffect(() => {
-    token = sessionStorage.getItem("token");
-    decoded = token ? jwtDecode(token) : "";
-    userNumber = decoded?.userNumber;
-  }, []);
 
   useEffect(() => {
     const fetchDepartments = async () => {

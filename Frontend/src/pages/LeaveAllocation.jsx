@@ -1,16 +1,15 @@
-// LeaveAllocation.jsx
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
 import Swal from "sweetalert2";
-import { toast } from "react-toastify";
+import { useTranslation } from "react-i18next";
 
 let token = sessionStorage.getItem("token");
 let decoded = token ? jwtDecode(token) : "";
 let userNumber = decoded?.userNumber;
 
-
 const LeaveAllocation = () => {
+  const { t } = useTranslation();
   const [leaveTypes, setLeaveTypes] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [filteredDepartments, setFilteredDepartments] = useState([]);
@@ -21,31 +20,25 @@ const LeaveAllocation = () => {
   const [employeeTypes, setEmployeeTypes] = useState([]);
   const [filteredEmployeeTypes, setFilteredEmployeeTypes] = useState([]);
   const [companies, setCompanies] = useState([]);
-
   const [employees, setEmployees] = useState([]);
   const [filteredEmployees, setFilteredEmployees] = useState([]);
   const [selectedDepts, setSelectedDepts] = useState([]);
   const [selectedEmps, setSelectedEmps] = useState([]);
   const [selectAllChecked, setSelectAllChecked] = useState(false);
-
-  const [allocatedLeaves, setAllocatedLeaves] = useState({});  // only current input
-  const [existingLeaves, setExistingLeaves] = useState({});    // current period
-  const [previousLeaves, setPreviousLeaves] = useState({});    // previous year
-
+  const [allocatedLeaves, setAllocatedLeaves] = useState({});
+  const [existingLeaves, setExistingLeaves] = useState({});
+  const [previousLeaves, setPreviousLeaves] = useState({});
   const [leaveTypeId, setLeaveTypeId] = useState("");
   const [startYear, setStartYear] = useState("");
   const endYear = startYear ? String(Number(startYear) + 1) : "";
   const period = startYear ? `${startYear}-${endYear}` : "";
-
   const [filterDept, setFilterDept] = useState("");
   const [filterDesignation, setFilterDesignation] = useState("");
   const [filterGrade, setFilterGrade] = useState("");
   const [filterType, setFilterType] = useState("");
   const [filterCompany, setFilterCompany] = useState("");
-
   const [bulkLeaves, setBulkLeaves] = useState("");
 
-  // ---------- Initial fetch ----------
   useEffect(() => {
     axios.get("http://localhost:5000/api/leaveTypes").then(r => setLeaveTypes(r.data)).catch(() => {});
     axios.get("http://localhost:5000/api/departments").then(r => {
@@ -80,7 +73,6 @@ const LeaveAllocation = () => {
     axios.get("http://localhost:5000/api/employees").then(r => setEmployees(r.data || [])).catch(() => setEmployees([]));
   }, []);
 
-  // ---------- Filter dropdowns by company ----------
   useEffect(() => {
     if (filterCompany) {
       setFilteredDepartments(departments.filter(d => String(d.companyId) === String(filterCompany)));
@@ -99,7 +91,6 @@ const LeaveAllocation = () => {
     }
   }, [filterCompany, departments, designations, employeeGrades, employeeTypes]);
 
-  // ---------- Fetch employees by department ----------
   useEffect(() => {
     if (selectedDepts.length > 0) {
       axios.post("http://localhost:5000/api/employees/byDepartments", { departments: selectedDepts })
@@ -113,7 +104,6 @@ const LeaveAllocation = () => {
     setSelectAllChecked(false);
   }, [selectedDepts]);
 
-  // ---------- Filter employees ----------
   useEffect(() => {
     let list = [...employees];
     if (filterDept) list = list.filter(e => String(e.departmentId) === String(filterDept));
@@ -126,7 +116,6 @@ const LeaveAllocation = () => {
 
   const getLeaveType = () => leaveTypes.find(l => String(l.leaveTypeId) === String(leaveTypeId)) || null;
 
-  // ---------- Fetch existing allocations ----------
   useEffect(() => {
     if (!leaveTypeId || !startYear) {
       setExistingLeaves({});
@@ -174,7 +163,6 @@ const LeaveAllocation = () => {
     }
   }, [leaveTypeId, startYear, endYear, period, leaveTypes]);
 
-  // ---------- Toggle employee ----------
   const toggleEmp = (empNum) => {
     if (selectedEmps.includes(empNum)) {
       setSelectedEmps(prev => prev.filter(e => e !== empNum));
@@ -190,7 +178,6 @@ const LeaveAllocation = () => {
     }
   };
 
-  // ---------- Select all ----------
   const handleSelectAll = () => {
     if (selectAllChecked) {
       setSelectedEmps([]);
@@ -208,7 +195,6 @@ const LeaveAllocation = () => {
     }
   };
 
-  // ---------- Bulk apply ----------
   const applyBulkLeaves = () => {
     if (!bulkLeaves) return;
 
@@ -216,8 +202,8 @@ const LeaveAllocation = () => {
     if (isNaN(parsed)) {
       Swal.fire({
         icon: "error",
-        title: "Invalid Input",
-        text: "Please enter a valid number for bulk leaves.",
+        title: t("invalidInput"),
+        text: t("invalidInputMessage"),
       });
       return;
     }
@@ -226,8 +212,8 @@ const LeaveAllocation = () => {
     if (lt?.maxAllocationPertype != null && parsed > Number(lt.maxAllocationPertype)) {
       Swal.fire({
         icon: "error",
-        title: "Invalid Allocation",
-        text: `Bulk allocation cannot exceed ${lt.maxAllocationPertype} for ${lt.leaveTypeName}.`,
+        title: t("invalidAllocation"),
+        text: t("invalidAllocationMessage", { max: lt.maxAllocationPertype, name: lt.leaveTypeName }),
       });
       setBulkLeaves(lt.maxAllocationPertype);
       return;
@@ -236,8 +222,8 @@ const LeaveAllocation = () => {
     if (parsed < 0) {
       Swal.fire({
         icon: "error",
-        title: "Invalid Allocation",
-        text: "Bulk allocation cannot be negative.",
+        title: t("invalidAllocation"),
+        text: t("negativeAllocation"),
       });
       setBulkLeaves("");
       return;
@@ -248,7 +234,6 @@ const LeaveAllocation = () => {
     setAllocatedLeaves(prev => ({ ...prev, ...updated }));
   };
 
-  // ---------- Handle input change ----------
   const handleAllocatedChange = (empNum, val) => {
     const parsed = Number(val);
     if (isNaN(parsed)) {
@@ -260,8 +245,8 @@ const LeaveAllocation = () => {
     if (lt?.maxAllocationPertype != null && parsed > Number(lt.maxAllocationPertype)) {
       Swal.fire({
         icon: "error",
-        title: "Invalid Allocation",
-        text: `Allocation cannot exceed ${lt.maxAllocationPertype} for ${lt.leaveTypeName}.`,
+        title: t("invalidAllocation"),
+        text: t("invalidAllocationMessage", { max: lt.maxAllocationPertype, name: lt.leaveTypeName }),
       });
       setAllocatedLeaves(prev => ({ ...prev, [empNum]: Number(lt.maxAllocationPertype) }));
       return;
@@ -270,8 +255,8 @@ const LeaveAllocation = () => {
     if (parsed < 0) {
       Swal.fire({
         icon: "error",
-        title: "Invalid Allocation",
-        text: "Allocation cannot be negative.",
+        title: t("invalidAllocation"),
+        text: t("negativeAllocation"),
       });
       setAllocatedLeaves(prev => ({ ...prev, [empNum]: 0 }));
       return;
@@ -280,14 +265,13 @@ const LeaveAllocation = () => {
     setAllocatedLeaves(prev => ({ ...prev, [empNum]: parsed }));
   };
 
-  // ---------- Save allocations ----------
   const handleSave = async () => {
     const lt = getLeaveType();
     if (!lt || !leaveTypeId || !startYear) {
       Swal.fire({
         icon: "error",
-        title: "Missing Data",
-        text: "Please select a leave type and start year.",
+        title: t("missingData"),
+        text: t("missingDataMessage"),
       });
       return;
     }
@@ -299,8 +283,8 @@ const LeaveAllocation = () => {
       if (lt.maxAllocationPertype != null && newAlloc > Number(lt.maxAllocationPertype)) {
         Swal.fire({
           icon: "error",
-          title: "Invalid Allocation",
-          text: `Allocation for ${empNum} cannot exceed ${lt.maxAllocationPertype} for ${lt.leaveTypeName}.`,
+          title: t("invalidAllocation"),
+          text: t("invalidAllocationMessage", { max: lt.maxAllocationPertype, name: lt.leaveTypeName }),
         });
         continue;
       }
@@ -308,8 +292,8 @@ const LeaveAllocation = () => {
       if (newAlloc < 0) {
         Swal.fire({
           icon: "error",
-          title: "Invalid Allocation",
-          text: `Allocation for ${empNum} cannot be negative.`,
+          title: t("invalidAllocation"),
+          text: t("negativeAllocation"),
         });
         continue;
       }
@@ -330,8 +314,8 @@ const LeaveAllocation = () => {
         });
         Swal.fire({
           icon: "success",
-          title: "Updated",
-          text: `Allocation updated for ${empNum}`,
+          title: t("allocationUpdated"),
+          text: t("allocationUpdated", { employeeNumber: empNum }),
         });
       } else {
         await axios.post("http://localhost:5000/api/leaveAllocations", {
@@ -346,8 +330,8 @@ const LeaveAllocation = () => {
         });
         Swal.fire({
           icon: "success",
-          title: "Added",
-          text: `Allocation created for ${empNum}`,
+          title: t("allocationCreated"),
+          text: t("allocationCreated", { employeeNumber: empNum }),
         });
       }
     }
@@ -361,97 +345,87 @@ const LeaveAllocation = () => {
 
     setExistingLeaves(mapping);
     setAllocatedLeaves({});
-    // setSelectAllChecked(false);
   };
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold">Leave Allocation</h1>
+      <h1 className="text-2xl font-bold">{t("leaveAllocation")}</h1>
 
-      {/* Leave Type & Start Year */}
       <div className="grid grid-cols-3 gap-4">
         <div>
-          <label className="block font-medium mb-2">Leave Type</label>
+          <label className="block font-medium mb-2">{t("leaveType")}</label>
           <select value={leaveTypeId} onChange={e => setLeaveTypeId(e.target.value)} className="border rounded-lg p-2 w-full">
-            <option value="">Select Leave Type</option>
+            <option value="">{t("selectLeaveType")}</option>
             {leaveTypes.map(type => (
               <option key={type.leaveTypeId} value={type.leaveTypeId}>
-                {type.leaveTypeName} {type.maxAllocationPertype ? (`max ${type.maxAllocationPertype}`) : ""}
+                {type.leaveTypeName} {type.maxAllocationPertype ? (`${t("max")} ${type.maxAllocationPertype}`) : ""}
               </option>
             ))}
           </select>
         </div>
 
         <div>
-          <label className="block font-medium mb-2">Start Year</label>
+          <label className="block font-medium mb-2">{t("startYear")}</label>
           <input
             type="number"
             value={startYear}
             onChange={e => setStartYear(e.target.value)}
-            placeholder="e.g. 2024"
+            placeholder={t("startYearPlaceholder")}
             className="border rounded-lg p-2 w-full"
           />
         </div>
 
         <div>
-          <label className="block font-medium mb-2">End Year</label>
+          <label className="block font-medium mb-2">{t("endYear")}</label>
           <input type="text" value={endYear} readOnly className="border rounded-lg p-2 w-full bg-gray-50" />
         </div>
       </div>
 
-      {/* Filters */}
       <div className="flex gap-4 mb-4">
         <select value={filterCompany} onChange={e => setFilterCompany(e.target.value)} className="border rounded p-2">
-          <option value="">All Companies</option>
+          <option value="">{t("allCompanies")}</option>
           {companies.filter(c => c.companyId !== 1).map(c => <option key={c.companyId} value={c.companyId}>{c.companyName}</option>)}
         </select>
         
         <select value={filterDept} onChange={e => setFilterDept(e.target.value)} className="border rounded p-2">
-          <option value="">All Departments</option>
+          <option value="">{t("allDepartments")}</option>
           {filteredDepartments.map(d => <option key={d.departmentId} value={d.departmentId}>{d.departmentName}</option>)}
         </select>
 
         <select value={filterDesignation} onChange={e => setFilterDesignation(e.target.value)} className="border rounded p-2">
-          <option value="">All Designations</option>
+          <option value="">{t("allDesignations")}</option>
           {filteredDesignations.map(d => <option key={d.designationId} value={d.designationId}>{d.designationAckr}</option>)}
         </select>
 
         <select value={filterGrade} onChange={e => setFilterGrade(e.target.value)} className="border rounded p-2">
-          <option value="">All Grades</option>
+          <option value="">{t("allGrades")}</option>
           {filteredEmployeeGrades.map(g => <option key={g.employeeGradeId} value={g.employeeGradeId}>{g.employeeGradeAckr}</option>)}
         </select>
 
         <select value={filterType} onChange={e => setFilterType(e.target.value)} className="border rounded p-2">
-          <option value="">All Types</option>
+          <option value="">{t("allTypes")}</option>
           {filteredEmployeeTypes.map(t => <option key={t.employeeTypeId} value={t.employeeTypeId}>{t.employeeTypeAckr}</option>)}
         </select>
-        
       </div>
 
-      {/* Employee Table */}
       <div className="border rounded-lg p-4">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-bold">Employees ({filteredEmployees.length})</h2>
+          <h2 className="text-lg font-bold">{t("employeesCount", { count: filteredEmployees.length })}</h2>
           <div className="flex items-center gap-4">
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={selectAllChecked} onChange={handleSelectAll} />
-              Select All
+              {t("selectAll")}
             </label>
             <div className="flex items-center gap-2">
               <input
                 type="number"
                 value={bulkLeaves}
-                onChange={e => {
-                  const val = e.target.value;
-                  setBulkLeaves(val);
-                  // applyBulkLeaves(val);
-                }}
-
-                placeholder="Set leaves for selected"
+                onChange={e => setBulkLeaves(e.target.value)}
+                placeholder={t("setLeavesForSelected")}
                 className="border rounded px-2 py-1 w-44"
               />
               <button onClick={applyBulkLeaves} className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded">
-                Apply
+                {t("apply")}
               </button>
             </div>
           </div>
@@ -461,20 +435,20 @@ const LeaveAllocation = () => {
           <table className="w-full border text-left">
             <thead>
               <tr className="bg-gray-100">
-                <th className="py-2 px-3">Select</th>
-                <th className="py-2 px-3">Employee</th>
-                <th className="py-2 px-3">Dept</th>
-                <th className="py-2 px-3">Designation</th>
-                <th className="py-2 px-3">Grade</th>
-                <th className="py-2 px-3">Type</th>
-                <th className="py-2 px-3">Allocated Leave</th>
-                <th className="py-2 px-3">Prev Year (if carry)</th>
+                <th className="py-2 px-3">{t("select")}</th>
+                <th className="py-2 px-3">{t("employeeNumber")}</th>
+                <th className="py-2 px-3">{t("department")}</th>
+                <th className="py-2 px-3">{t("designation")}</th>
+                <th className="py-2 px-3">{t("grade")}</th>
+                <th className="py-2 px-3">{t("employeeType")}</th>
+                <th className="py-2 px-3">{t("allocatedLeave")}</th>
+                <th className="py-2 px-3">{t("previousYear")}</th>
               </tr>
             </thead>
             <tbody>
               {filteredEmployees.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="text-center py-4">No employees found</td>
+                  <td colSpan="8" className="text-center py-4">{t("noEmployeesFound")}</td>
                 </tr>
               ) : (
                 filteredEmployees.map(emp => {
@@ -516,7 +490,7 @@ const LeaveAllocation = () => {
 
         <div className="mt-4 flex justify-end">
           <button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
-            Save Allocations
+            {t("saveAllocations")}
           </button>
         </div>
       </div>

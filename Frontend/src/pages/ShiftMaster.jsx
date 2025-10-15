@@ -9,12 +9,10 @@ import { toast } from "react-toastify";
 let token = sessionStorage.getItem("token");
 let decoded = token ? jwtDecode(token) : "";
 let userNumber = decoded.userNumber;
-let userRole = decoded.role;
-console.log(userRole,userNumber);
 
 
 // ✅ Modal Form Component
-function AddOrEdit({ onSave, onCancel, editData, selectedCompanyId, selectedCompanyName }) {
+function AddOrEdit({ userRole, onSave, onCancel, editData, selectedCompanyId, selectedCompanyName }) {
   const [shiftName, setShiftName] = useState(editData?.shiftName || "");
   const [shiftInStartTime, setShiftInStartTime] = useState(editData?.shiftInStartTime || "");
   const [shiftInEndTime, setShiftInEndTime] = useState(editData?.shiftInEndTime || "");
@@ -475,7 +473,7 @@ function ShiftMaster({ userRole, selectedCompanyId, selectedCompanyName }) {
           setEditData(null);
         }}
         editData={editData}
-        // userRole={userRole}
+        userRole={userRole}
         selectedCompanyId={selectedCompanyId}
         selectedCompanyName={selectedCompanyName}
       />

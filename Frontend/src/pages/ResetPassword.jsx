@@ -18,12 +18,6 @@ export default function ResetPassword() {
     return password.length >= 8; // Minimum 8 characters
   };
 
-  useEffect(() => {
-    token = sessionStorage.getItem("token");
-    decoded = token ? jwtDecode(token) : "";
-    userNumber = decoded?.userNumber;
-  }, []);
-
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();

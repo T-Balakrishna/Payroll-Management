@@ -4,14 +4,14 @@ import { Award, Pencil, Trash, Plus, X } from "lucide-react";
 import { jwtDecode } from "jwt-decode";
 import Swal from 'sweetalert2';
 import { toast } from "react-toastify";
+import { useTranslation } from "react-i18next";
 
 let token = sessionStorage.getItem("token");
 let decoded = token ? jwtDecode(token) : "";
 let userNumber = decoded?.userNumber || "system";
-let userRole = decoded?.role;
 
-// ✅ Modal Form Component
 function AddOrEditGrade({ onSave, onCancel, editData, userRole, selectedCompanyId, selectedCompanyName }) {
+  const { t } = useTranslation();
   const [employeeGradeName, setEmployeeGradeName] = useState(editData?.employeeGradeName || "");
   const [employeeGradeAckr, setEmployeeGradeAckr] = useState(editData?.employeeGradeAckr || "");
   const [status, setStatus] = useState(editData?.status || "active");
@@ -24,7 +24,7 @@ function AddOrEditGrade({ onSave, onCancel, editData, userRole, selectedCompanyI
     decoded = token ? jwtDecode(token) : "";
     userNumber = decoded?.userNumber;
   }, []);
-  
+
   useEffect(() => {
     let mounted = true;
     const fetchCompanies = async () => {
@@ -41,24 +41,25 @@ function AddOrEditGrade({ onSave, onCancel, editData, userRole, selectedCompanyI
         }
       } catch (err) {
         console.error("Error fetching companies:", err);
+        toast.error(t("errorFetchingData"));
       }
     };
     if (userRole === "Super Admin") fetchCompanies();
     else if (userRole === "Admin" && selectedCompanyId) {
       setCompanyId(selectedCompanyId);
-      setCompanyName(selectedCompanyName || "No company selected");
+      setCompanyName(selectedCompanyName || t("noCompanySelected"));
     }
     return () => { mounted = false; };
-  }, [userRole, selectedCompanyId, selectedCompanyName]);
+  }, [userRole, selectedCompanyId, selectedCompanyName, t]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!employeeGradeName || !employeeGradeAckr) return toast.error("Please fill Grade Name and Acronym");
-    if (userRole === "Super Admin" && !companyId) return toast.error("Please select a company");
+    if (!employeeGradeName || !employeeGradeAckr) return toast.error(t("pleaseFillAllFields"));
+    if (userRole === "Super Admin" && !companyId) return toast.error(t("selectCompany"));
 
     const gradeData = {
       employeeGradeName,
-      employeeGradeAckr,
+      employeeGradeAckr: employeeGradeAckr.toUpperCase(),
       status,
       companyId,
       createdBy: editData ? editData.createdBy : userNumber,
@@ -82,31 +83,44 @@ function AddOrEditGrade({ onSave, onCancel, editData, userRole, selectedCompanyI
           </div>
         </div>
         <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">
-          {editData ? "Edit Employee Grade" : "Add New Employee Grade"}
+          {editData ? t("editGrade") : t("addNewGrade")}
         </h2>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block font-medium text-gray-700 mb-2">Grade Name</label>
+            <label className="block font-medium text-gray-700 mb-2">{t("gradeName")}</label>
             <input
               type="text"
               value={employeeGradeName}
               onChange={(e) => setEmployeeGradeName(e.target.value)}
-              placeholder="Enter grade name"
+              placeholder={t("gradeName")}
               className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              required
             />
           </div>
           <div>
-            <label className="block font-medium text-gray-700 mb-2">Acronym</label>
+            <label className="block font-medium text-gray-700 mb-2">{t("acronym")}</label>
             <input
               type="text"
               value={employeeGradeAckr}
               onChange={(e) => setEmployeeGradeAckr(e.target.value)}
-              placeholder="Enter short name"
+              placeholder={t("acronym")}
               className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              required
             />
           </div>
           <div>
-            <label className="block font-medium text-gray-700 mb-2">Company</label>
+            <label className="block font-medium text-gray-700 mb-2">{t("status")}</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+            >
+              <option value="active">{t("active")}</option>
+              <option value="inactive">{t("inactive")}</option>
+            </select>
+          </div>
+          <div>
+            <label className="block font-medium text-gray-700 mb-2">{t("company")}</label>
             {userRole === "Super Admin" ? (
               <select
                 value={companyId}
@@ -115,10 +129,10 @@ function AddOrEditGrade({ onSave, onCancel, editData, userRole, selectedCompanyI
                   const selected = companies.find((c) => c.companyId === e.target.value);
                   setCompanyName(selected ? selected.companyName : "");
                 }}
-                // disabled
+                disabled={editData}
                 className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               >
-                <option value="">Select Company</option>
+                <option value="">{t("selectCompany")}</option>
                 {companies
                   .filter(c => c.companyId !== 1)
                   .map(c => (
@@ -130,7 +144,7 @@ function AddOrEditGrade({ onSave, onCancel, editData, userRole, selectedCompanyI
             ) : (
               <input
                 type="text"
-                value={companyName || "No company selected"}
+                value={companyName || t("noCompanySelected")}
                 disabled
                 className="w-full border border-gray-300 rounded-lg p-3 bg-gray-100 cursor-not-allowed"
               />
@@ -142,13 +156,13 @@ function AddOrEditGrade({ onSave, onCancel, editData, userRole, selectedCompanyI
               onClick={onCancel}
               className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition"
             >
-              Cancel
+              {t("cancel")}
             </button>
             <button
               type="submit"
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow-md transition"
             >
-              {editData ? "Update Changes" : "Save"}
+              {editData ? t("update") : t("save")}
             </button>
           </div>
         </form>
@@ -157,8 +171,8 @@ function AddOrEditGrade({ onSave, onCancel, editData, userRole, selectedCompanyI
   );
 }
 
-// ✅ Main Component
-function EmployeeGradeMaster({ selectedCompanyId, selectedCompanyName }) {
+function EmployeeGradeMaster({userRole, selectedCompanyId, selectedCompanyName }) {
+  const { t } = useTranslation();
   const [grades, setGrades] = useState([]);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -174,10 +188,11 @@ function EmployeeGradeMaster({ selectedCompanyId, selectedCompanyName }) {
         setCompanies(res.data || []);
       } catch (err) {
         console.error("Error fetching companies:", err);
+        toast.error(t("errorFetchingData"));
       }
     };
     fetchCompanies();
-  }, []);
+  }, [t]);
 
   const fetchGrades = async () => {
     try {
@@ -191,12 +206,13 @@ function EmployeeGradeMaster({ selectedCompanyId, selectedCompanyName }) {
       setGrades(data);
     } catch (err) {
       console.error("Error fetching grades:", err);
+      toast.error(t("errorFetchingData"));
     }
   };
 
   useEffect(() => {
     fetchGrades();
-  }, [selectedCompanyId]);
+  }, [selectedCompanyId, t]);
 
   const getCompanyAcronym = (id) => {
     const company = companies.find(c => c.companyId === id);
@@ -213,13 +229,13 @@ function EmployeeGradeMaster({ selectedCompanyId, selectedCompanyName }) {
   const handleSave = async (gradeData, gradeId) => {
     try {
       if (gradeId) {
-        const res = await axios.put(
+        await axios.put(
           `http://localhost:5000/api/employeeGrades/${gradeId}`,
           { ...gradeData, updatedBy: userNumber },
           { headers: { Authorization: `Bearer ${token}` } }
         );
       } else {
-        const res = await axios.post(
+        await axios.post(
           "http://localhost:5000/api/employeeGrades",
           { ...gradeData, createdBy: userNumber },
           { headers: { Authorization: `Bearer ${token}` } }
@@ -230,17 +246,16 @@ function EmployeeGradeMaster({ selectedCompanyId, selectedCompanyName }) {
       setEditData(null);
       Swal.fire({
         icon: "success",
-        title: gradeId ? "Updated" : "Added",
-        text: `Employee Grade ${gradeId ? "Updated" : "Added"} Successfully`
+        title: gradeId ? t("gradeUpdated") : t("gradeAdded"),
+        text: gradeId ? t("gradeUpdated") : t("gradeAdded"),
       });
     } catch (err) {
       Swal.fire({
         icon: "error",
-        title: `${gradeId ? "Update" : "Add"} Failed`,
-        text:`${err.response.data==="Error updating employee grade: Validation error" || "Error creating employee grade: Validation error"?"Employee Grade Already exists in the Company":err.response.data}`
+        title: gradeId ? t("gradeUpdateFailed") : t("gradeAddFailed"),
+        text: err.response?.data || err.message,
       });
       setShowForm(false);
-      console.error("Error saving grade:", err.response?.data);
     }
   };
 
@@ -259,13 +274,13 @@ function EmployeeGradeMaster({ selectedCompanyId, selectedCompanyName }) {
 
   const handleDelete = async (employeeGradeId) => {
     Swal.fire({
-      title: "Are you sure?",
-      text: "You won’t be able to revert this!",
+      title: t("areYouSure"),
+      text: t("cannotRevert"),
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#3085d6",
       cancelButtonColor: "#d33",
-      confirmButtonText: "Yes, delete it!"
+      confirmButtonText: t("confirmDelete")
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
@@ -274,24 +289,22 @@ function EmployeeGradeMaster({ selectedCompanyId, selectedCompanyName }) {
             headers: { Authorization: `Bearer ${token}` },
           });
 
-          Swal.fire("Deleted!", "Employee Grade has been deleted.", "success");
+          Swal.fire(t("deleted"), t("gradeDeleted"), "success");
           await fetchGrades();
         } catch (err) {
           console.error("Error deleting employee Grade:", err);
-          Swal.fire("Error!", "Failed to delete employee Grade.", "error");
+          Swal.fire(t("error"), t("failedToDeleteGrade"), "error");
         }
       }
     });
   };
 
-
   return (
     <div className="h-full flex-1 p-6 flex flex-col">
-      {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <input
           type="text"
-          placeholder="Search grade..."
+          placeholder={t("searchGrade")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="border border-gray-300 bg-white text-black rounded-lg px-4 py-2 w-1/3 outline-none"
@@ -300,26 +313,23 @@ function EmployeeGradeMaster({ selectedCompanyId, selectedCompanyName }) {
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md"
           onClick={() => { setShowForm(true); setEditData(null); }}
         >
-          <Plus size={18} /> Add Grade
+          <Plus size={18} /> {t("addNewGrade")}
         </button>
       </div>
 
-      {/* Table */}
       <div className="overflow-y-auto border border-gray-200 rounded-lg shadow-sm" style={{ maxHeight: "320px" }}>
         <table className="w-full text-left text-sm">
           <thead className="sticky top-0">
             <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-              {/* <th className="py-3 px-4">ID</th> */}
-              <th className="py-3 px-4">Name</th>
-              <th className="py-3 px-4">Acronym</th>
-              {!selectedCompanyId && <th className="py-3 px-4">Company</th>}
-              <th className="py-3 px-4">Actions</th>
+              <th className="py-3 px-4">{t("name")}</th>
+              <th className="py-3 px-4">{t("acronym")}</th>
+              {!selectedCompanyId && <th className="py-3 px-4">{t("company")}</th>}
+              <th className="py-3 px-4">{t("actions")}</th>
             </tr>
           </thead>
           <tbody>
             {filteredData.map((d) => (
               <tr key={d.employeeGradeId} className="border-t hover:bg-gray-50">
-                {/* <td className="py-2 px-4">{d.employeeGradeId}</td> */}
                 <td className="py-2 px-4">{d.employeeGradeName}</td>
                 <td className="py-2 px-4">{d.employeeGradeAckr}</td>
                 {!selectedCompanyId && <td>{getCompanyAcronym(d.companyId)}</td>}
@@ -335,8 +345,8 @@ function EmployeeGradeMaster({ selectedCompanyId, selectedCompanyName }) {
             ))}
             {filteredData.length === 0 && (
               <tr>
-                <td colSpan="5" className="text-center py-4 text-gray-500">
-                  No grades found
+                <td colSpan={selectedCompanyId ? 3 : 4} className="text-center py-4 text-gray-500">
+                  {t("noGradesFound")}
                 </td>
               </tr>
             )}
@@ -344,7 +354,6 @@ function EmployeeGradeMaster({ selectedCompanyId, selectedCompanyName }) {
         </table>
       </div>
 
-      {/* Show Modal */}
       {showForm && (
         <AddOrEditGrade
           onSave={handleSave}

@@ -4,14 +4,14 @@ import { Users, Pencil, Trash, Plus, X } from "lucide-react";
 import { jwtDecode } from "jwt-decode";
 import Swal from 'sweetalert2';
 import { toast } from "react-toastify";
+import { useTranslation } from "react-i18next";
 
 let token = sessionStorage.getItem("token");
 let decoded = token ? jwtDecode(token) : "";
 let userNumber = decoded?.userNumber || "system";
-let userRole = decoded?.role;
 
-// ✅ Modal Form Component
 function AddOrEditEmployeeType({ onSave, onCancel, editData, userRole, selectedCompanyId, selectedCompanyName }) {
+  const { t } = useTranslation();
   const [employeeTypeName, setEmployeeTypeName] = useState(editData?.employeeTypeName || "");
   const [employeeTypeAckr, setEmployeeTypeAckr] = useState(editData?.employeeTypeAckr || "");
   const [status, setStatus] = useState(editData?.status || "active");
@@ -41,24 +41,25 @@ function AddOrEditEmployeeType({ onSave, onCancel, editData, userRole, selectedC
         }
       } catch (err) {
         console.error("Error fetching companies:", err);
+        toast.error(t("errorFetchingData"));
       }
     };
     if (userRole === "Super Admin") fetchCompanies();
     else if (userRole === "Admin" && selectedCompanyId) {
       setCompanyId(selectedCompanyId);
-      setCompanyName(selectedCompanyName || "No company selected");
+      setCompanyName(selectedCompanyName || t("noCompanySelected"));
     }
     return () => { mounted = false; };
-  }, [userRole, selectedCompanyId, selectedCompanyName]);
+  }, [userRole, selectedCompanyId, selectedCompanyName, t]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!employeeTypeName || !employeeTypeAckr) return toast.error("Please fill Employee Type Name and Acronym");
-    if (userRole === "Super Admin" && !companyId) return toast.error("Please select a company");
+    if (!employeeTypeName || !employeeTypeAckr) return toast.error(t("pleaseFillAllFields"));
+    if (userRole === "Super Admin" && !companyId) return toast.error(t("selectCompany"));
 
     const employeeTypeData = {
       employeeTypeName,
-      employeeTypeAckr,
+      employeeTypeAckr: employeeTypeAckr.toUpperCase(),
       status,
       companyId,
       createdBy: editData ? editData.createdBy : userNumber,
@@ -82,31 +83,44 @@ function AddOrEditEmployeeType({ onSave, onCancel, editData, userRole, selectedC
           </div>
         </div>
         <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">
-          {editData ? "Edit Employee Type" : "Add New Employee Type"}
+          {editData ? t("editEmployeeType") : t("addNewEmployeeType")}
         </h2>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block font-medium text-gray-700 mb-2">Employee Type Name</label>
+            <label className="block font-medium text-gray-700 mb-2">{t("employeeTypeName")}</label>
             <input
               type="text"
               value={employeeTypeName}
               onChange={(e) => setEmployeeTypeName(e.target.value)}
-              placeholder="Enter employee type name"
+              placeholder={t("employeeTypeName")}
               className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              required
             />
           </div>
           <div>
-            <label className="block font-medium text-gray-700 mb-2">Acronym</label>
+            <label className="block font-medium text-gray-700 mb-2">{t("acronym")}</label>
             <input
               type="text"
               value={employeeTypeAckr}
               onChange={(e) => setEmployeeTypeAckr(e.target.value)}
-              placeholder="Enter acronym"
+              placeholder={t("acronym")}
               className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              required
             />
           </div>
           <div>
-            <label className="block font-medium text-gray-700 mb-2">Company</label>
+            <label className="block font-medium text-gray-700 mb-2">{t("status")}</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+            >
+              <option value="active">{t("active")}</option>
+              <option value="inactive">{t("inactive")}</option>
+            </select>
+          </div>
+          <div>
+            <label className="block font-medium text-gray-700 mb-2">{t("company")}</label>
             {userRole === "Super Admin" ? (
               <select
                 value={companyId}
@@ -115,10 +129,10 @@ function AddOrEditEmployeeType({ onSave, onCancel, editData, userRole, selectedC
                   const selected = companies.find((c) => c.companyId === e.target.value);
                   setCompanyName(selected ? selected.companyName : "");
                 }}
-                // disabled
+                disabled={editData}
                 className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               >
-                <option value="">Select Company</option>
+                <option value="">{t("selectCompany")}</option>
                 {companies
                   .filter(c => c.companyId !== 1)
                   .map(c => (
@@ -130,7 +144,7 @@ function AddOrEditEmployeeType({ onSave, onCancel, editData, userRole, selectedC
             ) : (
               <input
                 type="text"
-                value={companyName || "No company selected"}
+                value={companyName || t("noCompanySelected")}
                 disabled
                 className="w-full border border-gray-300 rounded-lg p-3 bg-gray-100 cursor-not-allowed"
               />
@@ -142,13 +156,13 @@ function AddOrEditEmployeeType({ onSave, onCancel, editData, userRole, selectedC
               onClick={onCancel}
               className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition"
             >
-              Cancel
+              {t("cancel")}
             </button>
             <button
               type="submit"
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow-md transition"
             >
-              {editData ? "Update Changes" : "Save"}
+              {editData ? t("update") : t("save")}
             </button>
           </div>
         </form>
@@ -157,8 +171,8 @@ function AddOrEditEmployeeType({ onSave, onCancel, editData, userRole, selectedC
   );
 }
 
-// ✅ Main Component
-function EmployeeTypeMaster({ selectedCompanyId, selectedCompanyName }) {
+function EmployeeTypeMaster({userRole, selectedCompanyId, selectedCompanyName }) {
+  const { t } = useTranslation();
   const [employeeTypes, setEmployeeTypes] = useState([]);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -174,10 +188,11 @@ function EmployeeTypeMaster({ selectedCompanyId, selectedCompanyName }) {
         setCompanies(res.data || []);
       } catch (err) {
         console.error("Error fetching companies:", err);
+        toast.error(t("errorFetchingData"));
       }
     };
     fetchCompanies();
-  }, []);
+  }, [t]);
 
   const fetchEmployeeTypes = async () => {
     try {
@@ -191,12 +206,13 @@ function EmployeeTypeMaster({ selectedCompanyId, selectedCompanyName }) {
       setEmployeeTypes(data);
     } catch (err) {
       console.error("Error fetching employee types:", err);
+      toast.error(t("errorFetchingData"));
     }
   };
 
   useEffect(() => {
     fetchEmployeeTypes();
-  }, [selectedCompanyId]);
+  }, [selectedCompanyId, t]);
 
   const getCompanyAcronym = (id) => {
     const company = companies.find(c => c.companyId === id);
@@ -213,13 +229,13 @@ function EmployeeTypeMaster({ selectedCompanyId, selectedCompanyName }) {
   const handleSave = async (employeeTypeData, employeeTypeId) => {
     try {
       if (employeeTypeId) {
-        const res = await axios.put(
+        await axios.put(
           `http://localhost:5000/api/employeeTypes/${employeeTypeId}`,
           { ...employeeTypeData, updatedBy: userNumber },
           { headers: { Authorization: `Bearer ${token}` } }
         );
       } else {
-        const res = await axios.post(
+        await axios.post(
           "http://localhost:5000/api/employeeTypes",
           { ...employeeTypeData, createdBy: userNumber },
           { headers: { Authorization: `Bearer ${token}` } }
@@ -230,17 +246,16 @@ function EmployeeTypeMaster({ selectedCompanyId, selectedCompanyName }) {
       setEditData(null);
       Swal.fire({
         icon: "success",
-        title: employeeTypeId ? "Updated" : "Added",
-        text: `Employee Type ${employeeTypeId ? "Updated" : "Added"} Successfully`
+        title: employeeTypeId ? t("employeeTypeUpdated") : t("employeeTypeAdded"),
+        text: employeeTypeId ? t("employeeTypeUpdated") : t("employeeTypeAdded"),
       });
     } catch (err) {
       Swal.fire({
         icon: "error",
-        title: `${employeeTypeId ? "Update" : "Add"} Failed`,
-        text:`${err.response.data==="Error updating employee type: Validation error" || err.response.data==="Error creating employee type: Validation error"?"Designation Already exists in the Company":err.response.data}`
+        title: employeeTypeId ? t("employeeTypeUpdateFailed") : t("employeeTypeAddFailed"),
+        text: err.response?.data || err.message,
       });
       setShowForm(false);
-      console.error("Error saving employee type:", err.response?.data);
     }
   };
 
@@ -259,13 +274,13 @@ function EmployeeTypeMaster({ selectedCompanyId, selectedCompanyName }) {
 
   const handleDelete = async (employeeTypeId) => {
     Swal.fire({
-      title: "Are you sure?",
-      text: "You won’t be able to revert this!",
+      title: t("areYouSure"),
+      text: t("cannotRevert"),
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#3085d6",
       cancelButtonColor: "#d33",
-      confirmButtonText: "Yes, delete it!"
+      confirmButtonText: t("confirmDelete")
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
@@ -274,11 +289,11 @@ function EmployeeTypeMaster({ selectedCompanyId, selectedCompanyName }) {
             headers: { Authorization: `Bearer ${token}` },
           });
 
-          Swal.fire("Deleted!", "Employee Type has been deleted.", "success");
+          Swal.fire(t("deleted"), t("employeeTypeDeleted"), "success");
           await fetchEmployeeTypes();
         } catch (err) {
           console.error("Error deleting employee type:", err);
-          Swal.fire("Error!", "Failed to delete employee type.", "error");
+          Swal.fire(t("error"), t("failedToDeleteEmployeeType"), "error");
         }
       }
     });
@@ -289,7 +304,7 @@ function EmployeeTypeMaster({ selectedCompanyId, selectedCompanyName }) {
       <div className="flex justify-between items-center mb-4">
         <input
           type="text"
-          placeholder="Search employee type..."
+          placeholder={t("searchEmployeeType")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="border border-gray-300 bg-white text-black rounded-lg px-4 py-2 w-1/3 outline-none"
@@ -298,17 +313,17 @@ function EmployeeTypeMaster({ selectedCompanyId, selectedCompanyName }) {
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md"
           onClick={() => { setShowForm(true); setEditData(null); }}
         >
-          <Plus size={18} /> Add Employee Type
+          <Plus size={18} /> {t("addNewEmployeeType")}
         </button>
       </div>
       <div className="overflow-y-auto border border-gray-200 rounded-lg shadow-sm flex-1" style={{ maxHeight: "320px" }}>
         <table className="w-full text-left text-sm">
           <thead className="sticky top-0">
             <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-              <th className="py-3 px-4">Name</th>
-              <th className="py-3 px-4">Acronym</th>
-              {!selectedCompanyId && <th className="py-3 px-4">Company</th>}
-              <th className="py-3 px-4">Actions</th>
+              <th className="py-3 px-4">{t("name")}</th>
+              <th className="py-3 px-4">{t("acronym")}</th>
+              {!selectedCompanyId && <th className="py-3 px-4">{t("company")}</th>}
+              <th className="py-3 px-4">{t("actions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -329,8 +344,8 @@ function EmployeeTypeMaster({ selectedCompanyId, selectedCompanyName }) {
             ))}
             {filteredData.length === 0 && (
               <tr>
-                <td colSpan="4" className="text-center py-4 text-gray-500">
-                  No employee types found
+                <td colSpan={selectedCompanyId ? 3 : 4} className="text-center py-4 text-gray-500">
+                  {t("noEmployeeTypesFound")}
                 </td>
               </tr>
             )}

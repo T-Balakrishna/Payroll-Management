@@ -3,8 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
-import Swal from "sweetalert2";
-import { toast } from "react-toastify";
+import { useTranslation } from "react-i18next";
 
 let token = sessionStorage.getItem("token");
 let decoded = token ? jwtDecode(token) : "";
@@ -14,6 +13,7 @@ let userNumber = decoded?.userNumber;
 const API_BASE_URL = "http://localhost:5000";
 
 const EmployeeProfilePage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
   const [showPassword, setShowPassword] = useState(false);
@@ -90,27 +90,25 @@ const EmployeeProfilePage = () => {
   const [photoPreview, setPhotoPreview] = useState("/placeholder-image.jpg");
 
   useEffect(() => {
-      token = sessionStorage.getItem("token");
-      decoded = token ? jwtDecode(token) : "";
-      userNumber = decoded?.userNumber;
-    }, []);
-    
+    token = sessionStorage.getItem("token");
+    decoded = token ? jwtDecode(token) : "";
+    userNumber = decoded?.userNumber;
+  }, []);
+
   useEffect(() => {
     if (formData.photo instanceof File) {
       const url = URL.createObjectURL(formData.photo);
       setPhotoPreview(url);
       return () => URL.revokeObjectURL(url);
     } else if (formData.photoPath) {
-      // Transform photoPath to match static route (/uploads/<filename>)
       let correctedPhotoPath = formData.photoPath;
       if (formData.photoPath.includes('/uploads/employees/')) {
         correctedPhotoPath = `/uploads/${formData.photoPath.split('/').pop()}`;
       } else if (!formData.photoPath.startsWith('/uploads/')) {
         correctedPhotoPath = `/uploads/${formData.photoPath}`;
       }
-      // Prefix with full backend URL to avoid 404 on frontend server
       const fullPhotoUrl = `${API_BASE_URL}${correctedPhotoPath}`;
-      console.log('Corrected full photo URL:', fullPhotoUrl); // Debug log
+      console.log('Corrected full photo URL:', fullPhotoUrl);
       setPhotoPreview(fullPhotoUrl);
     } else {
       setPhotoPreview("/placeholder-image.jpg");
@@ -124,11 +122,11 @@ const EmployeeProfilePage = () => {
         setDepartments(res.data);
       } catch (err) {
         console.error("Error fetching departments:", err);
-        setErrorMessage("Failed to load departments. Please try again.");
+        setErrorMessage(t("errorFetchingDepartments"));
       }
     };
     fetchDepartments();
-  }, []);
+  }, [t]);
 
   const getDepartmentName = (id) => {
     const dept = departments.find((d) => d.departmentId === id);
@@ -139,10 +137,10 @@ const EmployeeProfilePage = () => {
     const fetchUserMappedData = async () => {
       try {
         if (!userNumber) {
-          setErrorMessage("User number not found. Please log in again.");
+          setErrorMessage(t("userNumberNotFound"));
           return;
         }
-        console.log('Fetching user data for userNumber:', userNumber); // Debug log
+        console.log('Fetching user data for userNumber:', userNumber);
         const res = await axios.get(`${API_BASE_URL}/api/employees/fromUser/${userNumber}`);
         setFormData((prev) => ({
           ...prev,
@@ -153,26 +151,26 @@ const EmployeeProfilePage = () => {
         }));
       } catch (err) {
         console.error("Error fetching user-mapped employee data:", err);
-        setErrorMessage("Failed to load user data. Please try again.");
+        setErrorMessage(t("errorFetchingUserData"));
       }
     };
     fetchUserMappedData();
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     const fetchExistingEmployeeData = async () => {
       try {
-        const employeeNumber = userNumber
+        const employeeNumber = userNumber;
         if (!employeeNumber) {
-          setErrorMessage("User number not found. Please log in again.");
+          setErrorMessage(t("userNumberNotFound"));
           return;
         }
-        console.log('Fetching employee data for employeeNumber:', employeeNumber); // Debug log
+        console.log('Fetching employee data for employeeNumber:', employeeNumber);
         const res = await axios.get(
           `${API_BASE_URL}/api/employees/full/${employeeNumber}`
         );
         if (res.data) {
-          console.log('Fetched employee data:', res.data); // Debug log
+          console.log('Fetched employee data:', res.data);
           const filteredData = Object.fromEntries(
             Object.entries(res.data).filter(
               ([key, value]) =>
@@ -191,11 +189,11 @@ const EmployeeProfilePage = () => {
         }
       } catch (err) {
         console.error("Error fetching existing employee data:", err);
-        setErrorMessage(`Failed to load employee data: ${err.response?.data?.error || err.message}`);
+        setErrorMessage(t("errorFetchingEmployeeData", { error: err.response?.data?.error || err.message }));
       }
     };
     fetchExistingEmployeeData();
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     const fetchOptions = async () => {
@@ -253,18 +251,16 @@ const EmployeeProfilePage = () => {
         setOptions(newOptions);
 
         if (hasErrors) {
-          setErrorMessage(
-            "Some options, including employee data, failed to load. Some features may be limited. Please try again or contact support."
-          );
+          setErrorMessage(t("errorFetchingOptions"));
         }
       } catch (error) {
         console.error("Unexpected error in fetchOptions:", error);
-        setErrorMessage("Failed to load options. Please try again.");
+        setErrorMessage(t("errorFetchingOptions"));
       }
     };
 
     fetchOptions();
-  }, []);
+  }, [t]);
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
@@ -288,36 +284,35 @@ const EmployeeProfilePage = () => {
     if (activeTab !== "password") {
       for (let field of requiredFields) {
         if (!formData[field] || formData[field].toString().trim() === "") {
-          setErrorMessage(`${field} is required`);
+          setErrorMessage(t("requiredField", { field: t(field) }));
           return;
         }
       }
       if (activeTab === "basic" && !formData.photo && !formData.photoPath) {
-        setErrorMessage("Profile Photo is required");
+        setErrorMessage(t("profilePhotoRequired"));
         return;
       }
     }
 
     if (activeTab === "password") {
       if (!formData.password || !formData.confirmPassword) {
-        setErrorMessage("Both password and confirm password are required");
+        setErrorMessage(t("bothPasswordsRequired"));
         return;
       }
       if (formData.password !== formData.confirmPassword) {
-        setErrorMessage("Passwords do not match");
+        setErrorMessage(t("passwordsDoNotMatch"));
         return;
       }
     }
 
     try {
-      const employeeNumber = userNumber
+      const employeeNumber = userNumber;
       if (!employeeNumber) {
-        setErrorMessage("User number not found. Please log in again.");
+        setErrorMessage(t("userNumberNotFound"));
         return;
       }
-      console.log('Saving with employeeNumber:', employeeNumber); // Debug log
+      console.log('Saving with employeeNumber:', employeeNumber);
 
-      // Check if employee exists
       let employee;
       try {
         const response = await axios.get(`${API_BASE_URL}/api/employees/full/${employeeNumber}`);
@@ -329,7 +324,7 @@ const EmployeeProfilePage = () => {
             employeeNumber,
             firstName: formData.firstName || "Default",
             lastName: formData.lastName || "User",
-            departmentId: formData.departmentId || 1, // Ensure valid departmentId
+            departmentId: formData.departmentId || 1,
             employeeMail: formData.employeeMail || `${employeeNumber}@example.com`,
           });
           employee = createResponse.data;
@@ -344,7 +339,7 @@ const EmployeeProfilePage = () => {
 
       if (formData.photo instanceof File && activeTab === "basic") {
         if (!formData.employeeId && !employee.employeeId) {
-          setErrorMessage("Employee ID is missing for photo upload");
+          setErrorMessage(t("employeeIdMissing"));
           return;
         }
         const photoFormData = new FormData();
@@ -359,7 +354,7 @@ const EmployeeProfilePage = () => {
               },
             }
           );
-          console.log('Photo upload response (new photoPath):', photoResponse.data.employee.photo); // Debug log
+          console.log('Photo upload response (new photoPath):', photoResponse.data.employee.photo);
           setFormData((prev) => ({
             ...prev,
             photoPath: photoResponse.data.employee.photo,
@@ -367,7 +362,7 @@ const EmployeeProfilePage = () => {
           }));
         } catch (photoError) {
           console.error("Error uploading photo:", photoError);
-          setErrorMessage("Failed to upload photo. Please try again.");
+          setErrorMessage(t("errorUploadingPhoto"));
           return;
         }
       }
@@ -378,14 +373,14 @@ const EmployeeProfilePage = () => {
         )
       );
 
-      console.log('Sending PUT with data:', filteredData); // Debug log
+      console.log('Sending PUT with data:', filteredData);
       await axios.put(`${API_BASE_URL}/api/employees/${employeeNumber}`, filteredData, {
         headers: {
           "Content-Type": "application/json",
         },
       });
 
-      alert("Employee saved successfully!");
+      alert(t("employeeSavedSuccessfully"));
       setErrorMessage("");
 
       setFormData((prev) => ({
@@ -396,20 +391,20 @@ const EmployeeProfilePage = () => {
     } catch (error) {
       console.error("Error saving employee:", error);
       const errorMsg = error.response?.data?.error || error.message;
-      setErrorMessage(`Failed to save employee: ${errorMsg}`);
+      setErrorMessage(t("errorSavingEmployee", { error: errorMsg }));
     }
   };
 
   const tabs = [
-    { id: "overview", label: "Overview", icon: "👤" },
-    { id: "basic", label: "Basic", icon: "📝" },
-    { id: "address", label: "Address", icon: "📍" },
-    { id: "job", label: "Job", icon: "💼" },
-    { id: "attendance", label: "Attendance", icon: "⏰" },
-    { id: "personal", label: "Personal", icon: "🏠" },
-    { id: "salary", label: "Salary", icon: "💰" },
-    { id: "exit", label: "Exit", icon: "🚪" },
-    { id: "password", label: "Change Password", icon: "📋" },
+    { id: "overview", label: t("overview"), icon: t("overviewIcon") },
+    { id: "basic", label: t("basic"), icon: t("basicIcon") },
+    { id: "address", label: t("address"), icon: t("addressIcon") },
+    { id: "job", label: t("job"), icon: t("jobIcon") },
+    { id: "attendance", label: t("attendance"), icon: t("attendanceIcon") },
+    { id: "personal", label: t("personal"), icon: t("personalIcon") },
+    { id: "salary", label: t("salary"), icon: t("salaryIcon") },
+    { id: "exit", label: t("exit"), icon: t("exitIcon") },
+    { id: "password", label: t("changePassword"), icon: t("passwordIcon") },
   ];
 
   return (
@@ -417,7 +412,7 @@ const EmployeeProfilePage = () => {
       <div className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4 border-b border-slate-100">
-            <h1 className="text-2xl font-bold text-slate-800">Employee Profile</h1>
+            <h1 className="text-2xl font-bold text-slate-800">{t("employeeProfile")}</h1>
           </div>
           <div className="flex py-3">
             <div className="flex space-x-2 overflow-x-auto">
@@ -453,7 +448,7 @@ const EmployeeProfilePage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Employee Email
+                    {t("employeeEmail")}
                   </label>
                   <input
                     type="email"
@@ -465,7 +460,7 @@ const EmployeeProfilePage = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Employee Number
+                    {t("employeeNumber")}
                   </label>
                   <input
                     type="text"
@@ -477,7 +472,7 @@ const EmployeeProfilePage = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Department
+                    {t("department")}
                   </label>
                   <input
                     type="text"
@@ -489,7 +484,7 @@ const EmployeeProfilePage = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Date of Joining
+                    {t("dateOfJoining")}
                   </label>
                   <input
                     type="date"
@@ -506,7 +501,7 @@ const EmployeeProfilePage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Salutation <span className="text-red-500">*</span>
+                    {t("salutation")} <span className="text-red-500">*</span>
                   </label>
                   <select
                     name="salutation"
@@ -514,15 +509,15 @@ const EmployeeProfilePage = () => {
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors bg-white h-12"
                   >
-                    <option value="">Select Salutation</option>
-                    <option value="Mr">Mr</option>
-                    <option value="Ms">Ms</option>
-                    <option value="Mrs">Mrs</option>
+                    <option value="">{t("selectSalutation")}</option>
+                    <option value="Mr">{t("mr")}</option>
+                    <option value="Ms">{t("ms")}</option>
+                    <option value="Mrs">{t("mrs")}</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    First Name <span className="text-red-500">*</span>
+                    {t("firstName")} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -530,12 +525,12 @@ const EmployeeProfilePage = () => {
                     value={formData.firstName}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter first name"
+                    placeholder={t("enterFirstName")}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Middle Name
+                    {t("middleName")}
                   </label>
                   <input
                     type="text"
@@ -543,12 +538,12 @@ const EmployeeProfilePage = () => {
                     value={formData.middleName}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter middle name"
+                    placeholder={t("enterMiddleName")}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Last Name <span className="text-red-500">*</span>
+                    {t("lastName")} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -556,12 +551,12 @@ const EmployeeProfilePage = () => {
                     value={formData.lastName}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter last name"
+                    placeholder={t("enterLastName")}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Gender
+                    {t("gender")}
                   </label>
                   <select
                     name="gender"
@@ -569,15 +564,15 @@ const EmployeeProfilePage = () => {
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors bg-white h-12"
                   >
-                    <option value="">Select Gender</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
+                    <option value="">{t("selectGender")}</option>
+                    <option value="Male">{t("male")}</option>
+                    <option value="Female">{t("female")}</option>
+                    <option value="Other">{t("other")}</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Date of Birth <span className="text-red-500">*</span>
+                    {t("dateOfBirth")} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="date"
@@ -589,7 +584,7 @@ const EmployeeProfilePage = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Reference Person ID
+                    {t("referencePerson")}
                   </label>
                   <input
                     type="text"
@@ -597,12 +592,12 @@ const EmployeeProfilePage = () => {
                     value={formData.referencePerson}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter reference person ID"
+                    placeholder={t("enterReferencePerson")}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Personal Email
+                    {t("personalEmail")}
                   </label>
                   <input
                     type="email"
@@ -610,25 +605,24 @@ const EmployeeProfilePage = () => {
                     value={formData.personalMail}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter personal email"
+                    placeholder={t("enterPersonalEmail")}
                   />
                 </div>
                 <div className="col-span-1 md:col-span-2 flex justify-center mt-6">
                   <div className="w-full max-w-md">
                     <label className="block text-sm font-semibold text-slate-700 mb-2">
-                      Profile Photo <span className="text-red-500">*</span>
+                      {t("profilePhoto")} <span className="text-red-500">*</span>
                     </label>
                     <div className="mb-4">
                       <img
                         src={photoPreview}
-                        alt="Profile"
+                        alt={t("profilePhoto")}
                         className="w-32 h-32 object-cover rounded-full mx-auto border-2 border-slate-200"
                         onError={(e) => {
-                          console.error('Failed to load image from URL:', photoPreview); // Enhanced debug log
+                          console.error('Failed to load image from URL:', photoPreview);
                           e.currentTarget.src = "/placeholder-image.jpg";
-                          // Only set error if not already handling a fallback
-                          if (!errorMessage.includes("profile photo")) {
-                            setErrorMessage("Failed to load profile photo");
+                          if (!errorMessage.includes(t("profilePhoto"))) {
+                            setErrorMessage(t("failedToLoadProfilePhoto"));
                           }
                         }}
                       />
@@ -642,7 +636,7 @@ const EmployeeProfilePage = () => {
                     />
                     {formData.photo && (
                       <p className="text-sm text-slate-600 mt-2">
-                        Selected: {formData.photo.name}
+                        {t("selectedPhoto", { fileName: formData.photo.name })}
                       </p>
                     )}
                   </div>
@@ -654,7 +648,7 @@ const EmployeeProfilePage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Door Number
+                    {t("doorNumber")}
                   </label>
                   <input
                     type="text"
@@ -662,12 +656,12 @@ const EmployeeProfilePage = () => {
                     value={formData.doorNumber}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter door number"
+                    placeholder={t("enterDoorNumber")}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Street Name
+                    {t("streetName")}
                   </label>
                   <input
                     type="text"
@@ -675,12 +669,12 @@ const EmployeeProfilePage = () => {
                     value={formData.streetName}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter street name"
+                    placeholder={t("enterStreetName")}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    City
+                    {t("city")}
                   </label>
                   <input
                     type="text"
@@ -688,12 +682,12 @@ const EmployeeProfilePage = () => {
                     value={formData.city}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter city"
+                    placeholder={t("enterCity")}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Bus Route
+                    {t("busRoute")}
                   </label>
                   <select
                     name="busId"
@@ -701,7 +695,7 @@ const EmployeeProfilePage = () => {
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors bg-white h-12"
                   >
-                    <option value="">Select Bus</option>
+                    <option value="">{t("selectBus")}</option>
                     {options.buses.map((b) => (
                       <option key={b.busId} value={b.busId}>
                         {b.busNumber}
@@ -711,7 +705,7 @@ const EmployeeProfilePage = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    District
+                    {t("district")}
                   </label>
                   <input
                     type="text"
@@ -719,12 +713,12 @@ const EmployeeProfilePage = () => {
                     value={formData.district}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter district"
+                    placeholder={t("enterDistrict")}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    State
+                    {t("state")}
                   </label>
                   <input
                     type="text"
@@ -732,12 +726,12 @@ const EmployeeProfilePage = () => {
                     value={formData.state}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter state"
+                    placeholder={t("enterState")}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Pincode
+                    {t("pincode")}
                   </label>
                   <input
                     type="text"
@@ -745,7 +739,7 @@ const EmployeeProfilePage = () => {
                     value={formData.pincode}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter pincode"
+                    placeholder={t("enterPincode")}
                   />
                 </div>
               </div>
@@ -755,7 +749,7 @@ const EmployeeProfilePage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Designation
+                    {t("designation")}
                   </label>
                   <select
                     name="designationId"
@@ -763,7 +757,7 @@ const EmployeeProfilePage = () => {
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors bg-white h-12"
                   >
-                    <option value="">Select Designation</option>
+                    <option value="">{t("selectDesignation")}</option>
                     {options.designations.map((d) => (
                       <option key={d.designationId} value={d.designationId}>
                         {d.designationName}
@@ -773,7 +767,7 @@ const EmployeeProfilePage = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Grade
+                    {t("grade")}
                   </label>
                   <select
                     name="employeeGradeId"
@@ -781,7 +775,7 @@ const EmployeeProfilePage = () => {
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors bg-white h-12"
                   >
-                    <option value="">Select Grade</option>
+                    <option value="">{t("selectGrade")}</option>
                     {options.grades.map((g) => (
                       <option key={g.employeeGradeId} value={g.employeeGradeId}>
                         {g.employeeGradeName}
@@ -791,7 +785,7 @@ const EmployeeProfilePage = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Qualification
+                    {t("qualification")}
                   </label>
                   <input
                     type="text"
@@ -799,12 +793,12 @@ const EmployeeProfilePage = () => {
                     value={formData.qualification}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter qualification"
+                    placeholder={t("enterQualification")}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Experience
+                    {t("experience")}
                   </label>
                   <input
                     type="text"
@@ -812,12 +806,12 @@ const EmployeeProfilePage = () => {
                     value={formData.experience}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter experience details"
+                    placeholder={t("enterExperience")}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Reports To
+                    {t("reportsTo")}
                   </label>
                   <select
                     name="reportsTo"
@@ -825,7 +819,7 @@ const EmployeeProfilePage = () => {
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors bg-white h-12"
                   >
-                    <option value="">Select Manager</option>
+                    <option value="">{t("selectReportsTo")}</option>
                     {options.employees.length > 0 ? (
                       options.employees.map((emp) => (
                         <option key={emp.employeeId} value={emp.employeeId}>
@@ -834,14 +828,14 @@ const EmployeeProfilePage = () => {
                       ))
                     ) : (
                       <option value="" disabled>
-                        No managers available
+                        {t("noManagersAvailable")}
                       </option>
                     )}
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Employee Type
+                    {t("employeeType")}
                   </label>
                   <select
                     name="employeeTypeId"
@@ -849,7 +843,7 @@ const EmployeeProfilePage = () => {
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors bg-white h-12"
                   >
-                    <option value="">Select Employee Type</option>
+                    <option value="">{t("selectEmployeeType")}</option>
                     {options.types.map((t) => (
                       <option key={t.employeeTypeId} value={t.employeeTypeId}>
                         {t.employeeTypeName}
@@ -864,7 +858,7 @@ const EmployeeProfilePage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Holiday Plan
+                    {t("holidayPlan")}
                   </label>
                   <select
                     name="holidayPlanId"
@@ -872,7 +866,7 @@ const EmployeeProfilePage = () => {
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors bg-white h-12"
                   >
-                    <option value="">Select Holiday Plan</option>
+                    <option value="">{t("selectHolidayPlan")}</option>
                     {options.holidayPlans.map((h) => (
                       <option key={h.holidayPlanId} value={h.holidayPlanId}>
                         {h.holidayPlanName}
@@ -882,7 +876,7 @@ const EmployeeProfilePage = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Shift
+                    {t("shift")}
                   </label>
                   <select
                     name="shiftId"
@@ -891,7 +885,7 @@ const EmployeeProfilePage = () => {
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors bg-white h-12"
                     disabled
                   >
-                    <option value="">Select Shift</option>
+                    <option value="">{t("selectShift")}</option>
                     {options.shifts.map((s) => (
                       <option key={s.shiftId} value={s.shiftId}>
                         {s.shiftName}
@@ -906,7 +900,7 @@ const EmployeeProfilePage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Religion
+                    {t("religion")}
                   </label>
                   <select
                     name="religionId"
@@ -914,7 +908,7 @@ const EmployeeProfilePage = () => {
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors bg-white h-12"
                   >
-                    <option value="">Select Religion</option>
+                    <option value="">{t("selectReligion")}</option>
                     {options.religions.map((r) => (
                       <option key={r.religionId} value={r.religionId}>
                         {r.religionName}
@@ -924,7 +918,7 @@ const EmployeeProfilePage = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Caste
+                    {t("caste")}
                   </label>
                   <select
                     name="casteId"
@@ -932,7 +926,7 @@ const EmployeeProfilePage = () => {
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors bg-white h-12"
                   >
-                    <option value="">Select Caste</option>
+                    <option value="">{t("selectCaste")}</option>
                     {options.castes.map((c) => (
                       <option key={c.casteId} value={c.casteId}>
                         {c.casteName}
@@ -942,7 +936,7 @@ const EmployeeProfilePage = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Marital Status
+                    {t("maritalStatus")}
                   </label>
                   <input
                     type="text"
@@ -950,12 +944,12 @@ const EmployeeProfilePage = () => {
                     value={formData.maritalStatus}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter marital status"
+                    placeholder={t("enterMaritalStatus")}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Blood Group
+                    {t("bloodGroup")}
                   </label>
                   <input
                     type="text"
@@ -963,12 +957,12 @@ const EmployeeProfilePage = () => {
                     value={formData.bloodGroup}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter blood group"
+                    placeholder={t("enterBloodGroup")}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Aadhar Number
+                    {t("aadharNumber")}
                   </label>
                   <input
                     type="text"
@@ -976,12 +970,12 @@ const EmployeeProfilePage = () => {
                     value={formData.aadharNumber}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter Aadhar number"
+                    placeholder={t("enterAadharNumber")}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Passport Number
+                    {t("passportNumber")}
                   </label>
                   <input
                     type="text"
@@ -989,7 +983,7 @@ const EmployeeProfilePage = () => {
                     value={formData.passportNumber}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter passport number"
+                    placeholder={t("enterPassportNumber")}
                   />
                 </div>
               </div>
@@ -999,7 +993,7 @@ const EmployeeProfilePage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Cost to Company (CTC)
+                    {t("costToCompany")}
                   </label>
                   <input
                     type="number"
@@ -1007,12 +1001,12 @@ const EmployeeProfilePage = () => {
                     value={formData.costToCompany}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter CTC amount"
+                    placeholder={t("enterCtc")}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Salary ID
+                    {t("salaryId")}
                   </label>
                   <input
                     type="number"
@@ -1020,12 +1014,12 @@ const EmployeeProfilePage = () => {
                     value={formData.salaryId}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter salary ID"
+                    placeholder={t("enterSalaryId")}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Salary Currency
+                    {t("salaryCurrency")}
                   </label>
                   <input
                     type="text"
@@ -1033,12 +1027,12 @@ const EmployeeProfilePage = () => {
                     value={formData.salaryCurrency}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter currency (e.g., INR)"
+                    placeholder={t("enterSalaryCurrency")}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Salary Mode
+                    {t("salaryMode")}
                   </label>
                   <input
                     type="text"
@@ -1046,12 +1040,12 @@ const EmployeeProfilePage = () => {
                     value={formData.salaryMode}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter salary mode"
+                    placeholder={t("enterSalaryMode")}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Payroll Cost Center
+                    {t("payrollCostCenter")}
                   </label>
                   <input
                     type="text"
@@ -1059,12 +1053,12 @@ const EmployeeProfilePage = () => {
                     value={formData.payrollCostCenter}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter cost center"
+                    placeholder={t("enterPayrollCostCenter")}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Account Number
+                    {t("accountNumber")}
                   </label>
                   <input
                     type="text"
@@ -1072,12 +1066,12 @@ const EmployeeProfilePage = () => {
                     value={formData.acctNumber}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter account number"
+                    placeholder={t("enterAccountNumber")}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    PAN Number
+                    {t("panNumber")}
                   </label>
                   <input
                     type="text"
@@ -1085,12 +1079,12 @@ const EmployeeProfilePage = () => {
                     value={formData.panNumber}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter PAN number"
+                    placeholder={t("enterPanNumber")}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    PF Number
+                    {t("pfNumber")}
                   </label>
                   <input
                     type="text"
@@ -1098,12 +1092,12 @@ const EmployeeProfilePage = () => {
                     value={formData.pfNumber}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter PF number"
+                    placeholder={t("enterPfNumber")}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    PF Nominee
+                    {t("pfNominee")}
                   </label>
                   <input
                     type="text"
@@ -1111,12 +1105,12 @@ const EmployeeProfilePage = () => {
                     value={formData.pfNominee}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter PF nominee name"
+                    placeholder={t("enterPfNominee")}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    ESI Number
+                    {t("esiNumber")}
                   </label>
                   <input
                     type="text"
@@ -1124,12 +1118,12 @@ const EmployeeProfilePage = () => {
                     value={formData.esiNumber}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter ESI number"
+                    placeholder={t("enterEsiNumber")}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    UAN Number
+                    {t("uanNumber")}
                   </label>
                   <input
                     type="text"
@@ -1137,7 +1131,7 @@ const EmployeeProfilePage = () => {
                     value={formData.uanNumber}
                     onChange={handleChange}
                     className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors h-12"
-                    placeholder="Enter UAN number"
+                    placeholder={t("enterUanNumber")}
                   />
                 </div>
               </div>
@@ -1147,7 +1141,7 @@ const EmployeeProfilePage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Resignation Letter Date
+                    {t("resignationLetterDate")}
                   </label>
                   <input
                     type="date"
@@ -1159,7 +1153,7 @@ const EmployeeProfilePage = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Relieving Date
+                    {t("relievingDate")}
                   </label>
                   <input
                     type="date"
@@ -1171,7 +1165,7 @@ const EmployeeProfilePage = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Exit Interview Held On
+                    {t("exitInterviewHeldOn")}
                   </label>
                   <input
                     type="date"
@@ -1188,7 +1182,7 @@ const EmployeeProfilePage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
                 <div className="relative">
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    New Password
+                    {t("newPassword")}
                   </label>
                   <input
                     type={showPassword ? "text" : "password"}
@@ -1198,7 +1192,7 @@ const EmployeeProfilePage = () => {
                     className={`w-full p-3 border-2 rounded-lg focus:outline-none transition-colors h-12 pr-10 ${
                       passwordMismatch ? "border-red-500 focus:border-red-500" : "border-slate-200 focus:border-blue-500"
                     }`}
-                    placeholder="Enter new password"
+                    placeholder={t("enterNewPassword")}
                   />
                   <button
                     type="button"
@@ -1210,7 +1204,7 @@ const EmployeeProfilePage = () => {
                 </div>
                 <div className="relative">
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Confirm Password
+                    {t("confirmPassword")}
                   </label>
                   <input
                     type={showConfirmPassword ? "text" : "password"}
@@ -1220,7 +1214,7 @@ const EmployeeProfilePage = () => {
                     className={`w-full p-3 border-2 rounded-lg focus:outline-none transition-colors h-12 pr-10 ${
                       passwordMismatch ? "border-red-500 focus:border-red-500" : "border-slate-200 focus:border-blue-500"
                     }`}
-                    placeholder="Confirm new password"
+                    placeholder={t("enterConfirmPassword")}
                   />
                   <button
                     type="button"
@@ -1230,7 +1224,7 @@ const EmployeeProfilePage = () => {
                     {showConfirmPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
                   </button>
                   {passwordMismatch && (
-                    <p className="text-red-500 text-sm mt-1">Passwords do not match.</p>
+                    <p className="text-red-500 text-sm mt-1">{t("passwordsDoNotMatch")}</p>
                   )}
                 </div>
               </div>
@@ -1244,7 +1238,7 @@ const EmployeeProfilePage = () => {
                 className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
               >
                 <span>💾</span>
-                Save Profile
+                {t("saveProfile")}
               </button>
             </div>
           </div>

@@ -2,16 +2,16 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { GraduationCap, Pencil, Trash, Plus, X } from "lucide-react";
 import { jwtDecode } from "jwt-decode";
-import Swal from 'sweetalert2'
+import Swal from 'sweetalert2';
 import { toast } from "react-toastify";
+import { useTranslation } from "react-i18next";
 
 let token = sessionStorage.getItem("token");
 let decoded = token ? jwtDecode(token) : "";
 let userNumber = decoded?.userNumber || "system";
-let userRole = decoded.role;
 
-// ✅ Modal Form Component
 function AddOrEdit({ onSave, onCancel, editData, userRole, selectedCompanyId, selectedCompanyName }) {
+  const { t } = useTranslation();
   const [designationName, setDesignationName] = useState(editData?.designationName || "");
   const [designationAckr, setDesignationAckr] = useState(editData?.designationAckr || "");
   const [status, setStatus] = useState(editData?.status || "active");
@@ -41,20 +41,21 @@ function AddOrEdit({ onSave, onCancel, editData, userRole, selectedCompanyId, se
         }
       } catch (err) {
         console.error("Error fetching companies:", err);
+        toast.error(t("errorFetchingData"));
       }
     };
     if (userRole === "Super Admin") fetchCompanies();
     else if (userRole === "Admin" && selectedCompanyId) {
       setCompanyId(selectedCompanyId);
-      setCompanyName(selectedCompanyName || "No company selected");
+      setCompanyName(selectedCompanyName || t("noCompanySelected"));
     }
     return () => { mounted = false; };
-  }, [userRole, selectedCompanyId, selectedCompanyName]);
+  }, [userRole, selectedCompanyId, selectedCompanyName, t]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!designationName || !designationAckr) return     toast.error("Please fill Designation Name and Acronym");
-    if (userRole === "Super Admin" && !companyId) return toast.error("Please select a company");
+    if (!designationName || !designationAckr) return toast.error(t("pleaseFillAllFields"));
+    if (userRole === "Super Admin" && !companyId) return toast.error(t("selectCompany"));
 
     const designationData = {
       designationName,
@@ -82,31 +83,31 @@ function AddOrEdit({ onSave, onCancel, editData, userRole, selectedCompanyId, se
           </div>
         </div>
         <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">
-          {editData ? "Edit Designation" : "Add New Designation"}
+          {editData ? t("editDesignation") : t("addNewDesignation")}
         </h2>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block font-medium text-gray-700 mb-2">Designation Name</label>
+            <label className="block font-medium text-gray-700 mb-2">{t("designationName")}</label>
             <input
               type="text"
               value={designationName}
               onChange={(e) => setDesignationName(e.target.value)}
-              placeholder="Enter designation name"
+              placeholder={t("designationName")}
               className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
             />
           </div>
           <div>
-            <label className="block font-medium text-gray-700 mb-2">Acronym</label>
+            <label className="block font-medium text-gray-700 mb-2">{t("acronym")}</label>
             <input
               type="text"
               value={designationAckr}
               onChange={(e) => setDesignationAckr(e.target.value)}
-              placeholder="Enter short name"
+              placeholder={t("acronym")}
               className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
             />
           </div>
           <div>
-            <label className="block font-medium text-gray-700 mb-2">Company</label>
+            <label className="block font-medium text-gray-700 mb-2">{t("company")}</label>
             {userRole === "Super Admin" ? (
               <select
                 value={companyId}
@@ -118,7 +119,7 @@ function AddOrEdit({ onSave, onCancel, editData, userRole, selectedCompanyId, se
                 disabled={editData}
                 className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               >
-                <option value="">Select Company</option>
+                <option value="">{t("selectCompany")}</option>
                 {companies
                   .filter(c => c.companyId !== 1)
                   .map(c => (
@@ -130,7 +131,7 @@ function AddOrEdit({ onSave, onCancel, editData, userRole, selectedCompanyId, se
             ) : (
               <input
                 type="text"
-                value={companyName || "No company selected"}
+                value={companyName || t("noCompanySelected")}
                 disabled
                 className="w-full border border-gray-300 rounded-lg p-3 bg-gray-100 cursor-not-allowed"
               />
@@ -142,13 +143,13 @@ function AddOrEdit({ onSave, onCancel, editData, userRole, selectedCompanyId, se
               onClick={onCancel}
               className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition"
             >
-              Cancel
+              {t("cancel")}
             </button>
             <button
               type="submit"
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow-md transition"
             >
-              {editData ? "Update Changes" : "Save"}
+              {editData ? t("update") : t("save")}
             </button>
           </div>
         </form>
@@ -157,8 +158,8 @@ function AddOrEdit({ onSave, onCancel, editData, userRole, selectedCompanyId, se
   );
 }
 
-// ✅ Main Component
-function DesignationMaster({selectedCompanyId, selectedCompanyName }) {
+function DesignationMaster({userRole, selectedCompanyId, selectedCompanyName }) {
+  const { t } = useTranslation();
   const [designations, setDesignations] = useState([]);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -174,11 +175,11 @@ function DesignationMaster({selectedCompanyId, selectedCompanyName }) {
         setCompanies(res.data || []);
       } catch (err) {
         console.error("Error fetching companies:", err);
+        toast.error(t("errorFetchingData"));
       }
     };
     fetchCompanies();
-    // fetchDesignations();
-  }, []);
+  }, [t]);
 
   const fetchDesignations = async () => {
     try {
@@ -192,16 +193,13 @@ function DesignationMaster({selectedCompanyId, selectedCompanyName }) {
       setDesignations(data);
     } catch (err) {
       console.error("Error fetching designations:", err);
+      toast.error(t("errorFetchingData"));
     }
   };
 
-  // useEffect(() => {
-  //   if (selectedCompanyId || userRole === "Admin") fetchDesignations();
-  // }, [selectedCompanyId, userRole]);
-
-    useEffect(() => {
-      fetchDesignations();
-    },[selectedCompanyId]);
+  useEffect(() => {
+    fetchDesignations();
+  },[selectedCompanyId, t]);
 
   const getCompanyAcronym = (id) => {
     const company = companies.find(c => c.companyId === id);
@@ -218,13 +216,13 @@ function DesignationMaster({selectedCompanyId, selectedCompanyName }) {
   const handleSave = async (designationData, designationId) => {
     try {
       if (designationId) {
-        const res = await axios.put(
+        await axios.put(
           `http://localhost:5000/api/designations/${designationId}`,
           { ...designationData, updatedBy: userNumber },
           { headers: { Authorization: `Bearer ${token}` } }
         );
       } else {
-        const res =await axios.post(
+        await axios.post(
           "http://localhost:5000/api/designations",
           { ...designationData, createdBy: userNumber },
           { headers: { Authorization: `Bearer ${token}` } }
@@ -234,70 +232,53 @@ function DesignationMaster({selectedCompanyId, selectedCompanyName }) {
       setShowForm(false);
       setEditData(null);
       Swal.fire({
-            icon: "success",
-            title: designationId?"Updated":"Added",
-            text: `Designation ${designationId?"Updated":"Added"} Successfully`
-          });
+        icon: "success",
+        title: designationId ? t("designationUpdated") : t("designationAdded"),
+        text: designationId ? t("designationUpdated") : t("designationAdded")
+      });
     } catch (err) {
       Swal.fire({
-            icon: "error",
-            title: `${designationId?"Update":"Add"} Failed`,
-            // text: `Designation ${designationId?"Updated":"Added"} Failed`
-            text:`${err.response.data==="Error updating designation: Validation error" || err.response.data==="Error creating designation: Validation error"?"Designation Already exists in the Company":err.response.data}`
-          });
+        icon: "error",
+        title: designationId ? t("designationUpdateFailed") : t("designationAddFailed"),
+        text: err.response?.data || err.message,
+      });
       setShowForm(false);
-      console.error("Error saving designation:", err.response.data);
     }
   };
 
-  const handleEdit = async (designation) => {
-    try {
-      const res = await axios.get("http://localhost:5000/api/companies", { headers: { Authorization: `Bearer ${token}` } });
-      const company = res.data.find((c) => c.companyId === designation.companyId);
-      setEditData({ ...designation, companyName: company ? company.companyName : selectedCompanyName || "" });
-      setShowForm(true);
-    } catch (err) {
-      console.error("Error fetching company for edit:", err);
-      setEditData({ ...designation, companyName: selectedCompanyName || "" });
-      setShowForm(true);
-    }
-  };
+  const handleDelete = async (designationId) => {
+    Swal.fire({
+      title: t("areYouSure"),
+      text: t("cannotRevert"),
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: t("confirmDelete")
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          await axios.delete(`http://localhost:5000/api/designations/${designationId}`, {
+            data: { updatedBy: userNumber },
+            headers: { Authorization: `Bearer ${token}` },
+          });
 
-
-const handleDelete = async (designationId) => {
-  Swal.fire({
-    title: "Are you sure?",
-    text: "You won’t be able to revert this!",
-    icon: "warning",
-    showCancelButton: true,
-    confirmButtonColor: "#3085d6",
-    cancelButtonColor: "#d33",
-    confirmButtonText: "Yes, delete it!"
-  }).then(async (result) => {
-    if (result.isConfirmed) {
-      try {
-        await axios.delete(`http://localhost:5000/api/designations/${designationId}`, {
-          data: { updatedBy: userNumber },
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        Swal.fire("Deleted!", "Designation has been deleted.", "success");
-        await fetchDesignations();
-      } catch (err) {
-        console.error("Error deleting designation:", err);
-        Swal.fire("Error!", "Failed to delete designation.", "error");
+          Swal.fire(t("deleted"), t("designationDeleted"), "success");
+          await fetchDesignations();
+        } catch (err) {
+          console.error("Error deleting designation:", err);
+          Swal.fire(t("error"), t("failedToDeleteDesignation"), "error");
+        }
       }
-    }
-  });
-};
-
+    });
+  };
 
   return (
     <div className="h-full flex flex-col px-6">
       <div className="flex justify-between items-center mb-4">
         <input
           type="text"
-          placeholder="Search designation..."
+          placeholder={t("searchDesignation")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="border border-gray-300 bg-white text-black rounded-lg px-4 py-2 w-1/3 outline-none"
@@ -306,17 +287,17 @@ const handleDelete = async (designationId) => {
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md"
           onClick={() => { setShowForm(true); setEditData(null); }}
         >
-          <Plus size={18} /> Add Designation
+          <Plus size={18} /> {t("addNewDesignation")}
         </button>
       </div>
       <div className="overflow-y-auto border border-gray-200 rounded-lg shadow-sm flex-1" style={{ maxHeight: "320px" }}>
         <table className="w-full text-left text-sm">
           <thead className="sticky top-0">
             <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-              <th className="py-3 px-4">Name</th>
-              <th className="py-3 px-4">Acronym</th>
-              {!selectedCompanyId && <th className="py-3 px-4">Company</th>}
-              <th className="py-3 px-4">Actions</th>
+              <th className="py-3 px-4">{t("name")}</th>
+              <th className="py-3 px-4">{t("acronym")}</th>
+              {!selectedCompanyId && <th className="py-3 px-4">{t("company")}</th>}
+              <th className="py-3 px-4">{t("actions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -338,7 +319,7 @@ const handleDelete = async (designationId) => {
             {filteredData.length === 0 && (
               <tr>
                 <td colSpan="4" className="text-center py-4 text-gray-500">
-                  No designations found
+                  {t("noDesignationsFound")}
                 </td>
               </tr>
             )}

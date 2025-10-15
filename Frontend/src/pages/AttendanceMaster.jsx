@@ -15,11 +15,6 @@ const AttendanceMaster = () => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    token = sessionStorage.getItem("token");
-    decoded = token ? jwtDecode(token) : "";
-    userNumber = decoded?.userNumber;
-  }, []);
 
   const fetchAttendances = async () => {
     setLoading(true);

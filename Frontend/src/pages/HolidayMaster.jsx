@@ -9,9 +9,8 @@ import { toast } from "react-toastify";
 let token = sessionStorage.getItem("token");
 let decoded   = (token)?jwtDecode(token):"";
 let userNumber = decoded.userNumber || "";
-let userRole = decoded.role || "";
 
-function HolidayPlans({ selectedCompanyId, selectedCompanyName }) {
+function HolidayPlans({ userRole, selectedCompanyId, selectedCompanyName }) {
   const [holidayPlans, setHolidayPlans] = useState([]);
   const [holidays, setHolidays] = useState([]);
   const [selectedPlan, setSelectedPlan] = useState(null);
