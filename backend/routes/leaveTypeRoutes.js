@@ -10,4 +10,4 @@ router.post('/', leaveTypeController.createLeaveType);
 router.put('/:id', leaveTypeController.updateLeaveType);
 router.delete('/:id', leaveTypeController.deleteLeaveType);
 
-module.exports = router;
+module.exports = router; 
