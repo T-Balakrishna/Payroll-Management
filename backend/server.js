@@ -21,7 +21,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ────────────────────────────────────────────────
-// Routes
+// Basic health & root endpoints
 // ────────────────────────────────────────────────
 app.get('/', (req, res) => {
   res.json({ message: 'Payroll Management API is running!' });
@@ -34,175 +34,122 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Employee routes
+// ────────────────────────────────────────────────
+// All routes — each mounted separately
+// ────────────────────────────────────────────────
+
+// Core
+const companyRoutes = require('./routes/companyRoutes');
+app.use('/api/companies', companyRoutes);
+
+const userRoutes = require('./routes/userRoutes');
+app.use('/api/users', userRoutes);
+
+// Organization
+const departmentRoutes = require('./routes/departmentRoutes');
+app.use('/api/departments', departmentRoutes);
+
+const designationRoutes = require('./routes/designationRoutes');
+app.use('/api/designations', designationRoutes);
+
+const employeeTypeRoutes = require('./routes/employeeTypeRoutes');
+app.use('/api/employeeTypes', employeeTypeRoutes);
+
+const employeeGradeRoutes = require('./routes/employeeGradeRoutes');
+app.use('/api/employeeGrades', employeeGradeRoutes);
+
+// Employee & related
 const employeeRoutes = require('./routes/employeeRoutes');
 app.use('/api/employees', employeeRoutes);
 
+const busRoutes = require('./routes/busRoutes');
+app.use('/api/buses', busRoutes);
+
+// Holiday
+const holidayPlanRoutes = require('./routes/holidayPlanRoutes');
+app.use('/api/holidayPlans', holidayPlanRoutes);
+
+const holidayRoutes = require('./routes/holidayRoutes');
+app.use('/api/holidays', holidayRoutes);
+
+// Leave
+const leaveTypeRoutes = require('./routes/leaveTypeRoutes');
+app.use('/api/leaveTypes', leaveTypeRoutes);
+
+const leavePolicyRoutes = require('./routes/leavePolicyRoutes');
+app.use('/api/leavePolicies', leavePolicyRoutes);
+
+const leaveAllocationRoutes = require('./routes/leaveAllocationRoutes');
+app.use('/api/leaveAllocations', leaveAllocationRoutes);
+
+const leaveRequestRoutes = require('./routes/leaveRequestRoutes');
+app.use('/api/leaveRequests', leaveRequestRoutes);
+
+const leaveApprovalRoutes = require('./routes/leaveApprovalRoutes');
+app.use('/api/leaveApprovals', leaveApprovalRoutes);
+
+const leaveRequestHistoryRoutes = require('./routes/leaveRequestHistoryRoutes');
+app.use('/api/leaveRequestHistories', leaveRequestHistoryRoutes);
+
+// Shift & Attendance
+const shiftTypeRoutes = require('./routes/shiftTypeRoutes');
+app.use('/api/shiftTypes', shiftTypeRoutes);
+
+const shiftAssignmentRoutes = require('./routes/shiftAssignmentRoutes');
+app.use('/api/shiftAssignments', shiftAssignmentRoutes);
+
+const attendanceRoutes = require('./routes/attendanceRoutes');
+app.use('/api/attendances', attendanceRoutes);
+
+const biometricDeviceRoutes = require('./routes/biometricDeviceRoutes');
+app.use('/api/biometricDevices', biometricDeviceRoutes);
+
+const biometricPunchRoutes = require('./routes/biometricPunchRoutes');
+app.use('/api/biometricPunches', biometricPunchRoutes);
+
+// Salary & Payroll
+const salaryComponentRoutes = require('./routes/salaryComponentRoutes');
+app.use('/api/salaryComponents', salaryComponentRoutes);
+
+const employeeSalaryComponentRoutes = require('./routes/employeeSalaryComponentRoutes');
+app.use('/api/employeeSalaryComponents', employeeSalaryComponentRoutes);
+
+const employeeSalaryMasterRoutes = require('./routes/employeeSalaryMasterRoutes');
+app.use('/api/employeeSalaryMasters', employeeSalaryMasterRoutes);
+
+const salaryGenerationRoutes = require('./routes/salaryGenerationRoutes');
+app.use('/api/salaryGenerations', salaryGenerationRoutes);
+
+const salaryGenerationDetailRoutes = require('./routes/salaryGenerationDetailRoutes');
+app.use('/api/salaryGenerationDetails', salaryGenerationDetailRoutes);
+
+const salaryRevisionHistoryRoutes = require('./routes/salaryRevisionHistoryRoutes');
+app.use('/api/salaryRevisionHistories', salaryRevisionHistoryRoutes);
+
+// Other
+const employeeLoanRoutes = require('./routes/employeeLoanRoutes');
+app.use('/api/employeeLoans', employeeLoanRoutes);
+
+const formulaRoutes = require('./routes/formulaRoutes');
+app.use('/api/formulas', formulaRoutes);
+
+const permissionRoutes = require('./routes/permissionRoutes');
+app.use('/api/permissions', permissionRoutes);
+
 // ────────────────────────────────────────────────
-// Models to sync — UNCOMMENT ONE LINE AT A TIME
-// Keep the order roughly correct (parents before children)
+// Start Server
 // ────────────────────────────────────────────────
-// const modelsToSync = [
-//   // db.Company,
-//   // db.Attendance,
-//   // db.BiometricDevice,
-//   // db.BiometricPunch,
-//   // db.Bus,
-//   // db.User,
-//   // db.Department,
-//   // db.Designation,
-//   // db.Employee,
-//   // db.EmployeeGrade,
-//   // db.EmployeeLoan,
-//   // db.EmployeeSalaryComponent,
-//   // db.EmployeeSalaryMaster,
-//   // db.EmployeeType,
-//   // db.Formula,                 
-//   // db.googleAuth,              
-//   // db.Holiday,           
-//   // db.HolidayPlan,       
-//   // db.LeaveAllocation,
-//   // db.LeaveApproval,
-//   // db.LeavePolicy,
-//   // db.LeaveType,
-//   // db.LeaveRequestHistory,
-//   // db.LeaveType,
-//   // db.SalaryComponent,
-//   // db.SalaryGeneration,
-//   // db.SalaryGenerationDetail,
-//   // db.SalaryRevisionHistory,
-//   // db.ShiftAssignment,
-//   // db.ShiftType,
-// ];
-
-const modelsToSync = [
-  // ────────────────────────────────────────────────
-  //  1. Core / independent / almost no dependencies
-  // ────────────────────────────────────────────────
-  db.Company,
-  db.User,
-  db.Department,
-  db.Designation,
-  db.EmployeeType,
-  db.EmployeeGrade,
-  db.HolidayPlan,
-  db.Holiday,
-  db.LeaveType,
-  db.ShiftType,
-
-  // ────────────────────────────────────────────────
-  //  2. Main entities that many tables reference
-  // ────────────────────────────────────────────────
-  db.Employee, 
-
-  // ────────────────────────────────────────────────
-  //  3. Structures & masters (often referenced by generations / history)
-  // ────────────────────────────────────────────────
-  db.SalaryComponent,
-  db.EmployeeSalaryComponent,
-  db.EmployeeSalaryMaster, 
-  db.Formula,
-
-  // ────────────────────────────────────────────────
-  //  4. Leave related – depends on Employee + LeaveType + Policy
-  // ────────────────────────────────────────────────
-  db.LeavePolicy,
-  db.LeaveAllocation,
-  db.LeaveRequest,
-  db.LeaveApproval,
-  // db.LeaveRequestHistory,     // ← usually depends on LeaveRequest
-
-  // ────────────────────────────────────────────────
-  //  5. Shift & Attendance – depends on Employee + ShiftType
-  // ────────────────────────────────────────────────
-  db.ShiftAssignment,
-  db.Attendance,
-  db.BiometricDevice,
-  db.BiometricPunch,
-
-  // ────────────────────────────────────────────────
-  //  6. Payroll runs & history – depend on Employee + Salary masters
-  // ────────────────────────────────────────────────
-  db.SalaryGeneration,
-  db.SalaryGenerationDetail,
-  db.SalaryRevisionHistory,
-
-  // ────────────────────────────────────────────────
-  //  7. Other / financial / auxiliary
-  // ────────────────────────────────────────────────
-  db.EmployeeLoan,
-  db.Bus,
-
-  // ────────────────────────────────────────────────
-  //  8. Least dependent / utility
-  // ────────────────────────────────────────────────
-  db.googleAuth,
-];
-// ────────────────────────────────────────────────
-// Database + Server startup
-// ────────────────────────────────────────────────
-async function startServer() {
-  try {
-    await db.sequelize.authenticate();
+db.sequelize.authenticate()
+  .then(() => {
     console.log('Database connection established successfully.');
-
-    if (process.env.NODE_ENV === 'development' && process.env.DB_SYNC === 'true') {
-      console.log('');
-      console.log('╔════════════════════════════════════════════╗');
-      console.log('║     DEVELOPMENT MODE - MODEL SYNC          ║');
-      console.log('║   Uncomment one model at a time above      ║');
-      console.log('╚════════════════════════════════════════════╝');
-      console.log('');
-
-      await db.sequelize.query('SET FOREIGN_KEY_CHECKS = 0;');
-
-      console.log(`Models selected for sync: ${modelsToSync.length}`);
-
-      let success = 0;
-      let failed = 0;
-
-      for (const Model of modelsToSync) {
-        if (!Model) {
-          console.warn('→ Skipping undefined model');
-          continue;
-        }
-
-        const name = Model.name || '(unnamed)';
-        const table = Model.tableName || '(unknown table)';
-
-        try {
-          await Model.sync({ force: true });
-          console.log(`✔  ${name.padEnd(22)} → ${table}`);
-          success++;
-        } catch (err) {
-          console.log(`✘  ${name.padEnd(22)} → FAILED`);
-          console.log(`   Table: ${table}`);
-          console.log(`   → ${err.message}`);
-          failed++;
-          // You can decide whether to continue or stop:
-          // if you want to stop → uncomment next line
-          // throw err;
-        }
-      }
-
-      await db.sequelize.query('SET FOREIGN_KEY_CHECKS = 1;');
-
-      console.log('');
-      console.log(`Sync summary:  ${success} succeeded  /  ${failed} failed`);
-      console.log('');
-    }
-
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
       console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     });
-
-  } catch (error) {
-    console.error('Server startup failed:', error);
+  })
+  .catch(err => {
+    console.error('Unable to connect to the database:', err);
     process.exit(1);
-  }
-}
-
-startServer();
+  });
 
 module.exports = app;
