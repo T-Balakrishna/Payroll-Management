@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const salaryGenerationController = require('../controllers/salaryGenerationController');
 
-// Routes for salaryGenerations
+// Routes for salary generations
 // Frontend should call: /api/salaryGenerations
 router.get('/', salaryGenerationController.getAllSalaryGenerations);
 router.get('/:id', salaryGenerationController.getSalaryGenerationById);

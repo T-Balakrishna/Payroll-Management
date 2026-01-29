@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const salaryRevisionHistoryController = require('../controllers/salaryRevisionHistoryController');
 
-// Routes for salaryRevisionHistories
+// Routes for salary revision histories
 // Frontend should call: /api/salaryRevisionHistories
 router.get('/', salaryRevisionHistoryController.getAllSalaryRevisionHistories);
 router.get('/:id', salaryRevisionHistoryController.getSalaryRevisionHistoryById);

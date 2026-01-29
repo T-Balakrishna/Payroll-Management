@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const salaryComponentController = require('../controllers/salaryComponentController');
 
-// Routes for salaryComponents
+// Routes for salary components
 // Frontend should call: /api/salaryComponents
 router.get('/', salaryComponentController.getAllSalaryComponents);
 router.get('/:id', salaryComponentController.getSalaryComponentById);
