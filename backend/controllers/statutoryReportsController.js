@@ -43,7 +43,7 @@ exports.getPFReport = async (req, res) => {
           model: Employee,
           as: 'employee',
           where: employeeWhere,
-          attributes: ['employeeId', 'employeeCode', 'firstName', 'lastName', 'uanNumber', 'dateOfJoining'],
+          attributes: ['employeeId', 'employeeNumber', 'firstName', 'lastName', 'uanNumber', 'dateOfJoining'],
           include: [
             {
               model: Department,
@@ -58,7 +58,7 @@ exports.getPFReport = async (req, res) => {
           attributes: ['companyName', 'pfNumber']
         }
       ],
-      order: [[{ model: Employee, as: 'employee' }, 'employeeCode', 'ASC']]
+      order: [[{ model: Employee, as: 'employee' }, 'employeeNumber', 'ASC']]
     });
 
     // Calculate PF components
@@ -144,7 +144,7 @@ exports.getESIReport = async (req, res) => {
           model: Employee,
           as: 'employee',
           where: employeeWhere,
-          attributes: ['employeeId', 'employeeCode', 'firstName', 'lastName', 'esiNumber', 'dateOfJoining'],
+          attributes: ['employeeId', 'employeeNumber', 'firstName', 'lastName', 'esiNumber', 'dateOfJoining'],
           include: [
             {
               model: Department,
@@ -159,7 +159,7 @@ exports.getESIReport = async (req, res) => {
           attributes: ['companyName', 'esiNumber']
         }
       ],
-      order: [[{ model: Employee, as: 'employee' }, 'employeeCode', 'ASC']]
+      order: [[{ model: Employee, as: 'employee' }, 'employeeNumber', 'ASC']]
     });
 
     // Calculate ESI components
@@ -260,13 +260,13 @@ exports.getTaxReport = async (req, res) => {
           model: Employee,
           as: 'employee',
           where: employeeWhere,
-          attributes: ['employeeId', 'employeeCode', 'firstName', 'lastName', 'panNumber', 'dateOfJoining'],
+          attributes: ['employeeId', 'employeeNumber', 'firstName', 'lastName', 'panNumber', 'dateOfJoining'],
           include: [{ model: Department, as: 'department', attributes: ['departmentName'] }]
         },
         { model: Company, as: 'company', attributes: ['companyName', 'tanNumber'] }
       ],
       order: [
-        [{ model: Employee, as: 'employee' }, 'employeeCode', 'ASC'],
+        [{ model: Employee, as: 'employee' }, 'employeeNumber', 'ASC'],
         ['salaryMonth', 'ASC']
       ]
     });
@@ -358,7 +358,7 @@ exports.getProfessionalTaxReport = async (req, res) => {
           model: Employee,
           as: 'employee',
           where: employeeWhere,
-          attributes: ['employeeId', 'employeeCode', 'firstName', 'lastName', 'state'],
+          attributes: ['employeeId', 'employeeNumber', 'firstName', 'lastName', 'state'],
           include: [
             { model: Department, as: 'department', attributes: ['departmentName'] }
           ]
@@ -367,7 +367,7 @@ exports.getProfessionalTaxReport = async (req, res) => {
       ],
       order: [
         [{ model: Employee, as: 'employee' }, 'state', 'ASC'],
-        [{ model: Employee, as: 'employee' }, 'employeeCode', 'ASC']
+        [{ model: Employee, as: 'employee' }, 'employeeNumber', 'ASC']
       ]
     });
 
@@ -444,7 +444,7 @@ exports.getLoanReport = async (req, res) => {
           model: Employee,
           as: 'employee',
           where: employeeWhere,
-          attributes: ['employeeId', 'employeeCode', 'firstName', 'lastName', 'dateOfJoining'],
+          attributes: ['employeeId', 'employeeNumber', 'firstName', 'lastName', 'dateOfJoining'],
           include: [
             { model: Department, as: 'department', attributes: ['departmentName'] },
             { model: Company, as: 'company', attributes: ['companyName'] }
@@ -453,7 +453,7 @@ exports.getLoanReport = async (req, res) => {
       ],
       order: [
         ['status', 'ASC'],
-        [{ model: Employee, as: 'employee' }, 'employeeCode', 'ASC']
+        [{ model: Employee, as: 'employee' }, 'employeeNumber', 'ASC']
       ]
     });
 
@@ -541,7 +541,7 @@ exports.downloadPFReportPDF = async (req, res) => {
         },
         { model: Company, as: 'company' }
       ],
-      order: [[{ model: Employee, as: 'employee' }, 'employeeCode', 'ASC']]
+      order: [[{ model: Employee, as: 'employee' }, 'employeeNumber', 'ASC']]
     });
 
     // Calculate PF components
@@ -615,7 +615,7 @@ exports.downloadPFReportPDF = async (req, res) => {
 
       doc.fontSize(8);
       doc.text(index + 1, 40, yPos + 5, { width: 40 });
-      doc.text(item.employee.employeeCode, 80, yPos + 5, { width: 70, ellipsis: true });
+      doc.text(item.employee.employeeNumber, 80, yPos + 5, { width: 70, ellipsis: true });
       doc.text(`${item.employee.firstName} ${item.employee.lastName}`, 150, yPos + 5, { width: 100, ellipsis: true });
       doc.text(item.employee.uanNumber || 'N/A', 250, yPos + 5, { width: 80 });
       doc.text(item.pfWage.toFixed(2), 330, yPos + 5, { width: 70, align: 'right' });
@@ -699,7 +699,7 @@ exports.downloadStatutoryReportsExcel = async (req, res) => {
         },
         { model: Company, as: 'company' }
       ],
-      order: [[{ model: Employee, as: 'employee' }, 'employeeCode', 'ASC']]
+      order: [[{ model: Employee, as: 'employee' }, 'employeeNumber', 'ASC']]
     });
 
     const companyName = salaryData[0]?.company?.companyName || 'Company Name';
@@ -748,7 +748,7 @@ exports.downloadStatutoryReportsExcel = async (req, res) => {
         const row = pfSheet.getRow(rowNum);
         row.values = [
           index + 1,
-          record.employee.employeeCode,
+          record.employee.employeeNumber,
           `${record.employee.firstName} ${record.employee.lastName}`,
           record.employee.uanNumber || 'N/A',
           pfWage,
@@ -810,7 +810,7 @@ exports.downloadStatutoryReportsExcel = async (req, res) => {
         const row = esiSheet.getRow(rowNum);
         row.values = [
           index + 1,
-          record.employee.employeeCode,
+          record.employee.employeeNumber,
           `${record.employee.firstName} ${record.employee.lastName}`,
           record.employee.esiNumber || 'N/A',
           grossPay,

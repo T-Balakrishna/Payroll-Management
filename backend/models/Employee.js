@@ -9,7 +9,7 @@ module.exports = (sequelize) => {
     },
 
     // ── Identification & Login ─────────────────────────────────────
-    employeeCode: {
+    employeeNumber: {
       type: DataTypes.STRING(20),
       allowNull: false,
       unique: true,
