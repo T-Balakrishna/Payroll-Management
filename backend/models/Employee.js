@@ -91,11 +91,6 @@ module.exports = (sequelize) => {
       references: { model: 'employee_grades', key: 'employeeGradeId' },
     },
 
-    employeeTypeId: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: { model: 'employee_types', key: 'employeeTypeId' },
-    },
 
     dateOfJoining:      { type: DataTypes.DATEONLY, allowNull: false, field: 'DOJ' },
     confirmationDate:   { type: DataTypes.DATEONLY, allowNull: true },
@@ -231,7 +226,6 @@ module.exports = (sequelize) => {
     Employee.belongsTo(models.Department,    { foreignKey: 'departmentId', as: 'department' });
     Employee.belongsTo(models.Designation,   { foreignKey: 'designationId', as: 'designation' });
     Employee.belongsTo(models.EmployeeGrade, { foreignKey: 'employeeGradeId', as: 'grade' });
-    Employee.belongsTo(models.EmployeeType,  { foreignKey: 'employeeTypeId', as: 'employeeType' });
     Employee.belongsTo(models.Employee,      { as: 'Manager', foreignKey: 'reportingManagerId' });
     Employee.belongsTo(models.Bus,           { foreignKey: 'busId', as: 'bus' });
 

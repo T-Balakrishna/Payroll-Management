@@ -7,7 +7,6 @@ exports.getAllLeavePolicies = async (req, res) => {
     const leavePolicies = await LeavePolicy.findAll({
       include: [
         { model: require('../models').Company, as: 'company' },
-        { model: require('../models').EmployeeType, as: 'employeeType' },
         // { model: require('../models').LeaveAllocation, as: 'leaveAllocations' } // heavy — include only when needed
       ]
     });
@@ -23,7 +22,6 @@ exports.getLeavePolicyById = async (req, res) => {
     const leavePolicy = await LeavePolicy.findByPk(req.params.id, {
       include: [
         { model: require('../models').Company, as: 'company' },
-        { model: require('../models').EmployeeType, as: 'employeeType' },
       ]
     });
 

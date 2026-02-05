@@ -8,8 +8,7 @@ exports.getAllEmployeeSalaryMasters = async (req, res) => {
         { model: require('../models').Employee, as: 'employee' },
         { model: require('../models').Company, as: 'company' },
         { model: require('../models').EmployeeSalaryMaster, as: 'previousSalary' },
-        { model: require('../models').User, as: 'creator' },
-        { model: require('../models').User, as: 'updater' },
+        
         { model: require('../models').User, as: 'approver' },
         // { model: require('../models').EmployeeSalaryComponent, as: 'components' },  // heavy - include only when needed
         // { model: require('../models').SalaryGeneration, as: 'salaryGenerations' }
@@ -29,8 +28,7 @@ exports.getEmployeeSalaryMasterById = async (req, res) => {
         { model: require('../models').Employee, as: 'employee' },
         { model: require('../models').Company, as: 'company' },
         { model: require('../models').EmployeeSalaryMaster, as: 'previousSalary' },
-        { model: require('../models').User, as: 'creator' },
-        { model: require('../models').User, as: 'updater' },
+        
         { model: require('../models').User, as: 'approver' },
       ]
     });

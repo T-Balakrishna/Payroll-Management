@@ -24,8 +24,7 @@ exports.getFormulaById = async (req, res) => {
       include: [
         { model: require('../models').Company, as: 'company' },
         { model: require('../models').SalaryComponent, as: 'targetComponent' },
-        { model: require('../models').User, as: 'creator' },
-        { model: require('../models').User, as: 'updater' },
+        
       ]
     });
 

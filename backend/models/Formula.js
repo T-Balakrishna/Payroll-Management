@@ -88,14 +88,7 @@ module.exports = (sequelize) => {
       comment: 'Array of designation IDs this formula applies to. Empty = all designations.',
       /* Example: [1, 3, 5] */
     },
-
-    applicableEmployeeTypes: {
-      type: DataTypes.JSON,
-      allowNull: true,
-      defaultValue: [],
-      comment: 'Array of employee type IDs this formula applies to. Empty = all types.',
-      /* Example: [1, 2] */
-    },
+,
 
     isActive: {
       type: DataTypes.BOOLEAN,

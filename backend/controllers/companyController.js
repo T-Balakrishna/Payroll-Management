@@ -6,8 +6,7 @@ exports.getAllCompanies = async (req, res) => {
   try {
     const companies = await Company.findAll({
       include: [
-        { model: require('../models').User, as: 'creator' },
-        { model: require('../models').User, as: 'updater' },
+        
         // You can optionally include these — but be careful with performance
         // { model: require('../models').Employee, as: 'employees' },
         // { model: require('../models').Department, as: 'departments' },
@@ -25,8 +24,7 @@ exports.getCompanyById = async (req, res) => {
   try {
     const company = await Company.findByPk(req.params.id, {
       include: [
-        { model: require('../models').User, as: 'creator' },
-        { model: require('../models').User, as: 'updater' },
+        
         // { model: require('../models').Employee, as: 'employees' },
         // { model: require('../models').Department, as: 'departments' },
       ]

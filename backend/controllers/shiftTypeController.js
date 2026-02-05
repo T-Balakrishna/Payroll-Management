@@ -7,8 +7,7 @@ exports.getAllShiftTypes = async (req, res) => {
     const shiftTypes = await ShiftType.findAll({
       include: [
         { model: require('../models').Company, as: 'company' },
-        { model: require('../models').User, as: 'creator' },
-        { model: require('../models').User, as: 'updater' },
+        
         // { model: require('../models').ShiftAssignment, as: 'shiftAssignments' },   // heavy — include only when needed
         // { model: require('../models').Attendance, as: 'attendances' }
       ]
@@ -25,8 +24,7 @@ exports.getShiftTypeById = async (req, res) => {
     const shiftType = await ShiftType.findByPk(req.params.id, {
       include: [
         { model: require('../models').Company, as: 'company' },
-        { model: require('../models').User, as: 'creator' },
-        { model: require('../models').User, as: 'updater' },
+        
       ]
     });
 

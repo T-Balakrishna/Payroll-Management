@@ -9,8 +9,7 @@ exports.getAllLeaveApprovals = async (req, res) => {
         { model: require('../models').LeaveRequest, as: 'leaveRequest' },
         { model: require('../models').Employee, as: 'approver' },
         { model: require('../models').Company, as: 'company' },
-        { model: require('../models').User, as: 'creator' },
-        { model: require('../models').User, as: 'updater' },
+        
       ]
     });
     res.json(approvals);
@@ -27,8 +26,7 @@ exports.getLeaveApprovalById = async (req, res) => {
         { model: require('../models').LeaveRequest, as: 'leaveRequest' },
         { model: require('../models').Employee, as: 'approver' },
         { model: require('../models').Company, as: 'company' },
-        { model: require('../models').User, as: 'creator' },
-        { model: require('../models').User, as: 'updater' },
+        
       ]
     });
 

@@ -47,6 +47,11 @@ module.exports = (sequelize) => {
     as: 'department'
   });
 
+  User.belongsTo(models.Role, {
+    foreignKey: 'role',
+    as: 'role'
+  });
+
   User.belongsTo(models.User, {
     as: 'Creator',
     foreignKey: 'createdBy'

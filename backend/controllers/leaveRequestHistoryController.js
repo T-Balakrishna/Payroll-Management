@@ -9,8 +9,7 @@ exports.getAllLeaveRequestHistories = async (req, res) => {
         { model: require('../models').LeaveRequest, as: 'request' },
         { model: require('../models').Employee, as: 'actor' },
         { model: require('../models').Company, as: 'company' },
-        { model: require('../models').User, as: 'Creator' },
-        { model: require('../models').User, as: 'Updater' },
+        
       ],
       order: [['actionDate', 'DESC']]
     });
@@ -28,8 +27,7 @@ exports.getLeaveRequestHistoryById = async (req, res) => {
         { model: require('../models').LeaveRequest, as: 'request' },
         { model: require('../models').Employee, as: 'actor' },
         { model: require('../models').Company, as: 'company' },
-        { model: require('../models').User, as: 'Creator' },
-        { model: require('../models').User, as: 'Updater' },
+        
       ]
     });
 
