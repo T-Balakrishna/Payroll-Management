@@ -1,23 +1,25 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useState } from "react";
 import API from "../api";
 import { toast } from "react-toastify";
 
-export default function ForgotPassword() {
+export default function ResetPasswordPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const { token } = useParams();
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
-  const handleForgotPassword = async () => {
-    if (!email) {
-      return toast.error("Enter your email");
+  const handleResetPassword = async () => {
+    if (!password || password !== confirmPassword) {
+      return toast.error("Passwords must match and not be empty");
     }
 
     try {
-      await API.post("/auth/forgot-password", { email });
-      toast.success("Reset link sent to your email");
+      await API.post(`/auth/reset-password/${token}`, { password });
+      toast.success("Password reset successful");
       navigate("/login");
     } catch (err) {
-      toast.error(err.response?.data?.msg || "Failed to send reset link");
+      toast.error(err.response?.data?.msg || "Failed to reset password");
     }
   };
 
@@ -28,28 +30,41 @@ export default function ForgotPassword() {
           National Engineering College
         </h1>
         <h2 className="text-lg font-medium text-center text-gray-600 mb-4">
-          Forgot Password
+          Reset Password
         </h2>
 
         <div className="space-y-3">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
+              New Password
             </label>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               className="w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
-              placeholder="Enter your email"
+              placeholder="Enter new password"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Confirm Password
+            </label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+              placeholder="Confirm new password"
             />
           </div>
 
           <button
-            onClick={handleForgotPassword}
+            onClick={handleResetPassword}
             className="w-full p-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-md font-medium hover:from-indigo-700 hover:to-blue-700 transition shadow-sm"
           >
-            Send Reset Link
+            Reset Password
           </button>
         </div>
 
