@@ -31,7 +31,7 @@ module.exports = (sequelize) => {
   biometricNumber: { type: DataTypes.STRING, allowNull: true },
   }, {
     timestamps: true,
-    tableName: "User"
+    tableName: "users"
   });
 
   // Associations

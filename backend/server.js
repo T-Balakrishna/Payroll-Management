@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const cookieParser = require("cookie-parser");
 require('dotenv').config();
 
 const db = require('./models');
@@ -15,10 +16,14 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 // ────────────────────────────────────────────────
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+  origin: "http://localhost:5173",
+  credentials: true
+}));
 app.use(morgan('combined'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // ────────────────────────────────────────────────
 // Basic health & root endpoints
@@ -39,6 +44,9 @@ app.get('/health', (req, res) => {
 // ────────────────────────────────────────────────
 
 // Core
+const authRoutes = require("./routes/authRoutes");
+app.use("/api/auth", authRoutes);
+
 const companyRoutes = require('./routes/companyRoutes');
 app.use('/api/companies', companyRoutes);
 
@@ -140,8 +148,17 @@ app.use('/api/permissions', permissionRoutes);
 // Start Server
 // ────────────────────────────────────────────────
 db.sequelize.authenticate()
-  .then(() => {
+  .then(async () => {
     console.log('Database connection established successfully.');
+
+    await db.sequelize.sync({
+      force: true
+      // alter: true
+    });
+
+
+    console.log('All models were synchronized successfully.');
+
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
       console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);

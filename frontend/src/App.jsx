@@ -1,14 +1,21 @@
-import { useState } from 'react'
-import DepartmentMaster from './pages/DepartmentMaster';
-import './App.css'
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import LoginPage from "./pages/LoginPage";
+import AdminDashboard from "./pages/AdminDashboard";
+import UserDashboard from "./pages/UserDashboard";
+import ForgotPassword from "./pages/ForgotPassword";
+import './index.css';
 
 function App() {
-
   return (
-    <>
-      <DepartmentMaster></DepartmentMaster>
-    </>
-  )
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<LoginPage />} />
+        <Route path="/adminDashboard" element={<AdminDashboard />} />
+        <Route path="/userDashboard" element={<UserDashboard />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }
 
 export default App;

@@ -173,7 +173,7 @@ module.exports = (sequelize) => {
     },
 
   }, {
-    tableName: 'salary_revision_history',  // ← exact model name as table name
+    tableName: 'salary_revision_histories',  // ← exact model name as table name
     timestamps: true,
     paranoid: true,
 

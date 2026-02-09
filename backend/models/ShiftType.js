@@ -199,7 +199,7 @@ module.exports = (sequelize) => {
     },
 
   }, {
-    tableName: 'shift_type',  // ← exact model name as table name
+    tableName: 'shift_types',  // ← exact model name as table name
     timestamps: true,
     paranoid: true,
 
