@@ -31,7 +31,7 @@ module.exports = (sequelize) => {
   },
   }, {
     timestamps: true,
-    tableName: "User"
+    tableName: "users"
   });
 
   // Associations
