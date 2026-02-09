@@ -4,18 +4,18 @@ module.exports = (sequelize) => {
   const User = sequelize.define("User", {
   userId: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   companyId: { type: DataTypes.INTEGER, allowNull: false, defaultValue: "0" },
-  departmentId: { type: DataTypes.INTEGER, allowNull: false, references: { model: "Department", key: "departmentId" } },
+  departmentId: { type: DataTypes.INTEGER, allowNull: false, references: { model: "departments", key: "departmentId" } },
   userNumber: { type: DataTypes.STRING, allowNull: false, unique: true }, 
   userName: { type: DataTypes.STRING, allowNull: true },
   userMail: { type: DataTypes.STRING, allowNull: false, unique: true, validate: { isEmail: true } },
-  role: { type: DataTypes.INTEGER, allowNull: false,references: { model: "Role", key: "roleId" }},
+  roleId: { type: DataTypes.INTEGER, allowNull: false,references: { model: "roles", key: "roleId" }},
   password: { type: DataTypes.STRING, allowNull: false },
   status: { type: DataTypes.ENUM("Active", "Inactive"), defaultValue: "Active" },
   createdBy: { 
     type: DataTypes.INTEGER, 
     allowNull: true,
     references: {
-      model: "User",
+      model: "users",
       key: "userId"
     },
     onDelete: "SET NULL"
@@ -24,7 +24,7 @@ module.exports = (sequelize) => {
     type: DataTypes.INTEGER, 
     allowNull: true,
     references: {
-      model: "User",
+      model: "users",
       key: "userId"
     },
     onDelete: "SET NULL"
@@ -48,7 +48,7 @@ module.exports = (sequelize) => {
   });
 
   User.belongsTo(models.Role, {
-    foreignKey: 'role',
+    foreignKey: 'roleId',
     as: 'role'
   });
 

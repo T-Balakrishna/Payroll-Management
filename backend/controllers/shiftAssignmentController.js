@@ -1,7 +1,7 @@
 const { ShiftAssignment } = require('../models');
 
 // Get all shift assignments
-// In real usage: almost always filtered by employeeId, date range, companyId, status
+// In real usage: almost always filtered by staffId, date range, companyId, status
 exports.getAllShiftAssignments = async (req, res) => {
   try {
     const shiftAssignments = await ShiftAssignment.findAll({

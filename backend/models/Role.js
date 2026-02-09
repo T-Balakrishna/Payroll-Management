@@ -71,8 +71,8 @@ module.exports = (sequelize) => {
     });
 
     Role.hasMany(models.User, {
-      foreignKey: 'role',
       as: 'users',
+      foreignKey: 'roleId',
     });
   };
 

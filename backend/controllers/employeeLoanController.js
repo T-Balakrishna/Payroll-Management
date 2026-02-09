@@ -1,6 +1,6 @@
 const { EmployeeLoan } = require('../models');
 
-// Get all employee loans (in practice: filter by companyId / employeeId / status)
+// Get all employee loans (in practice: filter by companyId / staffId / status)
 exports.getAllEmployeeLoans = async (req, res) => {
   try {
     const employeeLoans = await EmployeeLoan.findAll({

@@ -45,7 +45,7 @@ db.sequelize.authenticate()
     console.log('Database connection established successfully.');
 
     await db.sequelize.sync({
-      force: true
+      // force: true
       // alter: true
     });
 

@@ -9,12 +9,12 @@ module.exports = (sequelize) => {
     },
 
     // Basic Information
-    employeeId: {
+    staffId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'employees',
-        key: 'employeeId',
+        model: 'staff_details',
+        key: 'staffId',
       },
       onDelete: 'CASCADE',
     },
@@ -168,8 +168,8 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'employees',
-        key: 'employeeId',
+        model: 'staff_details',
+        key: 'staffId',
       },
       comment: 'If applied by HR/Manager on behalf of employee',
     },
@@ -184,8 +184,8 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'employees',
-        key: 'employeeId',
+        model: 'staff_details',
+        key: 'staffId',
       },
     },
 
@@ -199,8 +199,8 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'employees',
-        key: 'employeeId',
+        model: 'staff_details',
+        key: 'staffId',
       },
     },
 
@@ -213,8 +213,8 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'employees',
-        key: 'employeeId',
+        model: 'staff_details',
+        key: 'staffId',
       },
     },
 
@@ -267,7 +267,7 @@ module.exports = (sequelize) => {
     timestamps: true,
     paranoid: true,
     indexes: [
-      { fields: ['employeeId', 'status'], name: 'idx_employee_status' },
+      { fields: ['staffId', 'status'], name: 'idx_employee_status' },
       { fields: ['companyId', 'status'], name: 'idx_company_status' },
       { fields: ['startDate', 'endDate'], name: 'idx_date_range' },
       { fields: ['leaveTypeId'], name: 'idx_leave_type' },
@@ -322,7 +322,7 @@ module.exports = (sequelize) => {
   // Associations
   LeaveRequest.associate = (models) => {
     LeaveRequest.belongsTo(models.Employee, {
-      foreignKey: 'employeeId',
+      foreignKey: 'staffId',
       as: 'employee',
     });
 

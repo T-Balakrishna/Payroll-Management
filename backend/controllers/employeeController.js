@@ -44,7 +44,7 @@ exports.createEmployee = async (req, res) => {
 // Update employee
 exports.updateEmployee = async (req, res) => {
   try {
-    const [updated] = await Employee.update(req.body, { where: { employeeId: req.params.id } });
+    const [updated] = await Employee.update(req.body, { where: { staffId: req.params.id } });
     if (!updated) return res.status(404).json({ message: 'Employee not found' });
     const employee = await Employee.findByPk(req.params.id);
     res.json(employee);
@@ -56,7 +56,7 @@ exports.updateEmployee = async (req, res) => {
 // Delete employee
 exports.deleteEmployee = async (req, res) => {
   try {
-    const deleted = await Employee.destroy({ where: { employeeId: req.params.id } });
+    const deleted = await Employee.destroy({ where: { staffId: req.params.id } });
     if (!deleted) return res.status(404).json({ message: 'Employee not found' });
     res.json({ message: 'Employee deleted' });
   } catch (error) {

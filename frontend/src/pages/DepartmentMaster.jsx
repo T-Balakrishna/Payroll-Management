@@ -61,7 +61,7 @@ export default function DepartmentMaster({ userRole, selectedCompanyId, selected
   const filteredData = departments.filter(
     (d) =>
       d.departmentName?.toLowerCase().includes(search.trim().toLowerCase()) ||
-      d.departmentAckr?.toLowerCase().includes(search.trim().toLowerCase()) ||
+      d.departmentAcr?.toLowerCase().includes(search.trim().toLowerCase()) ||
       d.status?.toLowerCase().includes(search.trim().toLowerCase())
   );
 
@@ -146,7 +146,7 @@ export default function DepartmentMaster({ userRole, selectedCompanyId, selected
         {filteredData.map((d) => (
           <tr key={d.departmentId} className="border-t hover:bg-gray-50">
             <td className="py-3 px-4">{d.departmentName}</td>
-            <td className="py-3 px-4">{d.departmentAckr}</td>
+            <td className="py-3 px-4">{d.departmentAcr}</td>
             {!selectedCompanyId && <td className="py-3 px-4">{getCompanyAcronym(d.companyId)}</td>}
             <td className="py-3 px-4">
               <ActionButtons

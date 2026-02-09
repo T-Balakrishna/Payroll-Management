@@ -1,7 +1,7 @@
 const { Permission } = require('../models');
 
 // Get all permissions
-// In real usage: almost always filtered by employeeId, companyId, permissionDate, etc.
+// In real usage: almost always filtered by staffId, companyId, permissionDate, etc.
 exports.getAllPermissions = async (req, res) => {
   try {
     const permissions = await Permission.findAll({

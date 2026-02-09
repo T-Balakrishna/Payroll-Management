@@ -1,7 +1,7 @@
 const { LeaveRequest } = require('../models');
 
 // Get all leave requests
-// In real usage: filter by employeeId, status, date range, companyId, etc.
+// In real usage: filter by staffId, status, date range, companyId, etc.
 exports.getAllLeaveRequests = async (req, res) => {
   try {
     const leaveRequests = await LeaveRequest.findAll({

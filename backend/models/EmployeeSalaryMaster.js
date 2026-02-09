@@ -8,12 +8,12 @@ module.exports = (sequelize) => {
       primaryKey: true,
     },
 
-    employeeId: {
+    staffId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'Employee',
-        key: 'employeeId',
+        model: 'staff_details',
+        key: 'staffId',
       },
       onDelete: 'CASCADE',
     },
@@ -22,7 +22,7 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'Company',
+        model: 'companies',
         key: 'companyId',
       },
       onDelete: 'CASCADE',
@@ -98,7 +98,7 @@ module.exports = (sequelize) => {
       allowNull: true,
       comment: 'Reference to previous salary structure (self-reference)',
       references: {
-        model: 'EmployeeSalaryMaster',
+        model: 'employee_salary_masters',
         key: 'employeeSalaryMasterId',
       },
       onDelete: 'SET NULL',
@@ -123,7 +123,7 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'User',
+        model: 'users',
         key: 'userId',
       },
       onDelete: 'SET NULL',
@@ -134,7 +134,7 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'User',
+        model: 'users',
         key: 'userId',
       },
       onDelete: 'SET NULL',
@@ -145,7 +145,7 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'User',
+        model: 'users',
         key: 'userId',
       },
       onDelete: 'SET NULL',
@@ -164,11 +164,11 @@ module.exports = (sequelize) => {
 
     indexes: [
       {
-        fields: ['employeeId', 'effectiveFrom'],
+        fields: ['staffId', 'effectiveFrom'],
         name: 'idx_employee_effective_from',
       },
       {
-        fields: ['employeeId', 'status'],
+        fields: ['staffId', 'status'],
         name: 'idx_employee_status',
       },
       {
@@ -189,9 +189,9 @@ module.exports = (sequelize) => {
   // Associations (add these if not already in your associations file)
   EmployeeSalaryMaster.associate = (models) => {
     EmployeeSalaryMaster.belongsTo(models.Employee, {
-      foreignKey: 'employeeId',
-      targetKey: 'employeeId',
-      as: 'employee',
+      foreignKey: 'staffId',
+      targetKey: 'staffId',
+      as: 'employees',
     });
 
     EmployeeSalaryMaster.belongsTo(models.Company, {

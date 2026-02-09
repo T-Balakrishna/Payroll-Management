@@ -8,12 +8,12 @@ module.exports = (sequelize) => {
       primaryKey: true,
     },
 
-    employeeId: {
+    staffId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'Employee',
-        key: 'employeeId',
+        model: 'staff_details',
+        key: 'staffId',
       },
       onDelete: 'CASCADE',
     },
@@ -22,7 +22,7 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'EmployeeSalaryMaster',
+        model: 'employee_salary_masters',
         key: 'employeeSalaryMasterId',
       },
       onDelete: 'RESTRICT',
@@ -33,7 +33,7 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'Company',
+        model: 'companies',
         key: 'companyId',
       },
       onDelete: 'CASCADE',
@@ -224,7 +224,7 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'User',
+        model: 'users',
         key: 'userId',
       },
       onDelete: 'SET NULL',
@@ -234,7 +234,7 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'User',
+        model: 'users',
         key: 'userId',
       },
       onDelete: 'SET NULL',
@@ -249,7 +249,7 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'User',
+        model: 'users',
         key: 'userId',
       },
       onDelete: 'SET NULL',
@@ -280,7 +280,7 @@ module.exports = (sequelize) => {
     indexes: [
       {
         unique: true,
-        fields: ['employeeId', 'salaryMonth', 'salaryYear'],
+        fields: ['staffId', 'salaryMonth', 'salaryYear'],
         name: 'unique_employee_month_year',
       },
       {
@@ -307,7 +307,7 @@ module.exports = (sequelize) => {
   // Associations
   SalaryGeneration.associate = (models) => {
     SalaryGeneration.belongsTo(models.Employee, {
-      foreignKey: 'employeeId',
+      foreignKey: 'staffId',
       as: 'employee',
     });
 

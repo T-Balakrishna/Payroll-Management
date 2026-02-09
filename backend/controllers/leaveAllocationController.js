@@ -1,7 +1,7 @@
 const { LeaveAllocation } = require('../models');
 
 // Get all leave allocations
-// In real usage: always filter by companyId, employeeId, leavePeriodId, etc.
+// In real usage: always filter by companyId, staffId, leavePeriodId, etc.
 exports.getAllLeaveAllocations = async (req, res) => {
   try {
     const allocations = await LeaveAllocation.findAll({

@@ -8,12 +8,12 @@ module.exports = (sequelize) => {
       autoIncrement: true,
       primaryKey: true
     },
-    employeeId: {
+    staffId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'employees',
-        key: 'employeeId'
+        model: 'staff_details',
+        key: 'staffId'
       },
       onDelete: 'CASCADE'
     },
@@ -75,8 +75,8 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'employees',
-        key: 'employeeId'
+        model: 'staff_details',
+        key: 'staffId'
       },
       comment: 'Employee ID who approved the loan'
     },
@@ -100,7 +100,7 @@ module.exports = (sequelize) => {
     timestamps: true,
     indexes: [
       {
-        fields: ['employeeId']
+        fields: ['staffId']
       },
       {
         fields: ['status']
@@ -113,7 +113,7 @@ module.exports = (sequelize) => {
 
   EmployeeLoan.associate = (models) => {
     EmployeeLoan.belongsTo(models.Employee, {
-      foreignKey: 'employeeId',
+      foreignKey: 'staffId',
       as: 'employee'
     });
 
