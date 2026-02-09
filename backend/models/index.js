@@ -12,7 +12,7 @@ const sequelize = new Sequelize(
   {
     host: dbConfig.host,
     dialect: dbConfig.dialect,
-    logging: process.env.NODE_ENV === 'production' ? false : console.log,
+    logging: dbConfig.logging ?? false,
     pool: {
       max: 5,
       min: 0,

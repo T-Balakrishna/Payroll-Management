@@ -44,13 +44,14 @@ db.sequelize.authenticate()
   .then(async () => {
     console.log('Database connection established successfully.');
 
-    await db.sequelize.sync({
-      // force: true
-      // alter: true
-    });
-
-
-    console.log('All models were synchronized successfully.');
+    if (process.env.DB_SYNC === "true") {
+      await db.sequelize.sync({
+        alter: true
+      });
+      console.log('All models were synchronized successfully.');
+    } else {
+      console.log('DB sync disabled (DB_SYNC != "true").');
+    }
 
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);

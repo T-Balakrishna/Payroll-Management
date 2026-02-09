@@ -2,11 +2,12 @@ import { useNavigate } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
 import { useState } from "react";
 import API from "../api";
-import { jwtDecode } from "jwt-decode";
 import { toast } from "react-toastify";
+import { useAuth } from "../auth/AuthContext";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { refresh } = useAuth();
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -20,14 +21,13 @@ export default function LoginPage() {
     }
 
     try {
-      const res = await API.post("/auth/login", {
+      await API.post("/auth/login", {
         identifier,
         password,
       });
 
-      const { token, role } = res.data;
-
-      sessionStorage.setItem("token", token);
+      const me = await refresh();
+      const role = me?.role;
 
       navigate(
         adminRoles.includes(role)
@@ -48,14 +48,12 @@ export default function LoginPage() {
     }
 
     try {
-      const apiRes = await API.post("/auth/google-login", {
+      await API.post("/auth/google-login", {
         token: res.credential,
       });
 
-      const { token } = apiRes.data;
-      sessionStorage.setItem("token", token);
-
-      const { role } = jwtDecode(token);
+      const me = await refresh();
+      const role = me?.role;
 
       navigate(
         adminRoles.includes(role)

@@ -13,7 +13,7 @@ exports.getAllEmployeeGrades = async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
-};
+}; 
 
 // Get single employee grade by ID
 exports.getEmployeeGradeById = async (req, res) => {
