@@ -3,11 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
 import { useState, useEffect } from "react";
 import API from "../api";
-import { jwtDecode } from "jwt-decode";
 import { toast } from "react-toastify";
+import { useAuth } from "../auth/AuthContext";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { refresh } = useAuth();
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -62,11 +63,21 @@ export default function LoginPage() {
     if (!identifier || !password) return toast.error("Please enter email/user number and password");
 
     try {
-      const res = await API.post("/auth/login", { identifier, password });
-      const { token, role } = res.data;
-      sessionStorage.setItem("token", token);
-      navigate(adminRoles.includes(role) ? "/adminDashboard" : "/userDashboard");
-      toast.success("Welcome back!");
+      await API.post("/auth/login", {
+        identifier,
+        password,
+      });
+
+      const me = await refresh();
+      const role = me?.role;
+
+      navigate(
+        adminRoles.includes(role)
+          ? "/adminDashboard"
+          : "/userDashboard"
+      );
+
+      toast.success("Login successful");
     } catch (err) {
       toast.error(err.response?.data?.msg || "Something went wrong");
     }
@@ -76,14 +87,20 @@ export default function LoginPage() {
     if (!credentialResponse?.credential) return toast.error("Google login failed");
 
     try {
-      const apiRes = await API.post("/auth/google-login", {
-        token: credentialResponse.credential,
+      await API.post("/auth/google-login", {
+        token: res.credential,
       });
-      const { token } = apiRes.data;
-      sessionStorage.setItem("token", token);
-      const { role } = jwtDecode(token);
-      navigate(adminRoles.includes(role) ? "/adminDashboard" : "/userDashboard");
-      toast.success("Welcome back!");
+
+      const me = await refresh();
+      const role = me?.role;
+
+      navigate(
+        adminRoles.includes(role)
+          ? "/adminDashboard"
+          : "/userDashboard"
+      );
+
+      toast.success("Login successful");
     } catch (err) {
       toast.error(err.response?.data?.msg || "Google login failed");
     }

@@ -1,4 +1,10 @@
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
+const { OAuth2Client } = require("google-auth-library");
+const db = require("../models");
+
+const googleClientId = process.env.GOOGLE_CLIENT_ID;
+const googleClient = googleClientId ? new OAuth2Client(googleClientId) : null;
 
 /**
  * Utility: create JWT
@@ -33,24 +39,49 @@ exports.login = async (req, res) => {
       return res.status(400).json({ msg: "Missing credentials" });
     }
 
-    // TODO: Replace with real DB lookup
-    const user = {
-      id: 1,
-      role: "Admin"
-    };
+    const user = await db.User.findOne({
+      where: {
+        [db.Sequelize.Op.or]: [
+          { userMail: identifier },
+          { userNumber: identifier }
+        ]
+      },
+      include: [
+        {
+          model: db.Role,
+          as: "role",
+          attributes: ["roleId", "roleName"]
+        }
+      ]
+    });
 
-    // TODO: Add password check (bcrypt)
+    if (!user) {
+      return res.status(401).json({ msg: "Invalid credentials" });
+    }
+
+    if (user.status && user.status !== "Active") {
+      return res.status(403).json({ msg: "User is inactive" });
+    }
+
+    const passwordOk = await bcrypt.compare(password, user.password);
+    if (!passwordOk) {
+      return res.status(401).json({ msg: "Invalid credentials" });
+    }
+
+    const roleName = user.role?.roleName || "User";
 
     const token = createToken({
-      id: user.id,
-      role: user.role
+      id: user.userId,
+      roleId: user.roleId,
+      role: roleName
     });
 
     setTokenCookie(res, token);
 
     res.json({
       message: "Login success",
-      role: user.role
+      role: roleName,
+      token
     });
   } catch (err) {
     console.error("Login error:", err);
@@ -70,22 +101,69 @@ exports.googleLogin = async (req, res) => {
       return res.status(400).json({ msg: "Google token missing" });
     }
 
-    // TODO: Verify Google token properly
-    const user = {
-      id: 2,
-      role: "User"
-    };
+    if (!googleClient) {
+      return res.status(500).json({ msg: "Google login not configured" });
+    }
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: googleToken,
+      audience: googleClientId
+    });
+
+    const payload = ticket.getPayload();
+    const googleId = payload?.sub;
+    const email = payload?.email;
+    const firstName = payload?.given_name || null;
+    const lastName = payload?.family_name || null;
+    const picture = payload?.picture || null;
+
+    if (!googleId || !email) {
+      return res.status(400).json({ msg: "Invalid Google token" });
+    }
+
+    const user = await db.User.findOne({
+      where: { userMail: email },
+      include: [
+        {
+          model: db.Role,
+          as: "role",
+          attributes: ["roleId", "roleName"]
+        }
+      ]
+    });
+
+    if (!user) {
+      return res.status(401).json({ msg: "No user found for this Google account" });
+    }
+
+    if (user.status && user.status !== "Active") {
+      return res.status(403).json({ msg: "User is inactive" });
+    }
+
+    await db.GoogleAuth.upsert({
+      googleId,
+      email,
+      firstName,
+      lastName,
+      profilePic: picture,
+      lastLogin: new Date(),
+      userId: user.userId
+    });
+
+    const roleName = user.role?.roleName || "User";
 
     const token = createToken({
-      id: user.id,
-      role: user.role
+      id: user.userId,
+      roleId: user.roleId,
+      role: roleName
     });
 
     setTokenCookie(res, token);
 
     res.json({
       message: "Google login success",
-      role: user.role
+      role: roleName,
+      token
     });
   } catch (err) {
     console.error("Google login error:", err);
