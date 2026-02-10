@@ -6,8 +6,7 @@ exports.getAllBiometricDevices = async (req, res) => {
     const biometricDevices = await BiometricDevice.findAll({
       include: [
         { model: require('../models').Company, as: 'company' },
-        { model: require('../models').User, as: 'creator' },
-        { model: require('../models').User, as: 'updater' },
+        
         // { model: require('../models').Employee, as: 'enrolledEmployees' }  // ← uncomment if you want to include enrolled employees list
       ]
     });
@@ -23,8 +22,7 @@ exports.getBiometricDeviceById = async (req, res) => {
     const biometricDevice = await BiometricDevice.findByPk(req.params.id, {
       include: [
         { model: require('../models').Company, as: 'company' },
-        { model: require('../models').User, as: 'creator' },
-        { model: require('../models').User, as: 'updater' },
+        
         // { model: require('../models').Employee, as: 'enrolledEmployees' }
       ]
     });

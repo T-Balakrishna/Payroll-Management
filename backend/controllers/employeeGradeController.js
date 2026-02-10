@@ -6,8 +6,6 @@ exports.getAllEmployeeGrades = async (req, res) => {
     const employeeGrades = await EmployeeGrade.findAll({
       include: [
         { model: require('../models').Company, as: 'company' },
-        { model: require('../models').User, as: 'Creator' },
-        { model: require('../models').User, as: 'Updater' },
         // { model: require('../models').Employee, as: 'employees' }   // ← include only when explicitly needed
       ]
     });
@@ -23,8 +21,6 @@ exports.getEmployeeGradeById = async (req, res) => {
     const employeeGrade = await EmployeeGrade.findByPk(req.params.id, {
       include: [
         { model: require('../models').Company, as: 'company' },
-        { model: require('../models').User, as: 'Creator' },
-        { model: require('../models').User, as: 'Updater' },
         // { model: require('../models').Employee, as: 'employees' }
       ]
     });

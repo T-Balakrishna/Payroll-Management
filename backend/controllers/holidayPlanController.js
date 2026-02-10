@@ -6,8 +6,6 @@ exports.getAllHolidayPlans = async (req, res) => {
     const holidayPlans = await HolidayPlan.findAll({
       include: [
         { model: require('../models').Company, as: 'company' },
-        { model: require('../models').User, as: 'Creator' },
-        { model: require('../models').User, as: 'Updater' },
         // { model: require('../models').Holiday, as: 'holidays' }   // ← only include when really needed
       ]
     });
@@ -23,8 +21,6 @@ exports.getHolidayPlanById = async (req, res) => {
     const holidayPlan = await HolidayPlan.findByPk(req.params.id, {
       include: [
         { model: require('../models').Company, as: 'company' },
-        { model: require('../models').User, as: 'Creator' },
-        { model: require('../models').User, as: 'Updater' },
         // { model: require('../models').Holiday, as: 'holidays' }
       ]
     });

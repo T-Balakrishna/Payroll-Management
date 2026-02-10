@@ -8,8 +8,7 @@ exports.getAllPermissions = async (req, res) => {
       include: [
         { model: require('../models').Employee, as: 'employee' },
         { model: require('../models').Company, as: 'company' },
-        { model: require('../models').User, as: 'creator' },
-        { model: require('../models').User, as: 'updater' },
+        
       ]
     });
     res.json(permissions);
@@ -25,8 +24,7 @@ exports.getPermissionById = async (req, res) => {
       include: [
         { model: require('../models').Employee, as: 'employee' },
         { model: require('../models').Company, as: 'company' },
-        { model: require('../models').User, as: 'creator' },
-        { model: require('../models').User, as: 'updater' },
+        
       ]
     });
 

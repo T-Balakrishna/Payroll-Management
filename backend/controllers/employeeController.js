@@ -7,7 +7,6 @@ exports.getAllEmployees = async (req, res) => {
       include: [
         { model: require('../models').Department, as: 'department' },
         { model: require('../models').Designation, as: 'designation' },
-        { model: require('../models').EmployeeType, as: 'employeeType' }
       ]
     });
     res.json(employees);
@@ -23,7 +22,6 @@ exports.getEmployeeById = async (req, res) => {
       include: [
         { model: require('../models').Department, as: 'department' },
         { model: require('../models').Designation, as: 'designation' },
-        { model: require('../models').EmployeeType, as: 'employeeType' }
       ]
     });
     if (!employee) return res.status(404).json({ message: 'Employee not found' });

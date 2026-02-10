@@ -9,8 +9,7 @@ exports.getAllSalaryGenerationDetails = async (req, res) => {
         { model: require('../models').SalaryGeneration, as: 'salaryGeneration' },
         { model: require('../models').SalaryComponent, as: 'salaryComponent' },
         { model: require('../models').Company, as: 'company' },
-        { model: require('../models').User, as: 'creator' },
-        { model: require('../models').User, as: 'updater' },
+        
       ]
     });
     res.json(details);
@@ -27,8 +26,7 @@ exports.getSalaryGenerationDetailById = async (req, res) => {
         { model: require('../models').SalaryGeneration, as: 'salaryGeneration' },
         { model: require('../models').SalaryComponent, as: 'salaryComponent' },
         { model: require('../models').Company, as: 'company' },
-        { model: require('../models').User, as: 'creator' },
-        { model: require('../models').User, as: 'updater' },
+        
       ]
     });
 

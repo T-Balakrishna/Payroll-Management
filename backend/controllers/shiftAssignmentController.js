@@ -9,8 +9,7 @@ exports.getAllShiftAssignments = async (req, res) => {
         { model: require('../models').Employee, as: 'employee' },
         { model: require('../models').ShiftType, as: 'shiftType' },
         { model: require('../models').Company, as: 'company' },
-        { model: require('../models').User, as: 'creator' },
-        { model: require('../models').User, as: 'updater' },
+        
         // { model: require('../models').Attendance, as: 'attendances' }   // heavy — include only when needed
       ]
     });
@@ -28,8 +27,7 @@ exports.getShiftAssignmentById = async (req, res) => {
         { model: require('../models').Employee, as: 'employee' },
         { model: require('../models').ShiftType, as: 'shiftType' },
         { model: require('../models').Company, as: 'company' },
-        { model: require('../models').User, as: 'creator' },
-        { model: require('../models').User, as: 'updater' },
+        
       ]
     });
 

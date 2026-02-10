@@ -12,8 +12,7 @@ exports.getAllSalaryRevisionHistories = async (req, res) => {
         { model: require('../models').EmployeeSalaryMaster, as: 'newSalaryMaster' },
         { model: require('../models').User, as: 'approver' },
         { model: require('../models').User, as: 'processor' },
-        { model: require('../models').User, as: 'creator' },
-        { model: require('../models').User, as: 'updater' },
+        
       ],
       order: [['revisionDate', 'DESC']]
     });
@@ -34,8 +33,7 @@ exports.getSalaryRevisionHistoryById = async (req, res) => {
         { model: require('../models').EmployeeSalaryMaster, as: 'newSalaryMaster' },
         { model: require('../models').User, as: 'approver' },
         { model: require('../models').User, as: 'processor' },
-        { model: require('../models').User, as: 'creator' },
-        { model: require('../models').User, as: 'updater' },
+        
       ]
     });
 

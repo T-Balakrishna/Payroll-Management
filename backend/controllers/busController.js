@@ -6,8 +6,7 @@ exports.getAllBuses = async (req, res) => {
     const buses = await Bus.findAll({
       include: [
         { model: require('../models').Company, as: 'company' },
-        { model: require('../models').User, as: 'creator' },
-        { model: require('../models').User, as: 'updater' },
+        
         // { model: require('../models').Employee, as: 'assignedEmployees' }  // ← uncomment only if you really need the full list of assigned employees here
       ]
     });
@@ -23,8 +22,7 @@ exports.getBusById = async (req, res) => {
     const bus = await Bus.findByPk(req.params.id, {
       include: [
         { model: require('../models').Company, as: 'company' },
-        { model: require('../models').User, as: 'creator' },
-        { model: require('../models').User, as: 'updater' },
+        
         // { model: require('../models').Employee, as: 'assignedEmployees' }
       ]
     });

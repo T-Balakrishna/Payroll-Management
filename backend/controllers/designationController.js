@@ -6,8 +6,7 @@ exports.getAllDesignations = async (req, res) => {
     const designations = await Designation.findAll({
       include: [
         { model: require('../models').Company, as: 'company' },
-        { model: require('../models').User, as: 'creator' },
-        { model: require('../models').User, as: 'updater' },
+        
         // { model: require('../models').Employee, as: 'employees' }   // ← include only when really needed (can be large)
       ]
     });
@@ -23,8 +22,7 @@ exports.getDesignationById = async (req, res) => {
     const designation = await Designation.findByPk(req.params.id, {
       include: [
         { model: require('../models').Company, as: 'company' },
-        { model: require('../models').User, as: 'creator' },
-        { model: require('../models').User, as: 'updater' },
+        
         // { model: require('../models').Employee, as: 'employees' }
       ]
     });

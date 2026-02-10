@@ -10,8 +10,7 @@ exports.getAllAttendances = async (req, res) => {
         { model: require('../models').ShiftType, as: 'shiftType' },
         { model: require('../models').ShiftAssignment, as: 'shiftAssignment' },
         { model: require('../models').User, as: 'approver' },
-        { model: require('../models').User, as: 'creator' },
-        { model: require('../models').User, as: 'updater' },
+        
       ]
     });
     res.json(attendances);
@@ -30,8 +29,7 @@ exports.getAttendanceById = async (req, res) => {
         { model: require('../models').ShiftType, as: 'shiftType' },
         { model: require('../models').ShiftAssignment, as: 'shiftAssignment' },
         { model: require('../models').User, as: 'approver' },
-        { model: require('../models').User, as: 'creator' },
-        { model: require('../models').User, as: 'updater' },
+        
       ]
     });
 

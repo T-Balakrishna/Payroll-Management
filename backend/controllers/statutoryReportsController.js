@@ -1,6 +1,5 @@
-// controllers/statutoryReportsController.js
 const { Op } = require('sequelize');
-const sequelize = require('../config/database');
+const sequelize = require('../config/db');
 const db = require('../models');
 const PDFDocument = require('pdfkit');
 const ExcelJS = require('exceljs');
@@ -27,9 +26,9 @@ exports.getPFReport = async (req, res) => {
     }
 
     const whereClause = {
-      month: month,
-      year: year,
-      status: 'paid'
+      salaryMonth: month,
+      salaryYear: year,
+      status: 'Paid'
     };
 
     if (companyId) whereClause.companyId = companyId;
@@ -44,7 +43,7 @@ exports.getPFReport = async (req, res) => {
           model: Employee,
           as: 'employee',
           where: employeeWhere,
-          attributes: ['employeeCode', 'firstName', 'lastName', 'uanNumber', 'dateOfJoining'],
+          attributes: ['employeeId', 'employeeNumber', 'firstName', 'lastName', 'uanNumber', 'dateOfJoining'],
           include: [
             {
               model: Department,
@@ -59,29 +58,24 @@ exports.getPFReport = async (req, res) => {
           attributes: ['companyName', 'pfNumber']
         }
       ],
-      order: [[{ model: Employee, as: 'employee' }, 'employeeCode', 'ASC']]
+      order: [[{ model: Employee, as: 'employee' }, 'employeeNumber', 'ASC']]
     });
 
     // Calculate PF components
     const pfData = salaryData.map(record => {
-      const deductions = record.deductionsBreakdown || {};
       const earnings = record.earningsBreakdown || {};
-      
+      const deductions = record.deductionsBreakdown || {};
+
       const pfWage = parseFloat(earnings.basicSalary || 0) + parseFloat(earnings.da || 0);
       const employeePF = parseFloat(deductions.providentFund || 0);
-      
-      // Calculate employer contribution (12% of PF wage)
       const employerPF = pfWage * 0.12;
-      
-      // Split employer contribution: 8.33% to EPS, rest to EPF
-      const eps = Math.min(pfWage * 0.0833, 1250); // EPS capped at 1250
+      const eps = Math.min(pfWage * 0.0833, 1250);
       const epf = employerPF - eps;
 
       return {
-        id: record.id,
         employee: record.employee,
-        pfWage: pfWage,
-        employeePF: employeePF,
+        pfWage,
+        employeePF,
         employerEPF: epf,
         employerEPS: eps,
         totalEmployerContribution: employerPF,
@@ -89,7 +83,7 @@ exports.getPFReport = async (req, res) => {
       };
     });
 
-    // Calculate totals
+    // Totals
     const totals = {
       totalPFWage: pfData.reduce((sum, item) => sum + item.pfWage, 0),
       totalEmployeePF: pfData.reduce((sum, item) => sum + item.employeePF, 0),
@@ -133,9 +127,9 @@ exports.getESIReport = async (req, res) => {
     }
 
     const whereClause = {
-      month: month,
-      year: year,
-      status: 'paid'
+      salaryMonth: month,
+      salaryYear: year,
+      status: 'Paid'
     };
 
     if (companyId) whereClause.companyId = companyId;
@@ -150,7 +144,7 @@ exports.getESIReport = async (req, res) => {
           model: Employee,
           as: 'employee',
           where: employeeWhere,
-          attributes: ['employeeCode', 'firstName', 'lastName', 'esiNumber', 'dateOfJoining'],
+          attributes: ['employeeId', 'employeeNumber', 'firstName', 'lastName', 'esiNumber', 'dateOfJoining'],
           include: [
             {
               model: Department,
@@ -165,34 +159,30 @@ exports.getESIReport = async (req, res) => {
           attributes: ['companyName', 'esiNumber']
         }
       ],
-      order: [[{ model: Employee, as: 'employee' }, 'employeeCode', 'ASC']]
+      order: [[{ model: Employee, as: 'employee' }, 'employeeNumber', 'ASC']]
     });
 
     // Calculate ESI components
     const esiData = salaryData.map(record => {
-      const grossPay = parseFloat(record.grossPay);
+      const grossPay = parseFloat(record.grossSalary || 0);
       const deductions = record.deductionsBreakdown || {};
-      
+
       const employeeESI = parseFloat(deductions.esi || 0);
-      
-      // Employer ESI is 3.25% of gross pay
       const employerESI = grossPay * 0.0325;
-      
       const totalESI = employeeESI + employerESI;
 
       return {
-        id: record.id,
         employee: record.employee,
-        grossPay: grossPay,
-        employeeESI: employeeESI,
-        employerESI: employerESI,
-        totalESI: totalESI,
+        grossPay,
+        employeeESI,
+        employerESI,
+        totalESI,
         workingDays: record.workingDays,
         presentDays: record.presentDays
       };
     });
 
-    // Calculate totals
+    // Totals
     const totals = {
       totalGrossPay: esiData.reduce((sum, item) => sum + item.grossPay, 0),
       totalEmployeeESI: esiData.reduce((sum, item) => sum + item.employeeESI, 0),
@@ -226,38 +216,38 @@ exports.getTaxReport = async (req, res) => {
   try {
     const { companyId, departmentId, month, year, quarter } = req.query;
 
-    const whereClause = {
-      status: 'paid'
-    };
+    if ((!month || !year) && !quarter) {
+      return res.status(400).json({
+        success: false,
+        message: 'Month/year or quarter/year are required'
+      });
+    }
+
+    const whereClause = { status: 'Paid' };
 
     if (companyId) whereClause.companyId = companyId;
 
-    // If quarter is specified, filter by quarter months
+    // Quarter handling
     if (quarter) {
       const quarterMonths = {
-        'Q1': [4, 5, 6],      // Apr-Jun
-        'Q2': [7, 8, 9],      // Jul-Sep
-        'Q3': [10, 11, 12],   // Oct-Dec
-        'Q4': [1, 2, 3]       // Jan-Mar
+        Q1: [4, 5, 6],
+        Q2: [7, 8, 9],
+        Q3: [10, 11, 12],
+        Q4: [1, 2, 3]
       };
-      whereClause.month = { [Op.in]: quarterMonths[quarter] };
+      whereClause.salaryMonth = { [Op.in]: quarterMonths[quarter] };
+
       if (quarter === 'Q4') {
-        // Q4 spans two calendar years
         whereClause[Op.or] = [
-          { year: year, month: { [Op.in]: [1, 2, 3] } },
-          { year: parseInt(year) - 1, month: { [Op.in]: [1, 2, 3] } }
+          { salaryYear: year, salaryMonth: { [Op.in]: [1, 2, 3] } },
+          { salaryYear: parseInt(year) - 1, salaryMonth: { [Op.in]: [1, 2, 3] } }
         ];
       } else {
-        whereClause.year = year;
+        whereClause.salaryYear = year;
       }
-    } else if (month && year) {
-      whereClause.month = month;
-      whereClause.year = year;
     } else {
-      return res.status(400).json({
-        success: false,
-        message: 'Month and year, or quarter and year are required'
-      });
+      whereClause.salaryMonth = month;
+      whereClause.salaryYear = year;
     }
 
     const employeeWhere = {};
@@ -270,34 +260,23 @@ exports.getTaxReport = async (req, res) => {
           model: Employee,
           as: 'employee',
           where: employeeWhere,
-          attributes: ['employeeCode', 'firstName', 'lastName', 'panNumber', 'dateOfJoining'],
-          include: [
-            {
-              model: Department,
-              as: 'department',
-              attributes: ['departmentName']
-            }
-          ]
+          attributes: ['employeeId', 'employeeNumber', 'firstName', 'lastName', 'panNumber', 'dateOfJoining'],
+          include: [{ model: Department, as: 'department', attributes: ['departmentName'] }]
         },
-        {
-          model: Company,
-          as: 'company',
-          attributes: ['companyName', 'tanNumber']
-        }
+        { model: Company, as: 'company', attributes: ['companyName', 'tanNumber'] }
       ],
       order: [
-        [{ model: Employee, as: 'employee' }, 'employeeCode', 'ASC'],
-        ['month', 'ASC']
+        [{ model: Employee, as: 'employee' }, 'employeeNumber', 'ASC'],
+        ['salaryMonth', 'ASC']
       ]
     });
 
-    // Group by employee and calculate tax
+    // Group by employee
     const employeeTaxMap = {};
-    
+
     salaryData.forEach(record => {
       const empId = record.employeeId;
-      const deductions = record.deductionsBreakdown || {};
-      const taxDeducted = parseFloat(deductions.incomeTax || 0);
+      const taxDeducted = parseFloat(record.deductionsBreakdown?.incomeTax || 0);
 
       if (!employeeTaxMap[empId]) {
         employeeTaxMap[empId] = {
@@ -309,19 +288,18 @@ exports.getTaxReport = async (req, res) => {
       }
 
       employeeTaxMap[empId].months.push({
-        month: record.month,
-        year: record.year,
-        grossPay: parseFloat(record.grossPay),
-        taxDeducted: taxDeducted
+        month: record.salaryMonth,
+        year: record.salaryYear,
+        grossSalary: parseFloat(record.grossSalary || 0),
+        taxDeducted
       });
 
-      employeeTaxMap[empId].totalGross += parseFloat(record.grossPay);
+      employeeTaxMap[empId].totalGross += parseFloat(record.grossSalary || 0);
       employeeTaxMap[empId].totalTaxDeducted += taxDeducted;
     });
 
     const taxData = Object.values(employeeTaxMap);
 
-    // Calculate totals
     const totals = {
       totalGross: taxData.reduce((sum, item) => sum + item.totalGross, 0),
       totalTaxDeducted: taxData.reduce((sum, item) => sum + item.totalTaxDeducted, 0),
@@ -362,9 +340,9 @@ exports.getProfessionalTaxReport = async (req, res) => {
     }
 
     const whereClause = {
-      month: month,
-      year: year,
-      status: 'paid'
+      salaryMonth: month,
+      salaryYear: year,
+      status: 'Paid'
     };
 
     if (companyId) whereClause.companyId = companyId;
@@ -380,37 +358,28 @@ exports.getProfessionalTaxReport = async (req, res) => {
           model: Employee,
           as: 'employee',
           where: employeeWhere,
-          attributes: ['employeeCode', 'firstName', 'lastName', 'state'],
+          attributes: ['employeeId', 'employeeNumber', 'firstName', 'lastName', 'state'],
           include: [
-            {
-              model: Department,
-              as: 'department',
-              attributes: ['departmentName']
-            }
+            { model: Department, as: 'department', attributes: ['departmentName'] }
           ]
         },
-        {
-          model: Company,
-          as: 'company',
-          attributes: ['companyName']
-        }
+        { model: Company, as: 'company', attributes: ['companyName'] }
       ],
       order: [
         [{ model: Employee, as: 'employee' }, 'state', 'ASC'],
-        [{ model: Employee, as: 'employee' }, 'employeeCode', 'ASC']
+        [{ model: Employee, as: 'employee' }, 'employeeNumber', 'ASC']
       ]
     });
 
-    // Calculate PT
+    // Process PT data
     const ptData = salaryData.map(record => {
       const deductions = record.deductionsBreakdown || {};
       const professionalTax = parseFloat(deductions.professionalTax || 0);
 
       return {
-        id: record.id,
         employee: record.employee,
-        grossPay: parseFloat(record.grossPay),
-        professionalTax: professionalTax,
+        grossSalary: parseFloat(record.grossSalary || 0),
+        professionalTax,
         state: record.employee.state || 'N/A'
       };
     });
@@ -420,20 +389,15 @@ exports.getProfessionalTaxReport = async (req, res) => {
     ptData.forEach(item => {
       const state = item.state;
       if (!stateWisePT[state]) {
-        stateWisePT[state] = {
-          employees: [],
-          totalPT: 0,
-          count: 0
-        };
+        stateWisePT[state] = { employees: [], totalPT: 0, count: 0 };
       }
       stateWisePT[state].employees.push(item);
       stateWisePT[state].totalPT += item.professionalTax;
       stateWisePT[state].count++;
     });
 
-    // Calculate totals
     const totals = {
-      totalGrossPay: ptData.reduce((sum, item) => sum + item.grossPay, 0),
+      totalGrossSalary: ptData.reduce((sum, item) => sum + item.grossSalary, 0),
       totalPT: ptData.reduce((sum, item) => sum + item.professionalTax, 0),
       employeeCount: ptData.length,
       stateCount: Object.keys(stateWisePT).length
@@ -480,35 +444,27 @@ exports.getLoanReport = async (req, res) => {
           model: Employee,
           as: 'employee',
           where: employeeWhere,
-          attributes: ['employeeCode', 'firstName', 'lastName', 'dateOfJoining'],
+          attributes: ['employeeId', 'employeeNumber', 'firstName', 'lastName', 'dateOfJoining'],
           include: [
-            {
-              model: Department,
-              as: 'department',
-              attributes: ['departmentName']
-            },
-            {
-              model: Company,
-              as: 'company',
-              attributes: ['companyName']
-            }
+            { model: Department, as: 'department', attributes: ['departmentName'] },
+            { model: Company, as: 'company', attributes: ['companyName'] }
           ]
         }
       ],
       order: [
         ['status', 'ASC'],
-        [{ model: Employee, as: 'employee' }, 'employeeCode', 'ASC']
+        [{ model: Employee, as: 'employee' }, 'employeeNumber', 'ASC']
       ]
     });
 
-    // Calculate loan details
+    // Process loan details
     const loanDetails = loanData.map(loan => {
       const paidAmount = parseFloat(loan.paidAmount || 0);
       const outstandingAmount = parseFloat(loan.loanAmount) - paidAmount;
       const completionPercentage = (paidAmount / parseFloat(loan.loanAmount)) * 100;
 
       return {
-        id: loan.id,
+        loanId: loan.loanId,
         employee: loan.employee,
         loanType: loan.loanType,
         loanAmount: parseFloat(loan.loanAmount),
@@ -516,8 +472,8 @@ exports.getLoanReport = async (req, res) => {
         installmentAmount: parseFloat(loan.installmentAmount),
         numberOfInstallments: loan.numberOfInstallments,
         paidInstallments: loan.paidInstallments || 0,
-        paidAmount: paidAmount,
-        outstandingAmount: outstandingAmount,
+        paidAmount,
+        outstandingAmount,
         remainingInstallments: loan.numberOfInstallments - (loan.paidInstallments || 0),
         completionPercentage: completionPercentage.toFixed(2),
         status: loan.status,
@@ -525,7 +481,7 @@ exports.getLoanReport = async (req, res) => {
       };
     });
 
-    // Calculate totals by status
+    // Totals by status
     const totals = {
       totalLoans: loanDetails.length,
       totalLoanAmount: loanDetails.reduce((sum, item) => sum + item.loanAmount, 0),
@@ -568,9 +524,9 @@ exports.downloadPFReportPDF = async (req, res) => {
     }
 
     const whereClause = {
-      month: month,
-      year: year,
-      status: 'paid'
+      salaryMonth: month,
+      salaryYear: year,
+      status: 'Paid'
     };
 
     if (companyId) whereClause.companyId = companyId;
@@ -581,26 +537,18 @@ exports.downloadPFReportPDF = async (req, res) => {
         {
           model: Employee,
           as: 'employee',
-          include: [
-            {
-              model: Department,
-              as: 'department'
-            }
-          ]
+          include: [{ model: Department, as: 'department' }]
         },
-        {
-          model: Company,
-          as: 'company'
-        }
+        { model: Company, as: 'company' }
       ],
-      order: [[{ model: Employee, as: 'employee' }, 'employeeCode', 'ASC']]
+      order: [[{ model: Employee, as: 'employee' }, 'employeeNumber', 'ASC']]
     });
 
     // Calculate PF components
     const pfData = salaryData.map(record => {
-      const deductions = record.deductionsBreakdown || {};
       const earnings = record.earningsBreakdown || {};
-      
+      const deductions = record.deductionsBreakdown || {};
+
       const pfWage = parseFloat(earnings.basicSalary || 0) + parseFloat(earnings.da || 0);
       const employeePF = parseFloat(deductions.providentFund || 0);
       const employerPF = pfWage * 0.12;
@@ -619,29 +567,27 @@ exports.downloadPFReportPDF = async (req, res) => {
     });
 
     const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 30 });
-    
+
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=pf-report-${month}-${year}.pdf`);
-    
+
     doc.pipe(res);
 
     // Header
     const companyName = salaryData[0]?.company?.companyName || 'Company Name';
     const pfNumber = salaryData[0]?.company?.pfNumber || 'N/A';
-    
+
     doc.fontSize(16).font('Helvetica-Bold').text(companyName, { align: 'center' });
     doc.fontSize(12).font('Helvetica').text(`Provident Fund Report - ${getMonthName(month)} ${year}`, { align: 'center' });
     doc.fontSize(10).text(`PF Number: ${pfNumber}`, { align: 'center' });
     doc.moveDown(1);
 
-    // Table
+    // Table Header
     let yPos = doc.y;
-    
-    // Header
     doc.fontSize(9).font('Helvetica-Bold');
     doc.rect(30, yPos, 792 - 60, 20).fillAndStroke('#4A5568', '#2D3748');
     doc.fillColor('white');
-    
+
     doc.text('S.No', 40, yPos + 6, { width: 40 });
     doc.text('Emp Code', 80, yPos + 6, { width: 70 });
     doc.text('Name', 150, yPos + 6, { width: 100 });
@@ -667,9 +613,9 @@ exports.downloadPFReportPDF = async (req, res) => {
         doc.rect(30, yPos, 792 - 60, 18).fillAndStroke('#F7FAFC', '#E2E8F0');
       }
 
-      doc.fillColor('black').fontSize(8);
+      doc.fontSize(8);
       doc.text(index + 1, 40, yPos + 5, { width: 40 });
-      doc.text(item.employee.employeeCode, 80, yPos + 5, { width: 70, ellipsis: true });
+      doc.text(item.employee.employeeNumber, 80, yPos + 5, { width: 70, ellipsis: true });
       doc.text(`${item.employee.firstName} ${item.employee.lastName}`, 150, yPos + 5, { width: 100, ellipsis: true });
       doc.text(item.employee.uanNumber || 'N/A', 250, yPos + 5, { width: 80 });
       doc.text(item.pfWage.toFixed(2), 330, yPos + 5, { width: 70, align: 'right' });
@@ -691,7 +637,7 @@ exports.downloadPFReportPDF = async (req, res) => {
     yPos += 10;
     doc.fontSize(10).font('Helvetica-Bold');
     doc.rect(30, yPos, 792 - 60, 25).fillAndStroke('#E6F2FF', '#2D3748');
-    
+
     doc.fillColor('black');
     doc.text('TOTAL', 40, yPos + 8, { width: 280 });
     doc.text(totalPFWage.toFixed(2), 330, yPos + 8, { width: 70, align: 'right' });
@@ -735,11 +681,10 @@ exports.downloadStatutoryReportsExcel = async (req, res) => {
 
     const workbook = new ExcelJS.Workbook();
 
-    // Fetch salary data
     const whereClause = {
-      month: month,
-      year: year,
-      status: 'paid'
+      salaryMonth: month,
+      salaryYear: year,
+      status: 'Paid'
     };
 
     if (companyId) whereClause.companyId = companyId;
@@ -750,16 +695,11 @@ exports.downloadStatutoryReportsExcel = async (req, res) => {
         {
           model: Employee,
           as: 'employee',
-          include: [
-            { model: Department, as: 'department' }
-          ]
+          include: [{ model: Department, as: 'department' }]
         },
-        {
-          model: Company,
-          as: 'company'
-        }
+        { model: Company, as: 'company' }
       ],
-      order: [[{ model: Employee, as: 'employee' }, 'employeeCode', 'ASC']]
+      order: [[{ model: Employee, as: 'employee' }, 'employeeNumber', 'ASC']]
     });
 
     const companyName = salaryData[0]?.company?.companyName || 'Company Name';
@@ -767,7 +707,7 @@ exports.downloadStatutoryReportsExcel = async (req, res) => {
     // PF Sheet
     if (!reportType || reportType === 'pf') {
       const pfSheet = workbook.addWorksheet('PF Report');
-      
+
       pfSheet.mergeCells('A1:I1');
       pfSheet.getCell('A1').value = companyName;
       pfSheet.getCell('A1').font = { size: 14, bold: true };
@@ -779,16 +719,9 @@ exports.downloadStatutoryReportsExcel = async (req, res) => {
       pfSheet.getCell('A2').alignment = { horizontal: 'center' };
 
       const headerRow = pfSheet.getRow(4);
-      headerRow.values = [
-        'S.No', 'Emp Code', 'Name', 'UAN', 'PF Wage', 
-        'Employee PF', 'Employer EPF', 'Employer EPS', 'Total PF'
-      ];
+      headerRow.values = ['S.No', 'Emp Code', 'Name', 'UAN', 'PF Wage', 'Employee PF', 'Employer EPF', 'Employer EPS', 'Total PF'];
       headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      headerRow.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FF4A5568' }
-      };
+      headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4A5568' } };
 
       pfSheet.columns = [
         { key: 'sno', width: 8 },
@@ -815,7 +748,7 @@ exports.downloadStatutoryReportsExcel = async (req, res) => {
         const row = pfSheet.getRow(rowNum);
         row.values = [
           index + 1,
-          record.employee.employeeCode,
+          record.employee.employeeNumber,
           `${record.employee.firstName} ${record.employee.lastName}`,
           record.employee.uanNumber || 'N/A',
           pfWage,
@@ -830,11 +763,7 @@ exports.downloadStatutoryReportsExcel = async (req, res) => {
         }
 
         if (index % 2 === 0) {
-          row.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FFF7FAFC' }
-          };
+          row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7FAFC' } };
         }
 
         rowNum++;
@@ -844,7 +773,7 @@ exports.downloadStatutoryReportsExcel = async (req, res) => {
     // ESI Sheet
     if (!reportType || reportType === 'esi') {
       const esiSheet = workbook.addWorksheet('ESI Report');
-      
+
       esiSheet.mergeCells('A1:G1');
       esiSheet.getCell('A1').value = companyName;
       esiSheet.getCell('A1').font = { size: 14, bold: true };
@@ -856,16 +785,9 @@ exports.downloadStatutoryReportsExcel = async (req, res) => {
       esiSheet.getCell('A2').alignment = { horizontal: 'center' };
 
       const headerRow = esiSheet.getRow(4);
-      headerRow.values = [
-        'S.No', 'Emp Code', 'Name', 'ESI Number', 'Gross Pay', 
-        'Employee ESI', 'Employer ESI', 'Total ESI'
-      ];
+      headerRow.values = ['S.No', 'Emp Code', 'Name', 'ESI Number', 'Gross Pay', 'Employee ESI', 'Employer ESI', 'Total ESI'];
       headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      headerRow.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FF4A5568' }
-      };
+      headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4A5568' } };
 
       esiSheet.columns = [
         { key: 'sno', width: 8 },
@@ -880,7 +802,7 @@ exports.downloadStatutoryReportsExcel = async (req, res) => {
 
       let rowNum = 5;
       salaryData.forEach((record, index) => {
-        const grossPay = parseFloat(record.grossPay);
+        const grossPay = parseFloat(record.grossSalary || 0);
         const deductions = record.deductionsBreakdown || {};
         const employeeESI = parseFloat(deductions.esi || 0);
         const employerESI = grossPay * 0.0325;
@@ -888,7 +810,7 @@ exports.downloadStatutoryReportsExcel = async (req, res) => {
         const row = esiSheet.getRow(rowNum);
         row.values = [
           index + 1,
-          record.employee.employeeCode,
+          record.employee.employeeNumber,
           `${record.employee.firstName} ${record.employee.lastName}`,
           record.employee.esiNumber || 'N/A',
           grossPay,
@@ -902,11 +824,7 @@ exports.downloadStatutoryReportsExcel = async (req, res) => {
         }
 
         if (index % 2 === 0) {
-          row.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FFF7FAFC' }
-          };
+          row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7FAFC' } };
         }
 
         rowNum++;
@@ -940,5 +858,3 @@ function getMonthName(month) {
   ];
   return months[parseInt(month) - 1];
 }
-
-module.exports = exports;

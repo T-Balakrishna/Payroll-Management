@@ -3,12 +3,14 @@ const { DataTypes } = require("sequelize");
 module.exports = (sequelize) => {
   const User = sequelize.define("User", {
   userId: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  userMail: { type: DataTypes.STRING, allowNull: false, unique: true, validate: { isEmail: true } },
-  userCode: { type: DataTypes.STRING, allowNull: false, unique: true }, // ← changed from userNumber
-  role: { type: DataTypes.ENUM("Staff", "Admin", "Department Admin", "Super Admin"), allowNull: false },
+  companyId: { type: DataTypes.INTEGER, allowNull: false, defaultValue: "0" },
   departmentId: { type: DataTypes.INTEGER, allowNull: false, references: { model: "Department", key: "departmentId" } },
+  userNumber: { type: DataTypes.STRING, allowNull: false, unique: true }, 
+  userName: { type: DataTypes.STRING, allowNull: true },
+  userMail: { type: DataTypes.STRING, allowNull: false, unique: true, validate: { isEmail: true } },
+  role: { type: DataTypes.INTEGER, allowNull: false,references: { model: "Role", key: "roleId" }},
   password: { type: DataTypes.STRING, allowNull: false },
-  status: { type: DataTypes.ENUM("active", "inactive"), defaultValue: "active" },
+  status: { type: DataTypes.ENUM("Active", "Inactive"), defaultValue: "Active" },
   createdBy: { 
     type: DataTypes.INTEGER, 
     allowNull: true,
@@ -27,8 +29,6 @@ module.exports = (sequelize) => {
     },
     onDelete: "SET NULL"
   },
-  companyId: { type: DataTypes.INTEGER, allowNull: false, defaultValue: "0" },
-  biometricNumber: { type: DataTypes.STRING, allowNull: true },
   }, {
     timestamps: true,
     tableName: "User"
@@ -45,6 +45,11 @@ module.exports = (sequelize) => {
   User.belongsTo(models.Department, {
     foreignKey: 'departmentId',
     as: 'department'
+  });
+
+  User.belongsTo(models.Role, {
+    foreignKey: 'role',
+    as: 'role'
   });
 
   User.belongsTo(models.User, {

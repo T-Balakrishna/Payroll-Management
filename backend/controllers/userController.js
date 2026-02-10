@@ -8,8 +8,8 @@ exports.getAllUsers = async (req, res) => {
       include: [
         { model: require('../models').Company, as: 'company' },
         { model: require('../models').Department, as: 'department' },
-        { model: require('../models').User, as: 'Creator' },
-        { model: require('../models').User, as: 'Updater' },
+        { model: require('../models').Role, as: 'role' },
+        
       ]
     });
     res.json(users);
@@ -25,8 +25,8 @@ exports.getUserById = async (req, res) => {
       include: [
         { model: require('../models').Company, as: 'company' },
         { model: require('../models').Department, as: 'department' },
-        { model: require('../models').User, as: 'Creator' },
-        { model: require('../models').User, as: 'Updater' },
+        { model: require('../models').Role, as: 'role' },
+        
       ]
     });
 

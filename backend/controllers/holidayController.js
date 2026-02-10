@@ -8,8 +8,7 @@ exports.getAllHolidays = async (req, res) => {
       include: [
         { model: require('../models').HolidayPlan, as: 'plan' },
         { model: require('../models').Company, as: 'company' },
-        { model: require('../models').User, as: 'Creator' },
-        { model: require('../models').User, as: 'Updater' },
+        
       ]
     });
     res.json(holidays);
@@ -25,8 +24,7 @@ exports.getHolidayById = async (req, res) => {
       include: [
         { model: require('../models').HolidayPlan, as: 'plan' },
         { model: require('../models').Company, as: 'company' },
-        { model: require('../models').User, as: 'Creator' },
-        { model: require('../models').User, as: 'Updater' },
+        
       ]
     });
 

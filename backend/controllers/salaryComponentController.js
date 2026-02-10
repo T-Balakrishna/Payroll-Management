@@ -7,8 +7,7 @@ exports.getAllSalaryComponents = async (req, res) => {
     const salaryComponents = await SalaryComponent.findAll({
       include: [
         { model: require('../models').Company, as: 'company' },
-        { model: require('../models').User, as: 'creator' },
-        { model: require('../models').User, as: 'updater' },
+        
         // { model: require('../models').Formula, as: 'formulas' },           // heavy — include only when needed
         // { model: require('../models').EmployeeSalaryComponent, as: 'employeeSalaryComponents' }
       ]
@@ -25,8 +24,7 @@ exports.getSalaryComponentById = async (req, res) => {
     const salaryComponent = await SalaryComponent.findByPk(req.params.id, {
       include: [
         { model: require('../models').Company, as: 'company' },
-        { model: require('../models').User, as: 'creator' },
-        { model: require('../models').User, as: 'updater' },
+        
       ]
     });
 

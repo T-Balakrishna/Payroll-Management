@@ -27,16 +27,6 @@ module.exports = (sequelize) => {
       comment: 'The type of leave this policy applies to',
     },
 
-    employmentTypeId: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      references: {
-        model: 'employee_types',
-        key: 'employeeTypeId',
-      },
-      onDelete: 'SET NULL',
-      comment: 'Optional: Apply this policy only to specific employee types',
-    },
 
     accrualFrequency: {
       type: DataTypes.ENUM('Monthly', 'Quarterly', 'Yearly', 'On Joining'),
@@ -99,7 +89,6 @@ module.exports = (sequelize) => {
 
   LeavePolicy.associate = (models) => {
     LeavePolicy.belongsTo(models.Company, { foreignKey: 'companyId' });
-    LeavePolicy.belongsTo(models.EmployeeType, { foreignKey: 'employmentTypeId' });
     LeavePolicy.hasMany(models.LeaveAllocation, { foreignKey: 'leavePolicyId' });
   };
 
