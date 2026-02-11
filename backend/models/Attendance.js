@@ -8,12 +8,12 @@ module.exports = (sequelize) => {
       primaryKey: true,
     },
 
-    employeeId: {
+    staffId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'employees',
-        key: 'employeeId',
+        model: 'staff_details',
+        key: 'staffId',
       },
       onDelete: 'CASCADE',
     },
@@ -214,7 +214,7 @@ module.exports = (sequelize) => {
     indexes: [
       {
         unique: true,
-        fields: ['employeeId', 'attendanceDate'],
+        fields: ['staffId', 'attendanceDate'],
         name: 'unique_employee_attendance_date',
       },
       {
@@ -239,7 +239,7 @@ module.exports = (sequelize) => {
   // Associations
   Attendance.associate = (models) => {
     Attendance.belongsTo(models.Employee, {
-      foreignKey: 'employeeId',
+      foreignKey: 'staffId',
       as: 'employee',
     });
 

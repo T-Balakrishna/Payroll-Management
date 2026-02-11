@@ -8,12 +8,12 @@ module.exports = (sequelize) => {
       primaryKey: true,
     },
 
-    employeeId: {
+    staffId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'Employee',
-        key: 'employeeId',
+        model: 'staff_details',
+        key: 'staffId',
       },
       onDelete: 'CASCADE',
     },
@@ -22,7 +22,7 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'Company',
+        model: 'companies',
         key: 'companyId',
       },
       onDelete: 'CASCADE',
@@ -33,7 +33,7 @@ module.exports = (sequelize) => {
       allowNull: true,
       comment: 'Previous salary structure (null for initial assignment)',
       references: {
-        model: 'EmployeeSalaryMaster',
+        model: 'employee_salary_masters',
         key: 'employeeSalaryMasterId',
       },
       onDelete: 'SET NULL',
@@ -44,7 +44,7 @@ module.exports = (sequelize) => {
       allowNull: false,
       comment: 'New salary structure',
       references: {
-        model: 'EmployeeSalaryMaster',
+        model: 'employee_salary_masters',
         key: 'employeeSalaryMasterId',
       },
       onDelete: 'CASCADE',
@@ -126,7 +126,7 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'User',
+        model: 'users',
         key: 'userId',
       },
       onDelete: 'SET NULL',
@@ -142,7 +142,7 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'User',
+        model: 'users',
         key: 'userId',
       },
       onDelete: 'SET NULL',
@@ -154,7 +154,7 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'User',
+        model: 'users',
         key: 'userId',
       },
       onDelete: 'SET NULL',
@@ -165,7 +165,7 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'User',
+        model: 'users',
         key: 'userId',
       },
       onDelete: 'SET NULL',
@@ -173,13 +173,13 @@ module.exports = (sequelize) => {
     },
 
   }, {
-    tableName: 'salary_revision_history',  // ← exact model name as table name
+    tableName: 'salary_revision_histories',  // ← exact model name as table name
     timestamps: true,
     paranoid: true,
 
     indexes: [
       {
-        fields: ['employeeId', 'revisionDate'],
+        fields: ['staffId', 'revisionDate'],
         name: 'idx_employee_revision_date',
       },
       {
@@ -191,7 +191,7 @@ module.exports = (sequelize) => {
         name: 'idx_company',
       },
       {
-        fields: ['employeeId', 'newSalaryMasterId'],
+        fields: ['staffId', 'newSalaryMasterId'],
         unique: true,
         name: 'unique_employee_new_structure',
       },
@@ -201,7 +201,7 @@ module.exports = (sequelize) => {
   // Associations
   SalaryRevisionHistory.associate = (models) => {
     SalaryRevisionHistory.belongsTo(models.Employee, {
-      foreignKey: 'employeeId',
+      foreignKey: 'staffId',
       as: 'employee',
     });
 

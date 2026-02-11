@@ -88,8 +88,6 @@ module.exports = (sequelize) => {
       comment: 'Array of designation IDs this formula applies to. Empty = all designations.',
       /* Example: [1, 3, 5] */
     },
-,
-
     isActive: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
@@ -131,7 +129,7 @@ module.exports = (sequelize) => {
       allowNull: true,
       references: {
         model: 'users',
-        key: 'id',
+        key: 'userId',
       },
       onDelete: 'SET NULL',
       comment: 'User ID who created this formula',
@@ -142,7 +140,7 @@ module.exports = (sequelize) => {
       allowNull: true,
       references: {
         model: 'users',
-        key: 'id',
+        key: 'userId',
       },
       onDelete: 'SET NULL',
       comment: 'User ID who last updated this formula',

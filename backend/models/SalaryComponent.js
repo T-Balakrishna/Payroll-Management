@@ -90,7 +90,7 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'Company',
+        model: 'companies',
         key: 'companyId',
       },
       onDelete: 'CASCADE',
@@ -100,7 +100,7 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'User',
+        model: 'users',
         key: 'userId',
       },
       onDelete: 'SET NULL',
@@ -111,7 +111,7 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'User',
+        model: 'users',
         key: 'userId',
       },
       onDelete: 'SET NULL',
@@ -119,7 +119,7 @@ module.exports = (sequelize) => {
     },
 
   }, {
-    tableName: 'salary_component',  // ← exact model name as table name
+    tableName: 'salary_components',  // ← exact model name as table name
     timestamps: true,
     paranoid: true,
 

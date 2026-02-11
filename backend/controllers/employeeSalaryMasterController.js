@@ -1,6 +1,6 @@
 const { EmployeeSalaryMaster } = require('../models');
 
-// Get all employee salary masters (filter by employeeId/companyId in prod)
+// Get all employee salary masters (filter by staffId/companyId in prod)
 exports.getAllEmployeeSalaryMasters = async (req, res) => {
   try {
     const salaryMasters = await EmployeeSalaryMaster.findAll({

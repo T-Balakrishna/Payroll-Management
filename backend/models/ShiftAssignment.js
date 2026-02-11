@@ -8,12 +8,12 @@ module.exports = (sequelize) => {
       primaryKey: true,
     },
 
-    employeeId: {
+    staffId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'Employee',
-        key: 'employeeId',
+        model: 'staff_details',
+        key: 'staffId',
       },
       onDelete: 'CASCADE',
     },
@@ -22,7 +22,7 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'ShiftType',
+        model: 'shift_types',
         key: 'shiftTypeId',
       },
       onDelete: 'CASCADE',
@@ -81,7 +81,7 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'Company',
+        model: 'companies',
         key: 'companyId',
       },
       onDelete: 'CASCADE',
@@ -91,7 +91,7 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'User',
+        model: 'users',
         key: 'userId',
       },
       onDelete: 'SET NULL',
@@ -102,7 +102,7 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'User',
+        model: 'users',
         key: 'userId',
       },
       onDelete: 'SET NULL',
@@ -110,14 +110,14 @@ module.exports = (sequelize) => {
     },
 
   }, {
-    tableName: 'shift_assignment',  // ← exact model name as table name
+    tableName: 'shift_assignments',  // ← exact model name as table name
     timestamps: true,
     paranoid: true,
 
     indexes: [
       {
         unique: true,
-        fields: ['employeeId', 'assignmentDate'],
+        fields: ['staffId', 'assignmentDate'],
         name: 'unique_employee_date_assignment',
       },
       {
@@ -129,7 +129,7 @@ module.exports = (sequelize) => {
         name: 'idx_shift_type',
       },
       {
-        fields: ['employeeId', 'status'],
+        fields: ['staffId', 'status'],
         name: 'idx_employee_status',
       },
     ],
@@ -158,7 +158,7 @@ module.exports = (sequelize) => {
   // Associations
   ShiftAssignment.associate = (models) => {
     ShiftAssignment.belongsTo(models.Employee, {
-      foreignKey: 'employeeId',
+      foreignKey: 'staffId',
       as: 'employee',
     });
 

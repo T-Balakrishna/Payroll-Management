@@ -142,12 +142,12 @@ module.exports = (sequelize) => {
       },
     },
 
-    holidayListId: {
+    holidayPlanId: {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'HolidayList',
-        key: 'holidayListId',
+        model: 'holiday_plans',
+        key: 'holidayPlanId',
       },
       onDelete: 'SET NULL',
       comment: 'Optional holiday list for this shift type',
@@ -170,7 +170,7 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'Company',
+        model: 'companies',
         key: 'companyId',
       },
       onDelete: 'CASCADE',
@@ -180,7 +180,7 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'User',
+        model: 'users',
         key: 'userId',
       },
       onDelete: 'SET NULL',
@@ -191,7 +191,7 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'User',
+        model: 'users',
         key: 'userId',
       },
       onDelete: 'SET NULL',
@@ -199,7 +199,7 @@ module.exports = (sequelize) => {
     },
 
   }, {
-    tableName: 'shift_type',  // ← exact model name as table name
+    tableName: 'shift_types',  // ← exact model name as table name
     timestamps: true,
     paranoid: true,
 

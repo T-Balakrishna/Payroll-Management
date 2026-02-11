@@ -8,12 +8,12 @@ module.exports = (sequelize) => {
       primaryKey: true,
     },
 
-    employeeId: {
+    staffId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'employees',
-        key: 'employeeId',
+        model: 'staff_details',
+        key: 'staffId',
       },
       onDelete: 'CASCADE',
     },
@@ -111,11 +111,11 @@ module.exports = (sequelize) => {
     indexes: [
       {
         name: 'idx_employee_punch_date',
-        fields: ['employeeId', 'punchDate'],
+        fields: ['staffId', 'punchDate'],
       },
       {
         name: 'idx_employee_timestamp',
-        fields: ['employeeId', 'punchTimestamp'],
+        fields: ['staffId', 'punchTimestamp'],
       },
       {
         name: 'idx_company_date',
@@ -139,7 +139,7 @@ module.exports = (sequelize) => {
   // Associations (clean & consistent)
   BiometricPunch.associate = (models) => {
     BiometricPunch.belongsTo(models.Employee, {
-      foreignKey: 'employeeId',
+      foreignKey: 'staffId',
       as: 'employee',
     });
 

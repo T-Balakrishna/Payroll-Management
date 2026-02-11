@@ -1,7 +1,7 @@
 const { SalaryGeneration } = require('../models');
 
 // Get all salary generations
-// In real usage: filter by employeeId, companyId, month/year, status, etc.
+// In real usage: filter by staffId, companyId, month/year, status, etc.
 exports.getAllSalaryGenerations = async (req, res) => {
   try {
     const salaryGenerations = await SalaryGeneration.findAll({

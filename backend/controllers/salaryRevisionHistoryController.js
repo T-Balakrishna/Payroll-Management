@@ -1,7 +1,7 @@
 const { SalaryRevisionHistory } = require('../models');
 
 // Get all salary revision histories
-// In real usage: almost always filtered by employeeId, companyId, revisionDate, revisionType
+// In real usage: almost always filtered by staffId, companyId, revisionDate, revisionType
 exports.getAllSalaryRevisionHistories = async (req, res) => {
   try {
     const histories = await SalaryRevisionHistory.findAll({

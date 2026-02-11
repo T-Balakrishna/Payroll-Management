@@ -8,12 +8,12 @@ module.exports = (sequelize) => {
       primaryKey: true,
     },
 
-    employeeId: {
+    staffId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'employees',
-        key: 'employeeId',
+        model: 'staff_details',
+        key: 'staffId',
       },
       onDelete: 'CASCADE',
     },
@@ -24,16 +24,6 @@ module.exports = (sequelize) => {
       references: {
         model: 'leave_types',
         key: 'leaveTypeId',
-      },
-      onDelete: 'CASCADE',
-    },
-
-    leavePeriodId: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'leave_periods',
-        key: 'leavePeriodId',
       },
       onDelete: 'CASCADE',
     },
@@ -210,7 +200,7 @@ module.exports = (sequelize) => {
     indexes: [
       {
         unique: true,
-        fields: ['employeeId', 'leaveTypeId', 'leavePeriodId'],
+        fields: ['staffId', 'leaveTypeId'],
         name: 'unique_allocation_per_employee_type_period',
       },
     ],
@@ -253,7 +243,7 @@ module.exports = (sequelize) => {
   };
 
   LeaveAllocation.associate = (models) => {
-    LeaveAllocation.belongsTo(models.Employee, { foreignKey: 'employeeId' });
+    LeaveAllocation.belongsTo(models.Employee, { foreignKey: 'staffId' });
     LeaveAllocation.belongsTo(models.LeaveType, { foreignKey: 'leaveTypeId' });
     LeaveAllocation.belongsTo(models.LeavePolicy, { foreignKey: 'leavePolicyId' });
     LeaveAllocation.belongsTo(models.Company, { foreignKey: 'companyId' });

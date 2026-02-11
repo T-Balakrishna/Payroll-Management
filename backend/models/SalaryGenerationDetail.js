@@ -12,7 +12,7 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'SalaryGeneration',
+        model: 'salary_generations',
         key: 'salaryGenerationId',
       },
       onDelete: 'CASCADE',
@@ -22,7 +22,7 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'SalaryComponent',
+        model: 'salary_components',
         key: 'salaryComponentId',
       },
       onDelete: 'RESTRICT',
@@ -87,7 +87,7 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'User',
+        model: 'users',
         key: 'userId',
       },
       onDelete: 'SET NULL',
@@ -98,7 +98,7 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'User',
+        model: 'users',
         key: 'userId',
       },
       onDelete: 'SET NULL',
@@ -106,7 +106,7 @@ module.exports = (sequelize) => {
     },
 
   }, {
-    tableName: 'salary_generation_detail',  // ← exact model name as table name
+    tableName: 'salary_generation_details',  // ← exact model name as table name
     timestamps: true,
     paranoid: true,
 

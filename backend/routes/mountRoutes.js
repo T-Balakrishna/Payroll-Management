@@ -12,6 +12,9 @@ const mountRoutes = (app) => {
   const roleRoutes = require('./roleRoutes');
   app.use('/api/roles', roleRoutes);
 
+  const authRoutes = require('./authRoutes');
+  app.use('/api/auth', authRoutes);
+
   // Organization
   const departmentRoutes = require('./departmentRoutes');
   app.use('/api/departments', departmentRoutes);

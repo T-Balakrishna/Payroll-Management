@@ -14,7 +14,7 @@ export default function DepartmentForm({
   onCancel,
 }) {
   const [departmentName, setDepartmentName] = useState(editData?.departmentName || "");
-  const [departmentAckr, setDepartmentAckr] = useState(editData?.departmentAckr || "");
+  const [departmentAcr, setDepartmentAcr] = useState(editData?.departmentAcr || "");
   const [companyId, setCompanyId] = useState(editData?.companyId || selectedCompanyId || "");
   const [companies, setCompanies] = useState([]);
 
@@ -42,12 +42,12 @@ export default function DepartmentForm({
     e.preventDefault();
 
     if (!departmentName.trim()) return toast.error("Department Name is required");
-    if (!departmentAckr.trim()) return toast.error("Acronym is required");
+    if (!departmentAcr.trim()) return toast.error("Acronym is required");
     if (userRole === "Super Admin" && !companyId) return toast.error("Please select a company");
 
     const payload = {
       departmentName: departmentName.trim(),
-      departmentAckr: departmentAckr.trim().toUpperCase(),
+      departmentAcr: departmentAcr.trim().toUpperCase(),
       status: editData?.status || "active",
       companyId: companyId || selectedCompanyId || 1,
       createdBy: editData?.createdBy || "system",
@@ -69,8 +69,8 @@ export default function DepartmentForm({
 
       <Input
         label="Acronym"
-        value={departmentAckr}
-        onChange={(e) => setDepartmentAckr(e.target.value)}
+        value={departmentAcr}
+        onChange={(e) => setDepartmentAcr(e.target.value)}
         placeholder="Enter short name (e.g. HR, FIN)"
         required
       />

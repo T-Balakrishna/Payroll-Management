@@ -2,20 +2,16 @@ const { DataTypes } = require('sequelize');
 
 module.exports = (sequelize) => {
   const Employee = sequelize.define('Employee', {
-    employeeId: {
+
+    staffId: {
       type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
+      field: 'staffId',
+      comment: 'Primary key for employee/staff'
     },
 
     // ── Identification & Login ─────────────────────────────────────
-    employeeNumber: {
-      type: DataTypes.STRING(20),
-      allowNull: false,
-      unique: true,
-      comment: 'Unique employee code / Employee Number',
-    },
-
     biometricNumber: {
       type: DataTypes.STRING(50),
       allowNull: true,
@@ -23,10 +19,11 @@ module.exports = (sequelize) => {
       comment: 'Biometric ID / Enrollment Number from device',
     },
 
-    password: {
-      type: DataTypes.STRING(255),
+    staffNumber: {
+      type: DataTypes.STRING,
       allowNull: true,
-      comment: 'Hashed password - only if local authentication is used',
+      references: { model: 'users', key: 'userNumber' },
+      comment: 'Reference to user table for login credentials',
     },
 
     // ── Basic Information ──────────────────────────────────────────
@@ -58,7 +55,7 @@ module.exports = (sequelize) => {
     currentPincode:      { type: DataTypes.STRING(10), allowNull: false },
     currentCountry:      { type: DataTypes.STRING(100), allowNull: false, defaultValue: 'India' },
 
-    // Permanent Address
+    // ── Permanent Address ──────────────────────────────────────────
     permanentAddressLine1: { type: DataTypes.STRING(150), allowNull: true },
     permanentAddressLine2: { type: DataTypes.STRING(150), allowNull: true },
     permanentCity:         { type: DataTypes.STRING(100), allowNull: true },
@@ -67,12 +64,6 @@ module.exports = (sequelize) => {
     permanentCountry:      { type: DataTypes.STRING(100), allowNull: true },
 
     // ── Employment Information ─────────────────────────────────────
-    companyId: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: { model: 'companies', key: 'companyId' },
-    },
-
     departmentId: {
       type: DataTypes.INTEGER,
       allowNull: false,
@@ -91,7 +82,6 @@ module.exports = (sequelize) => {
       references: { model: 'employee_grades', key: 'employeeGradeId' },
     },
 
-
     dateOfJoining:      { type: DataTypes.DATEONLY, allowNull: false, field: 'DOJ' },
     confirmationDate:   { type: DataTypes.DATEONLY, allowNull: true },
     probationPeriod:    { type: DataTypes.INTEGER, allowNull: true, defaultValue: 0, comment: 'in months' },
@@ -99,7 +89,7 @@ module.exports = (sequelize) => {
     reportingManagerId: {
       type: DataTypes.INTEGER,
       allowNull: true,
-      references: { model: 'employees', key: 'employeeId' },
+      references: { model: 'staff_details', key: 'staffId' },
       field: 'reportsTo',
     },
 
@@ -122,12 +112,6 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: { model: 'leave_policies', key: 'leavePolicyId' },
-    },
-
-    weeklyOff: {
-      type: DataTypes.ENUM('Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'),
-      allowNull: true,
-      defaultValue: 'Sunday'
     },
 
     isOvertimeApplicable: { type: DataTypes.BOOLEAN, defaultValue: false },
@@ -156,9 +140,81 @@ module.exports = (sequelize) => {
     drivingLicenseNumber: { type: DataTypes.STRING(20), allowNull: true },
     voterIdNumber:      { type: DataTypes.STRING(20), allowNull: true },
 
+    // ── Academic & Research Profiles ───────────────────────────────
+    annaUniversityFacultyId: { 
+      type: DataTypes.STRING(100), 
+      allowNull: true,
+      comment: 'Anna University Faculty ID'
+    },
+    
+    aicteFacultyId: { 
+      type: DataTypes.STRING(100), 
+      allowNull: true,
+      comment: 'AICTE Faculty ID'
+    },
+    
+    orcid: { 
+      type: DataTypes.STRING(100), 
+      allowNull: true,
+      comment: 'ORCID - Open Researcher and Contributor ID'
+    },
+    
+    researcherId: { 
+      type: DataTypes.STRING(100), 
+      allowNull: true,
+      comment: 'ResearcherID (Web of Science/Publons)'
+    },
+    
+    googleScholarId: { 
+      type: DataTypes.STRING(100), 
+      allowNull: true,
+      comment: 'Google Scholar Profile ID'
+    },
+    
+    scopusProfile: { 
+      type: DataTypes.STRING(255), 
+      allowNull: true,
+      comment: 'Scopus Profile URL or ID'
+    },
+    
+    vidwanProfile: { 
+      type: DataTypes.STRING(255), 
+      allowNull: true,
+      comment: 'VIDWAN Profile URL or ID'
+    },
+    
+    supervisorId: { 
+      type: DataTypes.INTEGER, 
+      allowNull: true,
+      references: { model: 'staff_details', key: 'staffId' },
+      comment: 'Academic/Research Supervisor'
+    },
+    
+    hIndex: { 
+      type: DataTypes.INTEGER, 
+      allowNull: true,
+      comment: 'h-index for research publications'
+    },
+    
+    citationIndex: { 
+      type: DataTypes.INTEGER, 
+      allowNull: true,
+      comment: 'Total citation count'
+    },
+
     // ── Exit Information ───────────────────────────────────────────
     resignationLetterDate: { type: DataTypes.DATEONLY, allowNull: true },
+    reasonForResignation: { 
+      type: DataTypes.TEXT, 
+      allowNull: true,
+      comment: 'Reason provided for resignation'
+    },
     relievingDate:         { type: DataTypes.DATEONLY, allowNull: true },
+    dateOfRetirement:      { 
+      type: DataTypes.DATEONLY, 
+      allowNull: true,
+      comment: 'Auto-calculated based on DOB + retirement age from settings (default 58 years)'
+    },
     exitInterviewHeldOn:   { type: DataTypes.DATEONLY, allowNull: true },
 
     // ── Status & Audit ─────────────────────────────────────────────
@@ -183,64 +239,23 @@ module.exports = (sequelize) => {
     },
 
   }, {
-    tableName: 'employees',
+    tableName: 'staff_details',
     timestamps: true,
     paranoid: true,
 
     hooks: {
       beforeValidate: (employee) => {
-        if (employee.dateOfBirth) {
+        if (employee.dateOfBirth && !employee.dateOfRetirement) {
+          // Auto-calculate retirement date
+          // You can make retirementAge configurable from settings
+          const retirementAge = 58; // Default, should come from settings
           const dob = new Date(employee.dateOfBirth);
           const retirement = new Date(dob);
-          retirement.setFullYear(dob.getFullYear() + 58);
+          retirement.setFullYear(dob.getFullYear() + retirementAge);
           employee.dateOfRetirement = retirement.toISOString().split('T')[0];
         }
       }
     }
   });
-
-  // ── Virtual Fields ─────────────────────────────────────────────────
-  Employee.prototype.getFullName = function () {
-    const parts = [
-      this.salutation || '',
-      this.firstName,
-      this.middleName || '',
-      this.lastName
-    ].filter(Boolean);
-    return parts.join(' ').trim();
-  };
-
-  Employee.prototype.getAge = function () {
-    if (!this.dateOfBirth) return null;
-    const today = new Date();
-    const birthDate = new Date(this.dateOfBirth);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const m = today.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
-    return age;
-  };
-
-  // ── Associations ───────────────────────────────────────────────────
-  Employee.associate = (models) => {
-    Employee.belongsTo(models.Company,       { foreignKey: 'companyId', as: 'company' });
-    Employee.belongsTo(models.Department,    { foreignKey: 'departmentId', as: 'department' });
-    Employee.belongsTo(models.Designation,   { foreignKey: 'designationId', as: 'designation' });
-    Employee.belongsTo(models.EmployeeGrade, { foreignKey: 'employeeGradeId', as: 'grade' });
-    Employee.belongsTo(models.Employee,      { as: 'Manager', foreignKey: 'reportingManagerId' });
-    Employee.belongsTo(models.Bus,           { foreignKey: 'busId', as: 'bus' });
-
-    Employee.hasMany(models.LeaveRequest,    { foreignKey: 'employeeId', as: 'leaveRequests' });
-    Employee.hasMany(models.Attendance,      { foreignKey: 'employeeId', as: 'attendances' });
-    Employee.hasMany(models.BiometricPunch,  { foreignKey: 'employeeId', as: 'biometricPunches' });
-    Employee.hasMany(models.ShiftAssignment, { foreignKey: 'employeeId', as: 'shiftAssignments' });
-    Employee.hasMany(models.EmployeeLoan,    { foreignKey: 'employeeId', as: 'loans' });
-    Employee.hasMany(models.EmployeeSalaryMaster, { foreignKey: 'employeeId', as: 'salaryMasters' });
-    Employee.hasMany(models.SalaryGeneration, { foreignKey: 'employeeId', as: 'salaryGenerations' });
-    Employee.hasMany(models.SalaryRevisionHistory, { foreignKey: 'employeeId', as: 'salaryRevisions' });
-    Employee.hasMany(models.LeaveAllocation, { foreignKey: 'employeeId', as: 'leaveAllocations' });
-    Employee.hasMany(models.LeaveRequestHistory, { foreignKey: 'actionBy', as: 'leaveActions' });
-    Employee.hasMany(models.LeaveApproval, { foreignKey: 'approverId', as: 'leaveApprovals' });
-  };
-
-  return Employee;
+ return Employee;
 };

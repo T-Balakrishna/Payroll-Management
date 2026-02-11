@@ -22,8 +22,8 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'employees',
-        key: 'employeeId',  // ← Updated to match Employee PK
+        model: 'staff_details',
+        key: 'staffId',  // ← Updated to match Employee PK
       },
       onDelete: 'RESTRICT',
       comment: 'Employee ID of the approver',
