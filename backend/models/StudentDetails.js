@@ -3,8 +3,9 @@ const { DataTypes } = require("sequelize");
 module.exports = (sequelize) => {
   const StudentDetails = sequelize.define('StudentDetails', {
     studentId: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    studentName:{ type: DataTypes.STRING(50), allowNull: false },
     registerNumber: { type: DataTypes.STRING(50), unique: true, allowNull: false },
-    departmentId: { type: DataTypes.INTEGER, allowNull: false, references: { model:"departments", key: 'departmentId' } },
+    departmentId: { type: DataTypes.INTEGER, allowNull: true, references: { model:"departments", key: 'departmentId' } },
     batch: { type: DataTypes.INTEGER },
     semester: { type: DataTypes.STRING(255) },
     staffId: {
@@ -37,10 +38,6 @@ module.exports = (sequelize) => {
     studentType: { type: DataTypes.ENUM('Day-Scholar', 'Hosteller') },
     motherTongue: { type: DataTypes.STRING },
     identificationMark: { type: DataTypes.STRING },
-    extracurricularId: {
-      type: DataTypes.INTEGER,
-      references: { model: "extracurriculars", key: 'id' }
-    },
     religion: { type: DataTypes.ENUM('Hindu', 'Muslim', 'Christian', 'Others') },
     caste: { type: DataTypes.STRING },
     community: { type: DataTypes.ENUM('General', 'OBC', 'SC', 'ST', 'Others') },
@@ -50,7 +47,6 @@ module.exports = (sequelize) => {
     doorNo: { type: DataTypes.STRING(255) },
     street: { type: DataTypes.STRING(255) },
     city: { type: DataTypes.STRING(255) }, // Changed to text field
-
     pincode: { type: DataTypes.STRING(6), validate: { is: /^[0-9]{6}$/ } },
     personalPhone: { type: DataTypes.STRING(10), validate: { is: /^[6-9]\d{9}$/ } },
     pending: {
@@ -63,7 +59,7 @@ module.exports = (sequelize) => {
     },
     approvedBy: {
       type: DataTypes.INTEGER,
-      references: { model: "users", key: 'userId' },
+      references: { model: "staff_details", key: 'staffId' },
       field: 'approved_by'
     },
     approvedAt: { type: DataTypes.DATE },
@@ -80,10 +76,10 @@ module.exports = (sequelize) => {
       as: 'department'
     });
 
-    // StudentDetails.belongsTo(models.StaffDetails, {
-    //   foreignKey: 'staffId',
-    //   as: 'staff'
-    // });
+    StudentDetails.belongsTo(models.Employee, {
+      foreignKey: 'staffId',
+      as: 'staff'
+    });
 
     StudentDetails.belongsTo(models.User, {
       foreignKey: 'createdBy',
@@ -94,11 +90,6 @@ module.exports = (sequelize) => {
       foreignKey: 'updatedBy',
       as: 'updater'
     });
-
-    // StudentDetails.belongsTo(models.Extracurricular, {
-    //   foreignKey: 'extracurricularId',
-    //   as: 'extracurricular'
-    // });
 
     StudentDetails.belongsTo(models.User, {
       foreignKey: 'approvedBy',
