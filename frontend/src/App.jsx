@@ -53,5 +53,5 @@ function App() {
     </AuthProvider>
   );
 }
-
+{/* <img class=" lazyloaded" src="https://nec.edu.in/wp-content/uploads/2024/01/NEC-LOGO1-unscreen.gif" data-src="https://nec.edu.in/wp-content/uploads/2024/01/NEC-LOGO1-unscreen.gif" alt="Loading..." id="preloader-logo"></img> */}
 export default App;
