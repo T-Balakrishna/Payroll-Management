@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import { toast } from "react-toastify";
 import Input from "../../../ui/Input";
 import Select from "../../../ui/Select";
 import Button from "../../../ui/Button";
+import API from "../../../../api";
+import { useAuth } from "../../../../auth/AuthContext";
 
 export default function DepartmentForm({
   editData,
@@ -13,6 +14,8 @@ export default function DepartmentForm({
   onSave,
   onCancel,
 }) {
+  const { user } = useAuth();
+  const currentUserId = user?.userId ?? user?.id ?? "system";
   const [departmentName, setDepartmentName] = useState(editData?.departmentName || "");
   const [departmentAcr, setDepartmentAcr] = useState(editData?.departmentAcr || "");
   const [companyId, setCompanyId] = useState(editData?.companyId || selectedCompanyId || "");
@@ -23,9 +26,7 @@ export default function DepartmentForm({
 
     const fetchCompanies = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/companies", {
-          headers: { Authorization: `Bearer ${sessionStorage.getItem("token")}` },
-        });
+        const res = await API.get("/companies");
         setCompanies(res.data || []);
         if (selectedCompanyId && !editData) {
           setCompanyId(selectedCompanyId);
@@ -50,8 +51,8 @@ export default function DepartmentForm({
       departmentAcr: departmentAcr.trim().toUpperCase(),
       status: editData?.status || "active",
       companyId: companyId || selectedCompanyId || 1,
-      createdBy: editData?.createdBy || "system",
-      updatedBy: sessionStorage.getItem("userNumber") || "system",
+      createdBy: editData?.createdBy || currentUserId,
+      updatedBy: currentUserId,
     };
 
     onSave(payload, editData?.departmentId);

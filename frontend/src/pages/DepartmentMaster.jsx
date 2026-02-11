@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import { Building2, Pencil, Trash2 } from "lucide-react";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
-import { jwtDecode } from "jwt-decode";
+import API from "../api";
+import { useAuth } from "../auth/AuthContext";
 
 import Modal from "../components/ui/Modal";
 import MasterHeader from "../components/common/MasterHeader";
@@ -12,10 +12,9 @@ import ActionButtons from "../components/common/ActionButton";
 
 import DepartmentForm from "../components/features/masters/department/DepartmentForm";
 
-let token = sessionStorage.getItem("token");
-let userNumber = token ? jwtDecode(token)?.userNumber : "system";
-
 export default function DepartmentMaster({ userRole, selectedCompanyId, selectedCompanyName }) {
+  const { user } = useAuth();
+  const currentUserId = user?.userId ?? user?.id ?? "system";
   const [departments, setDepartments] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [search, setSearch] = useState("");
@@ -25,9 +24,7 @@ export default function DepartmentMaster({ userRole, selectedCompanyId, selected
   useEffect(() => {
     const fetchCompanies = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/companies", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await API.get("/companies");
         setCompanies(res.data || []);
       } catch (err) {
         console.error("Error fetching companies:", err);
@@ -38,10 +35,8 @@ export default function DepartmentMaster({ userRole, selectedCompanyId, selected
 
   const fetchDepartments = async () => {
     try {
-      let url = "http://localhost:5000/api/departments";
-      if (selectedCompanyId) url += `?companyId=${selectedCompanyId}`;
-      const res = await axios.get(url, {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await API.get("/departments", {
+        params: selectedCompanyId ? { companyId: selectedCompanyId } : {},
       });
       let data = res.data || [];
       if (selectedCompanyId) {
@@ -68,14 +63,10 @@ export default function DepartmentMaster({ userRole, selectedCompanyId, selected
   const handleSave = async (payload, departmentId) => {
     try {
       if (departmentId) {
-        await axios.put(`http://localhost:5000/api/departments/${departmentId}`, payload, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await API.put(`/departments/${departmentId}`, payload);
         Swal.fire("Updated!", "Department updated successfully", "success");
       } else {
-        await axios.post("http://localhost:5000/api/departments", payload, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await API.post("/departments", payload);
         Swal.fire("Added!", "Department added successfully", "success");
       }
       setShowForm(false);
@@ -110,9 +101,8 @@ export default function DepartmentMaster({ userRole, selectedCompanyId, selected
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          await axios.delete(`http://localhost:5000/api/departments/${departmentId}`, {
-            data: { updatedBy: userNumber },
-            headers: { Authorization: `Bearer ${token}` },
+          await API.delete(`/departments/${departmentId}`, {
+            data: { updatedBy: currentUserId },
           });
           Swal.fire("Deleted!", "Department has been deleted.", "success");
           fetchDepartments();

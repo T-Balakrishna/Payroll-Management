@@ -7,6 +7,7 @@ import DepartmentMaster from "./pages/DepartmentMaster";
 import { AuthProvider } from "./auth/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import './index.css';
+import AddUser from "./pages/AddUser";
 
 function App() {
   return (
@@ -27,6 +28,22 @@ function App() {
             element={
               <ProtectedRoute roles={["User", "Staff"]}>
                 <UserDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/departments"
+            element={
+              <ProtectedRoute roles={["User", "Staff","Admin"]}>
+                <DepartmentMaster />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/users"
+            element={
+              <ProtectedRoute roles={["User", "Staff","Admin"]}>
+                <AddUser />
               </ProtectedRoute>
             }
           />

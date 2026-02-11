@@ -21,7 +21,7 @@ module.exports = (sequelize) => {
 
     staffNumber: {
       type: DataTypes.STRING,
-      allowNull: true,
+      allowNull: false,
       references: { model: 'users', key: 'userNumber' },
       comment: 'Reference to user table for login credentials',
     },
@@ -30,9 +30,9 @@ module.exports = (sequelize) => {
     salutation:         { type: DataTypes.STRING(10), allowNull: true },
     firstName:          { type: DataTypes.STRING(50), allowNull: false },
     middleName:         { type: DataTypes.STRING(50), allowNull: true },
-    lastName:           { type: DataTypes.STRING(50), allowNull: false },
-    gender:             { type: DataTypes.ENUM('Male', 'Female', 'Other'), allowNull: false },
-    dateOfBirth:        { type: DataTypes.DATEONLY, allowNull: false, field: 'DOB' },
+    lastName:           { type: DataTypes.STRING(50), allowNull: true },
+    gender:             { type: DataTypes.ENUM('Male', 'Female', 'Other'), allowNull: true },
+    dateOfBirth:        { type: DataTypes.DATEONLY, allowNull: true, field: 'DOB' },
     bloodGroup:         { type: DataTypes.ENUM('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'), allowNull: true },
     maritalStatus:      { type: DataTypes.ENUM('Single', 'Married', 'Divorced', 'Widowed'), allowNull: true },
     weddingDate:        { type: DataTypes.DATEONLY, allowNull: true },
@@ -41,19 +41,19 @@ module.exports = (sequelize) => {
     // ── Contact Information ────────────────────────────────────────
     personalEmail:      { type: DataTypes.STRING(150), allowNull: false, validate: { isEmail: true } },
     officialEmail:      { type: DataTypes.STRING(150), allowNull: true, validate: { isEmail: true }, field: 'employeeMail' },
-    mobileNumber:       { type: DataTypes.STRING(15), allowNull: false },
+    mobileNumber:       { type: DataTypes.STRING(15), allowNull: true },
     alternateMobile:    { type: DataTypes.STRING(15), allowNull: true },
     emergencyContactName:       { type: DataTypes.STRING(100), allowNull: true },
     emergencyContactNumber:     { type: DataTypes.STRING(15), allowNull: true },
     emergencyContactRelationship: { type: DataTypes.STRING(50), allowNull: true },
 
     // ── Current Address ────────────────────────────────────────────
-    currentAddressLine1: { type: DataTypes.STRING(150), allowNull: false },
+    currentAddressLine1: { type: DataTypes.STRING(150), allowNull: true },
     currentAddressLine2: { type: DataTypes.STRING(150), allowNull: true },
-    currentCity:         { type: DataTypes.STRING(100), allowNull: false },
-    currentState:        { type: DataTypes.STRING(100), allowNull: false },
-    currentPincode:      { type: DataTypes.STRING(10), allowNull: false },
-    currentCountry:      { type: DataTypes.STRING(100), allowNull: false, defaultValue: 'India' },
+    currentCity:         { type: DataTypes.STRING(100), allowNull: true },
+    currentState:        { type: DataTypes.STRING(100), allowNull: true },
+    currentPincode:      { type: DataTypes.STRING(10), allowNull: true },
+    currentCountry:      { type: DataTypes.STRING(100), allowNull: true, defaultValue: 'India' },
 
     // ── Permanent Address ──────────────────────────────────────────
     permanentAddressLine1: { type: DataTypes.STRING(150), allowNull: true },
@@ -72,7 +72,7 @@ module.exports = (sequelize) => {
 
     designationId: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       references: { model: 'designations', key: 'designationId' },
     },
 
