@@ -15,7 +15,7 @@ export default function ForgotPassword() {
     try {
       await API.post("/auth/forgot-password", { email });
       toast.success("Reset link sent to your email");
-      navigate("/login");
+      navigate("/");
     } catch (err) {
       toast.error(err.response?.data?.msg || "Failed to send reset link");
     }
@@ -55,7 +55,7 @@ export default function ForgotPassword() {
 
         <p className="mt-4 text-center text-sm">
           <button
-            onClick={() => navigate("/login")}
+            onClick={() => navigate("/")}
             className="text-indigo-600 hover:underline font-medium"
           >
             Back to Login

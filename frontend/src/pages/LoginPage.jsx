@@ -4,6 +4,7 @@ import { useState } from "react";
 import API from "../api";
 import { toast } from "react-toastify";
 import { useAuth } from "../auth/AuthContext";
+import LoadingScreen from "../components/common/LoadingScreen";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -11,6 +12,8 @@ export default function LoginPage() {
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [pageLoading, setPageLoading] = useState(true);     // controls initial loading screen
+  const [actionLoading, setActionLoading] = useState(false); // controls loading during login
 
   const adminRoles = ["Admin", "Super Admin", "Department Admin"];
 
@@ -21,20 +24,17 @@ export default function LoginPage() {
     }
 
     try {
-      await API.post("/auth/login", {
-        identifier,
-        password,
-      });
+      await API.post("/auth/login", { identifier, password });
 
-      const me = await refresh();
-      const role = me?.role;
+      const user = await refresh();
+      const role = user?.role;
+
+      if (!role) throw new Error("No role returned");
 
       navigate(
-        adminRoles.includes(role)
-          ? "/adminDashboard"
-          : "/userDashboard"
+        adminRoles.includes(role) ? "/adminDashboard" : "/userDashboard",
+        { replace: true }
       );
-
       toast.success("Login successful");
     } catch (err) {
       toast.error(err.response?.data?.msg || "Login failed");
@@ -47,25 +47,33 @@ export default function LoginPage() {
       return toast.error("Google login failed");
     }
 
+    setActionLoading(true);
     try {
       await API.post("/auth/google-login", {
-        token: res.credential,
+        token: credentialResponse.credential,
       });
 
-      const me = await refresh();
-      const role = me?.role;
+      const user = await refresh();
+      const role = user?.role;
+
+      if (!role) throw new Error("No role returned");
 
       navigate(
-        adminRoles.includes(role)
-          ? "/adminDashboard"
-          : "/userDashboard"
+        adminRoles.includes(role) ? "/adminDashboard" : "/userDashboard",
+        { replace: true }
       );
-
       toast.success("Login successful");
     } catch (err) {
       toast.error(err.response?.data?.msg || "Google login failed");
+    } finally {
+      setActionLoading(false);
     }
   };
+
+  // Show full-screen loading during initial auth check
+  if (pageLoading) {
+    return <LoadingScreen />;
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-purple-100 to-gray-100">
