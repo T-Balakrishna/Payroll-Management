@@ -4,7 +4,7 @@ module.exports = (sequelize) => {
   const StudentDetails = sequelize.define('StudentDetails', {
     studentId: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
     studentName:{ type: DataTypes.STRING(50), allowNull: false },
-    registerNumber: { type: DataTypes.STRING(50), unique: true, allowNull: false },
+    registerNumber: { type: DataTypes.STRING(50), unique: true, allowNull: false, references: { model:"users", key: 'userNumber' } },
     departmentId: { type: DataTypes.INTEGER, allowNull: true, references: { model:"departments", key: 'departmentId' } },
     batch: { type: DataTypes.INTEGER },
     semester: { type: DataTypes.STRING(255) },
