@@ -1,3 +1,4 @@
+const { Op } = require('sequelize');
 const { Department } = require('../models');
 
 const normalizeStatus = (status) => {
@@ -38,11 +39,17 @@ exports.getAllDepartments = async (req, res) => {
     });
     res.json(departments);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('[getAllDepartments] Error:', error);
+    res.status(500).json({
+      error: 'Failed to fetch departments',
+      details: error.message,
+    });
   }
 };
 
-// Get single department by ID
+/**
+ * GET /departments/:id
+ */
 exports.getDepartmentById = async (req, res) => {
   try {
     const department = await Department.findByPk(req.params.id, {
@@ -55,16 +62,22 @@ exports.getDepartmentById = async (req, res) => {
     });
 
     if (!department) {
-      return res.status(404).json({ message: 'Department not found' });
+      return res.status(404).json({ error: 'Department not found' });
     }
 
-    res.json(department);
+    res.status(200).json(department);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('[getDepartmentById] Error:', error);
+    res.status(500).json({
+      error: 'Failed to fetch department',
+      details: error.message,
+    });
   }
 };
 
-// Create new department
+/**
+ * POST /departments
+ */
 exports.createDepartment = async (req, res) => {
   try {
     const payload = {
@@ -79,7 +92,9 @@ exports.createDepartment = async (req, res) => {
   }
 };
 
-// Update department
+/**
+ * PUT /departments/:id
+ */
 exports.updateDepartment = async (req, res) => {
   try {
     const payload = {
@@ -87,16 +102,16 @@ exports.updateDepartment = async (req, res) => {
       ...(req.body?.status ? { status: normalizeStatus(req.body.status) } : {}),
     };
 
-    const [updated] = await Department.update(payload, {
+    const [affectedCount] = await Department.update(payload, {
       where: { departmentId: req.params.id }
     });
 
-    if (!updated) {
-      return res.status(404).json({ message: 'Department not found' });
+    if (affectedCount === 0) {
+      return res.status(404).json({ error: 'Department not found or no changes' });
     }
 
-    const department = await Department.findByPk(req.params.id);
-    res.json(department);
+    const updatedDepartment = await Department.findByPk(req.params.id, { paranoid: false });
+    res.status(200).json(updatedDepartment);
   } catch (error) {
     const statusCode = error.name?.startsWith('Sequelize') ? 400 : 500;
     res.status(statusCode).json({ error: formatSequelizeError(error) });

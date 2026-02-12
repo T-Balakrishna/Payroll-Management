@@ -1,3 +1,4 @@
+// pages/ForgotPassword.jsx
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import API from "../api";
@@ -6,32 +7,38 @@ import { toast } from "react-toastify";
 export default function ForgotPassword() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleForgotPassword = async () => {
+  const handleSubmit = async () => {
     if (!email) {
-      return toast.error("Enter your email");
+      return toast.error("Please enter your email");
     }
 
+    setLoading(true);
     try {
       await API.post("/auth/forgot-password", { email });
-      toast.success("Reset link sent to your email");
+      toast.success("If the email exists, a reset link has been sent");
       navigate("/login");
     } catch (err) {
-      toast.error(err.response?.data?.msg || "Failed to send reset link");
+      toast.error(err.response?.data?.msg || "Something went wrong");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-gray-50 p-4">
-      <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-sm">
-        <h1 className="text-3xl font-bold text-center text-gray-800 mb-1">
-          National Engineering College
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-purple-100 to-gray-100 relative">
+      {loading && <LoadingScreen />}
+
+      <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
+        <h1 className="text-4xl font-extrabold text-center text-gray-800 mb-2">
+          Staff Attendance & Payroll
         </h1>
-        <h2 className="text-lg font-medium text-center text-gray-600 mb-4">
+        <h2 className="text-xl font-semibold text-center text-gray-600 mb-6">
           Forgot Password
         </h2>
 
-        <div className="space-y-3">
+        <div className="space-y-5">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Email
@@ -40,23 +47,28 @@ export default function ForgotPassword() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
-              placeholder="Enter your email"
+              className="w-full p-3 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter your registered email"
+              disabled={loading}
             />
           </div>
 
           <button
-            onClick={handleForgotPassword}
-            className="w-full p-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-md font-medium hover:from-indigo-700 hover:to-blue-700 transition shadow-sm"
+            onClick={handleSubmit}
+            disabled={loading}
+            className={`w-full p-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition ${
+              loading ? "opacity-70 cursor-not-allowed" : ""
+            }`}
           >
-            Send Reset Link
+            {loading ? "Sending..." : "Send Reset Link"}
           </button>
         </div>
 
-        <p className="mt-4 text-center text-sm">
+        <p className="mt-6 text-center text-sm">
           <button
             onClick={() => navigate("/login")}
-            className="text-indigo-600 hover:underline font-medium"
+            className="text-blue-600 hover:underline"
+            disabled={loading}
           >
             Back to Login
           </button>

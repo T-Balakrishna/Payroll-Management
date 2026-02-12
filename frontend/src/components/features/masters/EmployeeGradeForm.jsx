@@ -6,7 +6,7 @@ import Button from "../../../components/ui/Button";
 import API from "../../../api";
 import { useAuth } from "../../../auth/AuthContext";
 
-export default function DepartmentForm({
+export default function EmployeeGradeForm({
   editData,
   userRole,
   selectedCompanyId,
@@ -15,13 +15,12 @@ export default function DepartmentForm({
   onCancel,
 }) {
   const { user } = useAuth();
-
   const normalizeRole = (role) => String(role || "").replace(/\s+/g, "").toLowerCase();
   const isSuperAdmin = normalizeRole(userRole) === "superadmin";
-  const currentUserId = user?.userId ?? user?.id ?? null;
+  const currentUserId = user?.userId ?? user?.id ?? "system";
 
-  const [departmentName, setDepartmentName] = useState(editData?.departmentName || "");
-  const [departmentAcr, setDepartmentAcr] = useState(editData?.departmentAcr || "");
+  const [employeeGradeName, setEmployeeGradeName] = useState(editData?.employeeGradeName || "");
+  const [employeeGradeAcr, setEmployeeGradeAcr] = useState(editData?.employeeGradeAcr || "");
   const [companyId, setCompanyId] = useState(
     editData?.companyId || (!isSuperAdmin ? selectedCompanyId : "")
   );
@@ -29,17 +28,13 @@ export default function DepartmentForm({
 
   useEffect(() => {
     const id = setTimeout(() => {
-      setDepartmentName(editData?.departmentName || "");
-      setDepartmentAcr(editData?.departmentAcr || "");
       setCompanyId(editData?.companyId || (!isSuperAdmin ? selectedCompanyId : ""));
     }, 0);
     return () => clearTimeout(id);
   }, [editData, isSuperAdmin, selectedCompanyId]);
 
   useEffect(() => {
-    if (!isSuperAdmin && (selectedCompanyName || !selectedCompanyId)) {
-      return;
-    }
+    if (!isSuperAdmin && (selectedCompanyName || !selectedCompanyId)) return;
 
     const fetchCompanies = async () => {
       try {
@@ -51,7 +46,6 @@ export default function DepartmentForm({
             : [];
 
         setCompanies(data);
-
         if (isSuperAdmin && selectedCompanyId && !editData) {
           setCompanyId(selectedCompanyId);
         }
@@ -75,44 +69,37 @@ export default function DepartmentForm({
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!departmentName.trim()) return toast.error("Department Name is required");
-    if (!departmentAcr.trim()) return toast.error("Acronym is required");
+    if (!employeeGradeName.trim()) return toast.error("Employee Grade Name is required");
+    if (!employeeGradeAcr.trim()) return toast.error("Acronym is required");
     if (isSuperAdmin && !companyId) return toast.error("Please select a company");
 
-    const normalizeStatus = (rawStatus) => {
-      const value = String(rawStatus || "").trim().toLowerCase();
-      if (value === "inactive") return "Inactive";
-      if (value === "archived") return "Archived";
-      return "Active";
-    };
-
     const payload = {
-      departmentName: departmentName.trim(),
-      departmentAcr: departmentAcr.trim().toUpperCase(),
-      status: normalizeStatus(editData?.status),
-      companyId: companyId || selectedCompanyId,
+      employeeGradeName: employeeGradeName.trim(),
+      employeeGradeAcr: employeeGradeAcr.trim().toUpperCase(),
+      status: editData?.status || "Active",
+      companyId: companyId || selectedCompanyId || 1,
       createdBy: editData?.createdBy || currentUserId,
       updatedBy: currentUserId,
     };
 
-    onSave(payload, editData?.departmentId);
+    onSave(payload, editData?.employeeGradeId);
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <Input
-        label="Department Name"
-        value={departmentName}
-        onChange={(e) => setDepartmentName(e.target.value)}
-        placeholder="Enter department name"
+        label="Employee Grade Name"
+        value={employeeGradeName}
+        onChange={(e) => setEmployeeGradeName(e.target.value)}
+        placeholder="Enter employee grade name"
         required
       />
 
       <Input
         label="Acronym"
-        value={departmentAcr}
-        onChange={(e) => setDepartmentAcr(e.target.value)}
-        placeholder="Enter short code (e.g. HR, FIN, IT)"
+        value={employeeGradeAcr}
+        onChange={(e) => setEmployeeGradeAcr(e.target.value)}
+        placeholder="Enter short code (e.g. G1, A1)"
         required
       />
 
@@ -124,6 +111,7 @@ export default function DepartmentForm({
             onChange={(e) => setCompanyId(e.target.value)}
             options={companies.map((c) => ({ value: c.companyId, label: c.companyName }))}
             placeholder="Select Company"
+            disabled={!!editData}
           />
         ) : (
           <Input value={adminCompanyName} disabled />

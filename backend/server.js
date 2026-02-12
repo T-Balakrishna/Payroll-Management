@@ -12,6 +12,8 @@ const mountRoutes = require('./routes/mountRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const shouldSync = process.env.DB_SYNC === "true";
+const shouldAlter = process.env.DB_SYNC_ALTER === "true";
 
 // Middleware
 app.use(helmet());

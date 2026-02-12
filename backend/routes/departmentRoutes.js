@@ -1,9 +1,8 @@
 const express = require('express');
 const router = express.Router();
+
 const departmentController = require('../controllers/departmentController');
 
-// Routes for departments
-// Frontend should call: /api/departments   (camelCase plural)
 router.get('/', departmentController.getAllDepartments);
 router.get('/:id', departmentController.getDepartmentById);
 router.post('/', departmentController.createDepartment);
