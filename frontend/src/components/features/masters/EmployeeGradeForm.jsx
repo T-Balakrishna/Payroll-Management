@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import Input from "../../../components/ui/Input";
 import Select from "../../../components/ui/Select";
@@ -6,7 +6,7 @@ import Button from "../../../components/ui/Button";
 import API from "../../../api";
 import { useAuth } from "../../../auth/AuthContext";
 
-export default function DesignationForm({
+export default function EmployeeGradeForm({
   editData,
   userRole,
   selectedCompanyId,
@@ -15,28 +15,26 @@ export default function DesignationForm({
   onCancel,
 }) {
   const { user } = useAuth();
-
   const normalizeRole = (role) => String(role || "").replace(/\s+/g, "").toLowerCase();
   const isSuperAdmin = normalizeRole(userRole) === "superadmin";
+  const currentUserId = user?.userId ?? user?.id ?? "system";
 
-  const currentUserName = user?.name || user?.fullName || user?.username || "Unknown User";
-
-  const [designationName, setDesignationName] = useState(editData?.designationName || "");
-  const [designationAcr, setDesignationAcr] = useState(editData?.designationAcr || "");
+  const [employeeGradeName, setEmployeeGradeName] = useState(editData?.employeeGradeName || "");
+  const [employeeGradeAcr, setEmployeeGradeAcr] = useState(editData?.employeeGradeAcr || "");
   const [companyId, setCompanyId] = useState(
     editData?.companyId || (!isSuperAdmin ? selectedCompanyId : "")
   );
   const [companies, setCompanies] = useState([]);
 
   useEffect(() => {
-    setCompanyId(editData?.companyId || (!isSuperAdmin ? selectedCompanyId : ""));
+    const id = setTimeout(() => {
+      setCompanyId(editData?.companyId || (!isSuperAdmin ? selectedCompanyId : ""));
+    }, 0);
+    return () => clearTimeout(id);
   }, [editData, isSuperAdmin, selectedCompanyId]);
 
   useEffect(() => {
-    // Super admin needs list for selection; admin needs fallback name resolution.
-    if (!isSuperAdmin && (selectedCompanyName || !selectedCompanyId)) {
-      return;
-    }
+    if (!isSuperAdmin && (selectedCompanyName || !selectedCompanyId)) return;
 
     const fetchCompanies = async () => {
       try {
@@ -48,7 +46,6 @@ export default function DesignationForm({
             : [];
 
         setCompanies(data);
-
         if (isSuperAdmin && selectedCompanyId && !editData) {
           setCompanyId(selectedCompanyId);
         }
@@ -72,40 +69,37 @@ export default function DesignationForm({
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!designationName.trim()) return toast.error("Designation Name is required");
-    if (!designationAcr.trim()) return toast.error("Acronym is required");
-
-    if (isSuperAdmin && !companyId) {
-      return toast.error("Please select a company");
-    }
+    if (!employeeGradeName.trim()) return toast.error("Employee Grade Name is required");
+    if (!employeeGradeAcr.trim()) return toast.error("Acronym is required");
+    if (isSuperAdmin && !companyId) return toast.error("Please select a company");
 
     const payload = {
-      designationName: designationName.trim(),
-      designationAcr: designationAcr.trim().toUpperCase(),
-      status: editData?.status || "active",
-      companyId: companyId || selectedCompanyId,
-      createdBy: user.userId,
-      updatedBy: user.userId,
+      employeeGradeName: employeeGradeName.trim(),
+      employeeGradeAcr: employeeGradeAcr.trim().toUpperCase(),
+      status: editData?.status || "Active",
+      companyId: companyId || selectedCompanyId || 1,
+      createdBy: editData?.createdBy || currentUserId,
+      updatedBy: currentUserId,
     };
 
-    onSave(payload, editData?.designationId);
+    onSave(payload, editData?.employeeGradeId);
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <Input
-        label="Designation Name"
-        value={designationName}
-        onChange={(e) => setDesignationName(e.target.value)}
-        placeholder="Enter designation name"
+        label="Employee Grade Name"
+        value={employeeGradeName}
+        onChange={(e) => setEmployeeGradeName(e.target.value)}
+        placeholder="Enter employee grade name"
         required
       />
 
       <Input
         label="Acronym"
-        value={designationAcr}
-        onChange={(e) => setDesignationAcr(e.target.value)}
-        placeholder="Enter short code (e.g. SSE, AM, TL)"
+        value={employeeGradeAcr}
+        onChange={(e) => setEmployeeGradeAcr(e.target.value)}
+        placeholder="Enter short code (e.g. G1, A1)"
         required
       />
 
@@ -117,6 +111,7 @@ export default function DesignationForm({
             onChange={(e) => setCompanyId(e.target.value)}
             options={companies.map((c) => ({ value: c.companyId, label: c.companyName }))}
             placeholder="Select Company"
+            disabled={!!editData}
           />
         ) : (
           <Input value={adminCompanyName} disabled />

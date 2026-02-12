@@ -1,32 +1,32 @@
-const { EmployeeGrade } = require('../models');
+const { EmployeeGrade, Company } = require("../models");
 
-// Get all employee grades (in practice: filter by companyId in real usage)
+// Get all employee grades
 exports.getAllEmployeeGrades = async (req, res) => {
   try {
+    const { companyId } = req.query;
+    const where = {};
+    if (companyId) where.companyId = companyId;
+
     const employeeGrades = await EmployeeGrade.findAll({
-      include: [
-        { model: require('../models').Company, as: 'company' },
-        // { model: require('../models').Employee, as: 'employees' }   // ← include only when explicitly needed
-      ]
+      where,
+      include: [{ model: Company, as: "company" }],
+      order: [["employeeGradeName", "ASC"]],
     });
     res.json(employeeGrades);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
-}; 
+};
 
 // Get single employee grade by ID
 exports.getEmployeeGradeById = async (req, res) => {
   try {
     const employeeGrade = await EmployeeGrade.findByPk(req.params.id, {
-      include: [
-        { model: require('../models').Company, as: 'company' },
-        // { model: require('../models').Employee, as: 'employees' }
-      ]
+      include: [{ model: Company, as: "company" }],
     });
 
     if (!employeeGrade) {
-      return res.status(404).json({ message: 'Employee grade not found' });
+      return res.status(404).json({ message: "Employee grade not found" });
     }
 
     res.json(employeeGrade);
@@ -49,11 +49,11 @@ exports.createEmployeeGrade = async (req, res) => {
 exports.updateEmployeeGrade = async (req, res) => {
   try {
     const [updated] = await EmployeeGrade.update(req.body, {
-      where: { employeeGradeId: req.params.id }
+      where: { employeeGradeId: req.params.id },
     });
 
     if (!updated) {
-      return res.status(404).json({ message: 'Employee grade not found' });
+      return res.status(404).json({ message: "Employee grade not found" });
     }
 
     const employeeGrade = await EmployeeGrade.findByPk(req.params.id);
@@ -67,14 +67,14 @@ exports.updateEmployeeGrade = async (req, res) => {
 exports.deleteEmployeeGrade = async (req, res) => {
   try {
     const deleted = await EmployeeGrade.destroy({
-      where: { employeeGradeId: req.params.id }
+      where: { employeeGradeId: req.params.id },
     });
 
     if (!deleted) {
-      return res.status(404).json({ message: 'Employee grade not found' });
+      return res.status(404).json({ message: "Employee grade not found" });
     }
 
-    res.json({ message: 'Employee grade deleted successfully' });
+    res.json({ message: "Employee grade deleted successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

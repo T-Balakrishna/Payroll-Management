@@ -8,6 +8,7 @@ import ResetPassword from "./pages/ResetPassword";
 import DepartmentMaster from "./pages/DepartmentMaster";
 import CompanyMaster from "./pages/CompanyMaster";
 import RoleMaster from "./pages/RoleMaster";
+import EmployeeGradeMaster from "./pages/EmployeeGradeMaster";
 import { AuthProvider } from "./auth/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AddUser from "./pages/AddUser";
@@ -90,6 +91,14 @@ function App() {
             element={
               <ProtectedRoute roles={["Admin", "Super Admin"]}>
                 <RoleMaster />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/employee-grades"
+            element={
+              <ProtectedRoute roles={["Admin", "Super Admin"]}>
+                <EmployeeGradeMaster />
               </ProtectedRoute>
             }
           />

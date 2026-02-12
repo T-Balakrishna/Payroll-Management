@@ -9,10 +9,9 @@ import Modal from "../components/ui/Modal";
 import MasterHeader from "../components/common/MasterHeader";
 import MasterTable from "../components/common/MasterTable";
 import ActionButtons from "../components/common/ActionButton";
-import Select from "../components/ui/Select";
 import RoleForm from "../components/features/masters/RoleForm";
 
-export default function RoleMaster() {
+export default function RoleMaster({ selectedCompanyId: incomingSelectedCompanyId }) {
   const { user } = useAuth();
   const currentUserId = user?.userId ?? user?.id ?? "system";
   const role = user?.role || "";
@@ -20,14 +19,21 @@ export default function RoleMaster() {
   const isSuperAdmin = role === "Super Admin";
 
   const [roles, setRoles] = useState([]);
-  const [companies, setCompanies] = useState([]);
-  const [selectedCompanyId, setSelectedCompanyId] = useState("");
+  const [resolvedCompanyId, setResolvedCompanyId] = useState("");
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editData, setEditData] = useState(null);
 
   const canAccess = isAdmin || isSuperAdmin;
-  const hasCompanyScope = isAdmin || Boolean(selectedCompanyId);
+  const effectiveSelectedCompanyId =
+    String(
+      incomingSelectedCompanyId ||
+        resolvedCompanyId ||
+        user?.companyId ||
+        user?.company?.companyId ||
+        ""
+    ) || "";
+  const hasCompanyScope = isAdmin || Boolean(effectiveSelectedCompanyId);
 
   const fetchRoles = async () => {
     try {
@@ -45,13 +51,10 @@ export default function RoleMaster() {
     const id = setTimeout(() => {
       const load = async () => {
         try {
-          if (isSuperAdmin) {
-            const companyRes = await API.get("/companies");
-            setCompanies(companyRes.data || []);
-          } else if (isAdmin && user?.userNumber) {
+          if (!incomingSelectedCompanyId && !effectiveSelectedCompanyId && user?.userNumber) {
             const companyRes = await API.get(`/users/getCompany/${user.userNumber}`);
             if (companyRes?.data?.companyId) {
-              setSelectedCompanyId(String(companyRes.data.companyId));
+              setResolvedCompanyId(String(companyRes.data.companyId));
             }
           }
 
@@ -67,7 +70,7 @@ export default function RoleMaster() {
     }, 0);
 
     return () => clearTimeout(id);
-  }, [canAccess, isAdmin, isSuperAdmin, user?.userNumber]);
+  }, [canAccess, incomingSelectedCompanyId, effectiveSelectedCompanyId, user?.userNumber]);
 
   const filteredData = useMemo(
     () =>

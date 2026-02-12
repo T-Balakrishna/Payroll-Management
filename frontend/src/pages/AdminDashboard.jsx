@@ -35,7 +35,9 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend,
 import CompanyMaster from './CompanyMaster.jsx';
 import DepartmentMaster from './DepartmentMaster.jsx';
 import DesignationMaster from './DesignationMaster.jsx';
-// import EmployeeGradeMaster from './EmployeeGradeMaster.jsx';
+import RoleMaster from './RoleMaster.jsx';
+import EmployeeGradeMaster from './EmployeeGradeMaster.jsx';
+
 // import BusMaster from './BusMaster.jsx';
 // import BiometricDeviceMaster from './BiometricDeviceMaster.jsx';
 // import AttendanceMaster from './AttendanceMaster.jsx';
@@ -157,14 +159,15 @@ const AdminDashboard = () => {
 
   // 4. Categorized Sidebar Menu (Matches all your newer models)
   const menuItems = [
-    { id: 'dashboard', label: t('dashboard'), icon: Home, color: 'text-blue-500', category: 'General' },
+    { id: 'dashboard', label: t('Dashboard'), icon: Home, color: 'text-blue-500', category: 'General' },
     { id: 'users', label: t('employeeManagement'), icon: Users, color: 'text-emerald-500', category: 'General' },
+    { id: 'roles', label: t('Role Management'), icon: Users, color: 'text-blue-500', category: 'General' },
     
     // Organization Section
-    { id: 'company', label: t('companyMaster'), icon: Building, color: 'text-red-500', category: 'Organization', roles: ['Super Admin'] },
-    { id: 'department', label: t('departments'), icon: Building2, color: 'text-indigo-500', category: 'Organization' },
-    { id: 'designation', label: t('designations'), icon: Award, color: 'text-pink-500', category: 'Organization' },
-    { id: 'employeeGrade', label: t('employeeGrades'), icon: List, color: 'text-amber-500', category: 'Organization' },
+    { id: 'company', label: t('Company Master'), icon: Building, color: 'text-red-500', category: 'Organization', roles: ['Super Admin'] },
+    { id: 'department', label: t('Department Master'), icon: Building2, color: 'text-indigo-500', category: 'Organization' },
+    { id: 'designation', label: t('Designation Master'), icon: Award, color: 'text-pink-500', category: 'Organization' },
+    { id: 'employeeGrade', label: t('Employee Grade Master'), icon: List, color: 'text-amber-500', category: 'Organization' },
     { id: 'bus', label: t('busMaster'), icon: Bus, color: 'text-purple-500', category: 'Organization' },
 
     // Attendance Section
@@ -278,7 +281,8 @@ const AdminDashboard = () => {
       case "company": return <CompanyMaster {...common} />;
        case "department": return <DepartmentMaster {...common} />;
        case "designation": return <DesignationMaster {...common} />;
-      // case "employeeGrade": return <EmployeeGradeMaster {...common} />;
+       case "roles": return <RoleMaster {...common} />;
+      case "employeeGrade": return <EmployeeGradeMaster {...common} />;
       // case "bus": return <BusMaster {...common} />;
       // case "attendance": return <AttendanceMaster {...common} />;
       // case "shiftType": return <ShiftTypeMaster {...common} />;

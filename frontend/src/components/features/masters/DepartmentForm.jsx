@@ -53,7 +53,6 @@ export default function DepartmentForm({
 
     fetchCompanies();
   }, [isSuperAdmin, selectedCompanyId, selectedCompanyName, editData]);
-  console.log("Company id ",selectedCompanyId);
   
   const adminCompanyName = useMemo(() => {
     if (selectedCompanyName) return selectedCompanyName;

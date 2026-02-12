@@ -4,7 +4,7 @@ export default function SplashScreen({ onFinish }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       onFinish();
-    }, 3700); // Duration in ms (adjust if needed)
+    }, 500); // Duration in ms (adjust if needed)
 
     return () => clearTimeout(timer);
   }, [onFinish]);
