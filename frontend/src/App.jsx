@@ -1,20 +1,33 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useState } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "./pages/LoginPage";
 import AdminDashboard from "./pages/AdminDashboard";
 import UserDashboard from "./pages/UserDashboard";
 import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import DepartmentMaster from "./pages/DepartmentMaster";
 import { AuthProvider } from "./auth/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
-import './index.css';
 import AddUser from "./pages/AddUser";
+import SplashScreen from "./components/common/SplashScreen";
+import './index.css';
 
 function App() {
+  const [showSplash, setShowSplash] = useState(true);
+
+  if (showSplash) {
+    return <SplashScreen onFinish={() => setShowSplash(false)} />;
+  }
+
   return (
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<LoginPage />} />
+
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
+
           <Route
             path="/adminDashboard"
             element={
@@ -23,6 +36,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/userDashboard"
             element={
@@ -31,6 +45,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/departments"
             element={
@@ -39,6 +54,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/users"
             element={
@@ -47,11 +63,14 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
+
+          {/* Fallback Route */}
+          <Route path="*" element={<Navigate to="/login" replace />} />
+
         </Routes>
       </BrowserRouter>
     </AuthProvider>
   );
 }
-{/* <img class=" lazyloaded" src="https://nec.edu.in/wp-content/uploads/2024/01/NEC-LOGO1-unscreen.gif" data-src="https://nec.edu.in/wp-content/uploads/2024/01/NEC-LOGO1-unscreen.gif" alt="Loading..." id="preloader-logo"></img> */}
+
 export default App;

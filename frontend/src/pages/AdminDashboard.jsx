@@ -335,7 +335,7 @@ const AdminDashboard = () => {
               } catch (err) {
                 console.error("Logout error:", err);
               } finally {
-                window.location.href = "/";
+                window.location.href = "/login";
               }
             }}
             className="w-full flex items-center px-4 py-3 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
