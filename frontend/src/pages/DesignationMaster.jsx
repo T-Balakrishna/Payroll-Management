@@ -1,36 +1,44 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
-import { User, Pencil, Trash2 } from "lucide-react"; // Changed icon to User (or choose Briefcase, Users, etc.)
+import React, { useState, useEffect, useRef } from "react";
+import { User } from "lucide-react";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
-import { jwtDecode } from "jwt-decode";
+import API from "../api";
+import { useAuth } from "../auth/AuthContext";
 
 import Modal from "../components/ui/Modal";
 import MasterHeader from "../components/common/MasterHeader";
 import MasterTable from "../components/common/MasterTable";
 import ActionButtons from "../components/common/ActionButton";
 
-import DesignationForm from "../components/features/masters/designation/DesignationForm"; // ← adjust path if needed
+import DesignationForm from "../components/features/masters/DesignationForm";
 
-let token = sessionStorage.getItem("token");
-let userNumber = token ? jwtDecode(token)?.userNumber : "system";
+export default function DesignationMaster({
+  userRole,
+  selectedCompanyId,
+  selectedCompanyName,
+  userId,
+}) {
+  const { user } = useAuth();
+  const normalizeRole = (role) => String(role || "").replace(/\s+/g, "").toLowerCase();
+  const isSuperAdmin = normalizeRole(userRole) === "superadmin";
+  const currentUserId = userId || user?.userId || user?.id || "system";
 
-export default function DesignationMaster({ userRole, selectedCompanyId, selectedCompanyName }) {
   const [designations, setDesignations] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editData, setEditData] = useState(null);
+  const [bulkCompanyId, setBulkCompanyId] = useState(selectedCompanyId || "");
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     const fetchCompanies = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/companies", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await API.get("/companies");
         setCompanies(res.data || []);
       } catch (err) {
         console.error("Error fetching companies:", err);
+        toast.error("Failed to load companies");
       }
     };
     fetchCompanies();
@@ -38,15 +46,20 @@ export default function DesignationMaster({ userRole, selectedCompanyId, selecte
 
   const fetchDesignations = async () => {
     try {
-      let url = "http://localhost:5000/api/designations";
-      if (selectedCompanyId) url += `?companyId=${selectedCompanyId}`;
-      const res = await axios.get(url, {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await API.get("/designations", {
+        params: selectedCompanyId ? { companyId: selectedCompanyId } : {},
       });
+
       let data = res.data || [];
       if (selectedCompanyId) {
         data = data.filter((d) => String(d.companyId) === String(selectedCompanyId));
       }
+      data = data
+        .map((d) => ({
+          ...d,
+          status: d.deletedAt ? "Inactive" : d.status,
+        }))
+        .filter((d) => String(d.status || "").trim().toLowerCase() === "active");
       setDesignations(data);
     } catch (err) {
       console.error("Error fetching designations:", err);
@@ -58,6 +71,12 @@ export default function DesignationMaster({ userRole, selectedCompanyId, selecte
     fetchDesignations();
   }, [selectedCompanyId]);
 
+  useEffect(() => {
+    if (!isSuperAdmin) {
+      setBulkCompanyId(selectedCompanyId || "");
+    }
+  }, [isSuperAdmin, selectedCompanyId]);
+
   const filteredData = designations.filter(
     (d) =>
       d.designationName?.toLowerCase().includes(search.trim().toLowerCase()) ||
@@ -68,29 +87,25 @@ export default function DesignationMaster({ userRole, selectedCompanyId, selecte
   const handleSave = async (payload, designationId) => {
     try {
       if (designationId) {
-        await axios.put(`http://localhost:5000/api/designations/${designationId}`, payload, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await API.put(`/designations/${designationId}`, payload);
         Swal.fire("Updated!", "Designation updated successfully", "success");
       } else {
-        await axios.post("http://localhost:5000/api/designations", payload, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await API.post("/designations", payload);
         Swal.fire("Added!", "Designation added successfully", "success");
       }
       setShowForm(false);
       setEditData(null);
       fetchDesignations();
     } catch (err) {
-      const msg = err.response?.data || "Operation failed";
-      const text = msg.includes("Validation error") 
-        ? "Designation already exists in this company" 
+      const msg = err.response?.data?.error || err.response?.data?.message || err.message || "Operation failed";
+      const text = msg.includes("Validation") || msg.includes("unique constraint")
+        ? "Designation already exists in this company"
         : msg;
       Swal.fire("Error", text, "error");
     }
   };
 
-  const handleEdit = async (designation) => {
+  const handleEdit = (designation) => {
     let companyName = selectedCompanyName || "";
     if (companies.length > 0) {
       const company = companies.find((c) => c.companyId === designation.companyId);
@@ -112,9 +127,8 @@ export default function DesignationMaster({ userRole, selectedCompanyId, selecte
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          await axios.delete(`http://localhost:5000/api/designations/${designationId}`, {
-            data: { updatedBy: userNumber },
-            headers: { Authorization: `Bearer ${token}` },
+          await API.delete(`/designations/${designationId}`, {
+            data: { updatedBy: currentUserId },
           });
           Swal.fire("Deleted!", "Designation has been deleted.", "success");
           fetchDesignations();
@@ -129,6 +143,152 @@ export default function DesignationMaster({ userRole, selectedCompanyId, selecte
     return companies.find((c) => c.companyId === id)?.companyAcr || "";
   };
 
+  const parseCsvLine = (line) => {
+    const values = [];
+    let current = "";
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i += 1) {
+      const char = line[i];
+      if (char === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          current += '"';
+          i += 1;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (char === "," && !inQuotes) {
+        values.push(current.trim());
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+    values.push(current.trim());
+    return values.map((v) => v.replace(/^"(.*)"$/, "$1").trim());
+  };
+
+  const parseCsvText = (text) => {
+    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    if (lines.length < 2) return [];
+
+    const headers = parseCsvLine(lines[0]);
+    return lines.slice(1).map((line) => {
+      const values = parseCsvLine(line);
+      return headers.reduce((acc, key, idx) => {
+        acc[key] = values[idx] ?? "";
+        return acc;
+      }, {});
+    });
+  };
+
+  const normalizeStatus = (rawStatus) => {
+    const value = String(rawStatus || "").trim().toLowerCase();
+    if (value === "inactive") return "Inactive";
+    if (value === "archived") return "Archived";
+    return "Active";
+  };
+
+  const handleBulkUpload = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    const adminCompanyId = String(selectedCompanyId || user?.companyId || "").trim();
+    const fallbackSuperAdminCompanyId = String(bulkCompanyId || selectedCompanyId || "").trim();
+
+    if (!isSuperAdmin && !adminCompanyId) {
+      toast.error("Admin company not found for bulk upload");
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const rows = parseCsvText(text);
+      if (rows.length === 0) {
+        toast.error("CSV file is empty or invalid");
+        return;
+      }
+
+      const companyIdByName = new Map(
+        companies.map((c) => [String(c.companyName || "").trim().toLowerCase(), String(c.companyId)])
+      );
+      const companyIdByAcr = new Map(
+        companies.map((c) => [String(c.companyAcr || "").trim().toLowerCase(), String(c.companyId)])
+      );
+
+      const payloads = rows
+        .map((row) => {
+          const rowCompanyName = String(row.companyName || "").trim().toLowerCase();
+          const rowCompanyAcr = String(row.companyAcr || "").trim().toLowerCase();
+          const resolvedCompanyId = isSuperAdmin
+            ? companyIdByName.get(rowCompanyName) ||
+              companyIdByAcr.get(rowCompanyAcr) ||
+              fallbackSuperAdminCompanyId
+            : adminCompanyId;
+
+          return {
+            designationName: String(row.designationName || "").trim(),
+            designationAcr: String(row.designationAcr || "").trim().toUpperCase(),
+            status: normalizeStatus(row.status),
+            companyId: resolvedCompanyId,
+            createdBy: currentUserId,
+            updatedBy: currentUserId,
+          };
+        })
+        .filter((p) => p.designationName && p.designationAcr && String(p.companyId || "").trim());
+
+      if (payloads.length === 0) {
+        toast.error(
+          isSuperAdmin
+            ? "CSV must contain designationName, designationAcr, and valid companyName/companyAcr (or choose company from dropdown)"
+            : "CSV must contain designationName and designationAcr columns"
+        );
+        return;
+      }
+
+      const results = await Promise.allSettled(payloads.map((payload) => API.post("/designations", payload)));
+      const successCount = results.filter((r) => r.status === "fulfilled").length;
+      const failCount = results.length - successCount;
+
+      if (successCount > 0) fetchDesignations();
+      if (failCount === 0) {
+        Swal.fire("Uploaded!", `${successCount} designations uploaded successfully`, "success");
+      } else {
+        Swal.fire("Completed with errors", `${successCount} uploaded, ${failCount} failed`, "warning");
+      }
+    } catch (err) {
+      console.error("Bulk upload failed:", err);
+      toast.error("Bulk upload failed");
+    }
+  };
+
+  const downloadSampleTemplate = () => {
+    const headers = isSuperAdmin
+      ? ["designationName", "designationAcr", "status", "companyName", "companyAcr"]
+      : ["designationName", "designationAcr", "status"];
+    const sampleRows = isSuperAdmin
+      ? [
+          ["xx", "yy", "active", "xx", ""],
+          ["xx", "yy", "inactive", "", "yy"],
+        ]
+      : [
+          ["xx", "yy", "active"],
+          ["xx", "yy", "inactive"],
+        ];
+
+    const csv = [headers.join(","), ...sampleRows.map((row) => row.join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "designation_bulk_upload_template.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="h-full flex flex-col px-6">
       <MasterHeader
@@ -140,15 +300,55 @@ export default function DesignationMaster({ userRole, selectedCompanyId, selecte
         }}
         placeholder="Search designation..."
         buttonText="Add Designation"
+        actions={
+          <>
+            {isSuperAdmin && !selectedCompanyId && (
+              <select
+                value={bulkCompanyId}
+                onChange={(e) => setBulkCompanyId(e.target.value)}
+                className="h-10 min-w-48 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="">Select company</option>
+                {companies.map((company) => (
+                  <option key={company.companyId} value={company.companyId}>
+                    {company.companyName}
+                  </option>
+                ))}
+              </select>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={handleBulkUpload}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow-sm whitespace-nowrap"
+            >
+              Upload CSV
+            </button>
+            <button
+              type="button"
+              onClick={downloadSampleTemplate}
+              className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg shadow-sm whitespace-nowrap"
+            >
+              Download Sample
+            </button>
+          </>
+        }
       />
 
       <MasterTable
-        columns={["Name", "Acronym", ...(!selectedCompanyId ? ["Company"] : []), "Actions"]}
+        columns={["Name", "Acronym", "Status", ...(!selectedCompanyId ? ["Company"] : []), "Actions"]}
       >
         {filteredData.map((d) => (
           <tr key={d.designationId} className="border-t hover:bg-gray-50">
             <td className="py-3 px-4">{d.designationName}</td>
             <td className="py-3 px-4">{d.designationAcr}</td>
+            <td className="py-3 px-4">{d.status}</td>
             {!selectedCompanyId && <td className="py-3 px-4">{getCompanyAcronym(d.companyId)}</td>}
             <td className="py-3 px-4">
               <ActionButtons
@@ -167,7 +367,7 @@ export default function DesignationMaster({ userRole, selectedCompanyId, selecte
           setEditData(null);
         }}
         title={editData ? "Edit Designation" : "Add New Designation"}
-        icon={User}  // ← changed from Building2
+        icon={User}
       >
         <DesignationForm
           editData={editData}

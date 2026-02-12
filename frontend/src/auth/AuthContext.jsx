@@ -10,9 +10,23 @@ export function AuthProvider({ children }) {
   const refresh = async () => {
     setLoading(true);
     try {
-      const { data } = await API.get("/auth/me");
-      setUser(data);
-      return data;
+      const { data: me } = await API.get("/auth/me");
+
+      try {
+        const { data: userDetail } = await API.get(`/users/${me.id}`);
+        const { password, ...safeUser } = userDetail || {};
+        const merged = {
+          ...safeUser,
+          id: me.id,
+          role: me.role,
+        };
+        setUser(merged);
+        return merged;
+      } catch {
+        const minimal = { id: me.id, role: me.role };
+        setUser(minimal);
+        return minimal;
+      }
     } catch {
       setUser(null);
       return null;

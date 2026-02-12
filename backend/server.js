@@ -43,10 +43,6 @@ mountRoutes(app);
 db.sequelize.authenticate()
   .then(async () => {
     console.log('Database connection established successfully.');
-    await db.sequelize.sync({
-      force:true
-    });
-
     if (process.env.DB_SYNC === "true") {
       await db.sequelize.sync({
         alter: true

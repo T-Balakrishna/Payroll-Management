@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { jwtDecode } from 'jwt-decode';
 import API from "../api"; // Using your generic API instance
+import { useAuth } from "../auth/AuthContext";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -32,7 +32,7 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend,
 
 // --- COMPONENT IMPORTS ---
 // import AddUser from './AddUser.jsx';
-// import CompanyMaster from './CompanyMaster.jsx';
+import CompanyMaster from './CompanyMaster.jsx';
 import DepartmentMaster from './DepartmentMaster.jsx';
 import DesignationMaster from './DesignationMaster.jsx';
 // import EmployeeGradeMaster from './EmployeeGradeMaster.jsx';
@@ -63,6 +63,7 @@ import DesignationMaster from './DesignationMaster.jsx';
 
 const AdminDashboard = () => {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activePage, setActivePage] = useState("dashboard");
   const [role, setRole] = useState(null);
@@ -129,31 +130,26 @@ const AdminDashboard = () => {
 
   // 3. Initial Auth & Role Check
   useEffect(() => {
-    const token = sessionStorage.getItem("token");
-    if (token) {
-      try {
-        const decoded = jwtDecode(token);
-        setRole(decoded.role);
-        
-        // Fetch specific details based on role
-        if (decoded.role === "Admin" || decoded.role === "Super Admin") {
-          API.get(`/users/getCompany/${decoded.userNumber}`).then(res => {
-            setCompanyId(res.data.companyId);
-            setCompanyName(res.data.companyName);
-          });
-        } else if (decoded.role === "departmentAdmin") {
-          API.get(`/users/getDepartment/${decoded.userNumber}`).then(res => {
-            setCompanyId(res.data.companyId);
-            setCompanyName(res.data.companyName);
-            setDepartmentId(res.data.departmentId);
-            setDepartmentName(res.data.departmentName);
-          });
-        }
+    if (!user) return;
+    setRole(user.role);
 
-        if (decoded.role === "Super Admin") fetchCompanies();
-      } catch (err) { console.error("Invalid Token", err); }
+    // Fetch specific details based on role
+    if (user.role === "Admin" || user.role === "Super Admin") {
+      API.get(`/users/getCompany/${user.userNumber}`).then(res => {
+        setCompanyId(res.data.companyId);
+        setCompanyName(res.data.companyName);
+      });
+    } else if (user.role === "departmentAdmin") {
+      API.get(`/users/getDepartment/${user.userNumber}`).then(res => {
+        setCompanyId(res.data.companyId);
+        setCompanyName(res.data.companyName);
+        setDepartmentId(res.data.departmentId);
+        setDepartmentName(res.data.departmentName);
+      });
     }
-  }, []);
+
+    if (user.role === "Super Admin") fetchCompanies();
+  }, [user]);
 
   useEffect(() => {
     if (activePage === 'dashboard' && companyId) fetchDashboardData();
@@ -200,101 +196,112 @@ const AdminDashboard = () => {
     { id: 'statutory', label: t('statutoryReports'), icon: Scale, color: 'text-red-700', category: 'Reports' },
   ].filter(item => !item.roles || item.roles.includes(role));
 
-  const renderDashboard = () => (
-    <div className="space-y-6">
-      {/* 4 Main Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-6 text-white shadow-lg">
-          <p className="text-blue-100 text-sm font-medium uppercase tracking-wider">{t('totalEmployees')}</p>
-          <h3 className="text-4xl font-bold mt-2">{dashboardData.totalActiveEmployees.totalCount}</h3>
-          <div className="mt-4 flex gap-4 text-xs opacity-80">
-            <span>M: {dashboardData.totalActiveEmployees.maleCount}</span>
-            <span>F: {dashboardData.totalActiveEmployees.femaleCount}</span>
-          </div>
-        </div>
+  // const renderDashboard = () => (
+  //   <div className="space-y-6">
+  //     {/* 4 Main Stat Cards */}
+  //     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+  //       <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-6 text-white shadow-lg">
+  //         <p className="text-blue-100 text-sm font-medium uppercase tracking-wider">{t('totalEmployees')}</p>
+  //         <h3 className="text-4xl font-bold mt-2">{dashboardData.totalActiveEmployees.totalCount}</h3>
+  //         <div className="mt-4 flex gap-4 text-xs opacity-80">
+  //           <span>M: {dashboardData.totalActiveEmployees.maleCount}</span>
+  //           <span>F: {dashboardData.totalActiveEmployees.femaleCount}</span>
+  //         </div>
+  //       </div>
 
-        <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-6 text-white shadow-lg">
-          <p className="text-amber-100 text-sm font-medium uppercase tracking-wider">{t('activeLoans')}</p>
-          <h3 className="text-4xl font-bold mt-2">{dashboardData.payrollStats.activeLoans}</h3>
-          <HandCoins className="w-12 h-12 absolute bottom-4 right-4 opacity-20" />
-        </div>
+  //       <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-6 text-white shadow-lg">
+  //         <p className="text-amber-100 text-sm font-medium uppercase tracking-wider">{t('activeLoans')}</p>
+  //         <h3 className="text-4xl font-bold mt-2">{dashboardData.payrollStats.activeLoans}</h3>
+  //         <HandCoins className="w-12 h-12 absolute bottom-4 right-4 opacity-20" />
+  //       </div>
 
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white shadow-lg">
-          <p className="text-purple-100 text-sm font-medium uppercase tracking-wider">{t('pendingLeaves')}</p>
-          <h3 className="text-4xl font-bold mt-2">{dashboardData.leaveStats.pending}</h3>
-          <Clock className="w-12 h-12 absolute bottom-4 right-4 opacity-20" />
-        </div>
+  //       <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white shadow-lg">
+  //         <p className="text-purple-100 text-sm font-medium uppercase tracking-wider">{t('pendingLeaves')}</p>
+  //         <h3 className="text-4xl font-bold mt-2">{dashboardData.leaveStats.pending}</h3>
+  //         <Clock className="w-12 h-12 absolute bottom-4 right-4 opacity-20" />
+  //       </div>
 
-        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-6 text-white shadow-lg">
-          <p className="text-emerald-100 text-sm font-medium uppercase tracking-wider">{t('departments')}</p>
-          <h3 className="text-4xl font-bold mt-2">{dashboardData.departmentCount}</h3>
-          <Building2 className="w-12 h-12 absolute bottom-4 right-4 opacity-20" />
-        </div>
-      </div>
+  //       <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-6 text-white shadow-lg">
+  //         <p className="text-emerald-100 text-sm font-medium uppercase tracking-wider">{t('departments')}</p>
+  //         <h3 className="text-4xl font-bold mt-2">{dashboardData.departmentCount}</h3>
+  //         <Building2 className="w-12 h-12 absolute bottom-4 right-4 opacity-20" />
+  //       </div>
+  //     </div>
 
-      {/* Main Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-xl border shadow-sm">
-          <h4 className="text-gray-700 font-bold mb-4 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-blue-500" /> {t('attendanceTrend')}
-          </h4>
-          <div className="h-64 flex items-center justify-center bg-gray-50 rounded italic text-gray-400">
-             {/* Map dashboardData.monthlyAttendance to <Line /> here */}
-             Chart Data for {companyName}
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-xl border shadow-sm">
-          <h4 className="text-gray-700 font-bold mb-4 flex items-center gap-2">
-            <PieChart className="w-4 h-4 text-purple-500" /> {t('leaveStatusDistribution')}
-          </h4>
-          <div className="h-64">
-            <Doughnut 
-              data={{
-                labels: [t('approved'), t('pending'), t('rejected')],
-                datasets: [{
-                  data: [dashboardData.leaveStats.approved, dashboardData.leaveStats.pending, dashboardData.leaveStats.rejected],
-                  backgroundColor: ['#10b981', '#f59e0b', '#ef4444']
-                }]
-              }} 
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  //     {/* Main Charts */}
+  //     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  //       <div className="bg-white p-6 rounded-xl border shadow-sm">
+  //         <h4 className="text-gray-700 font-bold mb-4 flex items-center gap-2">
+  //           {/* <TrendingUp className="w-4 h-4 text-blue-500" /> {t('attendanceTrend')} */}
+  //         </h4>
+  //         <div className="h-64 flex items-center justify-center bg-gray-50 rounded italic text-gray-400">
+  //            {/* Map dashboardData.monthlyAttendance to <Line /> here */}
+  //            Chart Data for {companyName}
+  //         </div>
+  //       </div>
+  //       <div className="bg-white p-6 rounded-xl border shadow-sm">
+  //         <h4 className="text-gray-700 font-bold mb-4 flex items-center gap-2">
+  //           <PieChart className="w-4 h-4 text-purple-500" /> {t('leaveStatusDistribution')}
+  //         </h4>
+  //         <div className="h-64">
+  //           <Doughnut 
+  //             data={{
+  //               labels: [t('approved'), t('pending'), t('rejected')],
+  //               datasets: [{
+  //                 data: [dashboardData.leaveStats.approved, dashboardData.leaveStats.pending, dashboardData.leaveStats.rejected],
+  //                 backgroundColor: ['#10b981', '#f59e0b', '#ef4444']
+  //               }]
+  //             }} 
+  //           />
+  //         </div>
+  //       </div>
+  //     </div>
+  //   </div>
+  // );
 
   const renderPage = () => {
-    const common = { companyId, companyName, departmentId, departmentName, role };
+    const common = {
+      companyId,
+      companyName,
+      departmentId,
+      departmentName,
+      role,
+      // Backward-compatible prop names expected by existing pages/forms.
+      userRole: role,
+      selectedCompanyId: companyId,
+      selectedCompanyName: companyName,
+      userId: user?.id,
+    };
     switch (activePage) {
-      case "dashboard": return renderDashboard();
+      // case "dashboard": return renderDashboard();
       case "users": return <AddUser {...common} />;
       case "company": return <CompanyMaster {...common} />;
-      case "department": return <DepartmentMaster {...common} />;
-      case "designation": return <DesignationMaster {...common} />;
-      case "employeeGrade": return <EmployeeGradeMaster {...common} />;
-      case "bus": return <BusMaster {...common} />;
-      case "attendance": return <AttendanceMaster {...common} />;
-      case "shiftType": return <ShiftTypeMaster {...common} />;
-      case "shiftAssignment": return <ShiftAssignment {...common} />;
-      case "biometricDevice": return <BiometricDeviceMaster {...common} />;
-      case "punches": return <BiometricPunchDetails {...common} />;
-      case "holidayPlan": return <HolidayPlanMaster {...common} />;
-      case "holiday": return <HolidayMaster {...common} />;
-      case "leaveType": return <LeaveTypeMaster {...common} />;
-      case "leavePolicy": return <LeavePolicyManagement {...common} />;
-      case "leaveAllocation": return <LeaveAllocation {...common} />;
-      case "leaveRequest": return <LeaveRequestManagement {...common} />;
-      case "leaveApproval": return <LeaveApproval {...common} />;
-      case "leaveHistory": return <LeaveRequestHistory {...common} />;
-      case "salaryComponent": return <SalaryComponentManagement {...common} />;
-      case "salaryMaster": return <EmployeeSalaryMaster {...common} />;
-      case "salaryGeneration": return <SalaryGenerationManagement {...common} />;
-      case "salaryRevision": return <SalaryRevisionHistory {...common} />;
-      case "employeeLoan": return <EmployeeLoanManagement {...common} />;
-      case "formulas": return <FormulaBuilder {...common} />;
-      case "reportgenerator": return <ReportGenerator {...common} />;
-      case "statutory": return <StatutoryReports {...common} />;
-      default: return renderDashboard();
+       case "department": return <DepartmentMaster {...common} />;
+       case "designation": return <DesignationMaster {...common} />;
+      // case "employeeGrade": return <EmployeeGradeMaster {...common} />;
+      // case "bus": return <BusMaster {...common} />;
+      // case "attendance": return <AttendanceMaster {...common} />;
+      // case "shiftType": return <ShiftTypeMaster {...common} />;
+      // case "shiftAssignment": return <ShiftAssignment {...common} />;
+      // case "biometricDevice": return <BiometricDeviceMaster {...common} />;
+      // case "punches": return <BiometricPunchDetails {...common} />;
+      // case "holidayPlan": return <HolidayPlanMaster {...common} />;
+      // case "holiday": return <HolidayMaster {...common} />;
+      // case "leaveType": return <LeaveTypeMaster {...common} />;
+      // case "leavePolicy": return <LeavePolicyManagement {...common} />;
+      // case "leaveAllocation": return <LeaveAllocation {...common} />;
+      // case "leaveRequest": return <LeaveRequestManagement {...common} />;
+      // case "leaveApproval": return <LeaveApproval {...common} />;
+      // case "leaveHistory": return <LeaveRequestHistory {...common} />;
+      // case "salaryComponent": return <SalaryComponentManagement {...common} />;
+      // case "salaryMaster": return <EmployeeSalaryMaster {...common} />;
+      // case "salaryGeneration": return <SalaryGenerationManagement {...common} />;
+      // case "salaryRevision": return <SalaryRevisionHistory {...common} />;
+      // case "employeeLoan": return <EmployeeLoanManagement {...common} />;
+      // case "formulas": return <FormulaBuilder {...common} />;
+      // case "reportgenerator": return <ReportGenerator {...common} />;
+      // case "statutory": return <StatutoryReports {...common} />;
+      // default: return renderDashboard();
     }
   };
 
@@ -332,7 +339,18 @@ const AdminDashboard = () => {
         </nav>
 
         <div className="p-4 border-t border-slate-800">
-          <button onClick={() => { sessionStorage.clear(); window.location.href = "/"; }} className="w-full flex items-center px-4 py-3 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors">
+          <button
+            onClick={async () => {
+              try {
+                await API.post("/auth/logout");
+              } catch (err) {
+                console.error("Logout error:", err);
+              } finally {
+                window.location.href = "/";
+              }
+            }}
+            className="w-full flex items-center px-4 py-3 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
+          >
             <LogOut size={20} />
             {!sidebarCollapsed && <span className="ml-3 font-semibold">{t('logout')}</span>}
           </button>
@@ -368,7 +386,7 @@ const AdminDashboard = () => {
               </select>
             )}
             
-            <LanguageSwitcher />
+            {/* <LanguageSwitcher /> */}
           </div>
         </header>
 

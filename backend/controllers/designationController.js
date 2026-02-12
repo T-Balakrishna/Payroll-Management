@@ -1,9 +1,35 @@
 const { Designation } = require('../models');
 
+const normalizeStatus = (status) => {
+  const value = String(status || '').trim().toLowerCase();
+  if (value === 'inactive') return 'Inactive';
+  if (value === 'archived') return 'Archived';
+  return 'Active';
+};
+
+const formatSequelizeError = (error) => {
+  if (!error) return 'Operation failed';
+  if (error.name === 'SequelizeUniqueConstraintError') {
+    return 'Designation already exists in this company';
+  }
+  if (error.name === 'SequelizeValidationError') {
+    return error.errors?.map((e) => e.message).join(', ') || 'Validation error';
+  }
+  if (error.name === 'SequelizeForeignKeyConstraintError') {
+    return 'Invalid companyId or user reference';
+  }
+  return error.message || 'Operation failed';
+};
+
 // Get all designations (in practice: almost always filtered by companyId)
 exports.getAllDesignations = async (req, res) => {
   try {
+    const where = {};
+    if (req.query.companyId) where.companyId = req.query.companyId;
+
     const designations = await Designation.findAll({
+      where,
+      paranoid: false, // include soft-deleted rows as well
       include: [
         { model: require('../models').Company, as: 'company' },
         
@@ -20,6 +46,7 @@ exports.getAllDesignations = async (req, res) => {
 exports.getDesignationById = async (req, res) => {
   try {
     const designation = await Designation.findByPk(req.params.id, {
+      paranoid: false,
       include: [
         { model: require('../models').Company, as: 'company' },
         
@@ -40,17 +67,27 @@ exports.getDesignationById = async (req, res) => {
 // Create new designation
 exports.createDesignation = async (req, res) => {
   try {
-    const designation = await Designation.create(req.body);
+    const payload = {
+      ...req.body,
+      status: normalizeStatus(req.body?.status),
+    };
+    const designation = await Designation.create(payload);
     res.status(201).json(designation);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    const statusCode = error.name?.startsWith('Sequelize') ? 400 : 500;
+    res.status(statusCode).json({ error: formatSequelizeError(error) });
   }
 };
 
 // Update designation
 exports.updateDesignation = async (req, res) => {
   try {
-    const [updated] = await Designation.update(req.body, {
+    const payload = {
+      ...req.body,
+      ...(req.body?.status ? { status: normalizeStatus(req.body.status) } : {}),
+    };
+
+    const [updated] = await Designation.update(payload, {
       where: { designationId: req.params.id }
     });
 
@@ -61,23 +98,32 @@ exports.updateDesignation = async (req, res) => {
     const designation = await Designation.findByPk(req.params.id);
     res.json(designation);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    const statusCode = error.name?.startsWith('Sequelize') ? 400 : 500;
+    res.status(statusCode).json({ error: formatSequelizeError(error) });
   }
 };
 
-// Delete designation (soft delete via paranoid: true)
+// "Delete" designation by setting status inactive (no hard/soft delete)
 exports.deleteDesignation = async (req, res) => {
   try {
-    const deleted = await Designation.destroy({
-      where: { designationId: req.params.id }
-    });
-
-    if (!deleted) {
+    const designation = await Designation.findByPk(req.params.id, { paranoid: false });
+    if (!designation) {
       return res.status(404).json({ message: 'Designation not found' });
     }
 
-    res.json({ message: 'Designation deleted successfully' });
+    // If this row was soft-deleted in the past, bring it back first.
+    if (designation.deletedAt) {
+      await designation.restore();
+    }
+
+    await designation.update({
+      status: 'Inactive',
+      updatedBy: req.body?.updatedBy || designation.updatedBy,
+    });
+
+    res.json({ message: 'Designation marked as inactive successfully' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    const statusCode = error.name?.startsWith('Sequelize') ? 400 : 500;
+    res.status(statusCode).json({ error: formatSequelizeError(error) });
   }
 };
