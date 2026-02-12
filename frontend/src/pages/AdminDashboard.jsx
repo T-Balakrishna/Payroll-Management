@@ -32,9 +32,9 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend,
 
 // --- COMPONENT IMPORTS ---
 // import AddUser from './AddUser.jsx';
-// import CompanyMaster from './CompanyMaster.jsx';
+import CompanyMaster from './CompanyMaster.jsx';
 import DepartmentMaster from './DepartmentMaster.jsx';
-// import DesignationMaster from './DesignationMaster.jsx';
+import DesignationMaster from './DesignationMaster.jsx';
 // import EmployeeGradeMaster from './EmployeeGradeMaster.jsx';
 // import BusMaster from './BusMaster.jsx';
 // import BiometricDeviceMaster from './BiometricDeviceMaster.jsx';
@@ -260,13 +260,24 @@ const AdminDashboard = () => {
   // );
 
   const renderPage = () => {
-    const common = { companyId, companyName, departmentId, departmentName, role };
+    const common = {
+      companyId,
+      companyName,
+      departmentId,
+      departmentName,
+      role,
+      // Backward-compatible prop names expected by existing pages/forms.
+      userRole: role,
+      selectedCompanyId: companyId,
+      selectedCompanyName: companyName,
+      userId: user?.id,
+    };
     switch (activePage) {
       // case "dashboard": return renderDashboard();
       case "users": return <AddUser {...common} />;
-      // case "company": return <CompanyMaster {...common} />;
-      // case "department": return <DepartmentMaster {...common} />;
-      // case "designation": return <DesignationMaster {...common} />;
+      case "company": return <CompanyMaster {...common} />;
+       case "department": return <DepartmentMaster {...common} />;
+       case "designation": return <DesignationMaster {...common} />;
       // case "employeeGrade": return <EmployeeGradeMaster {...common} />;
       // case "bus": return <BusMaster {...common} />;
       // case "attendance": return <AttendanceMaster {...common} />;
@@ -362,7 +373,7 @@ const AdminDashboard = () => {
             
             {role === "Super Admin" && (
               <select 
-                value={companyId || ""} 
+                value={companyId } 
                 onChange={(e) => {
                   const sel = companies.find(c => c.companyId === parseInt(e.target.value));
                   setCompanyId(sel?.companyId);
@@ -370,7 +381,7 @@ const AdminDashboard = () => {
                 }}
                 className="text-xs font-semibold border rounded-md px-2 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none"
               >
-                <option value="">{t('switch_company')}</option>
+                {/* <option value="">{t('switch_company')}</option> */}
                 {companies.map(c => <option key={c.companyId} value={c.companyId}>{c.companyName}</option>)}
               </select>
             )}

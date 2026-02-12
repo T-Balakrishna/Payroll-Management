@@ -10,7 +10,7 @@ import MasterHeader from "../components/common/MasterHeader";
 import MasterTable from "../components/common/MasterTable";
 import ActionButtons from "../components/common/ActionButton";
 
-import DepartmentForm from "../components/features/masters/department/DepartmentForm";
+import DepartmentForm from "../components/features/masters/DepartmentForm";
 
 export default function DepartmentMaster({ userRole, selectedCompanyId, selectedCompanyName }) {
   const { user } = useAuth();
@@ -116,7 +116,7 @@ export default function DepartmentMaster({ userRole, selectedCompanyId, selected
   const getCompanyAcronym = (id) => {
     return companies.find((c) => c.companyId === id)?.companyAcr || "";
   };
-
+  
   return (
     <div className="h-full flex flex-col px-6">
       <MasterHeader

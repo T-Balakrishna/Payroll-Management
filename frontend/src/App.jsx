@@ -6,11 +6,14 @@ import UserDashboard from "./pages/UserDashboard";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import DepartmentMaster from "./pages/DepartmentMaster";
+import CompanyMaster from "./pages/CompanyMaster";
+import RoleMaster from "./pages/RoleMaster";
 import { AuthProvider } from "./auth/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AddUser from "./pages/AddUser";
 import SplashScreen from "./components/common/SplashScreen";
 import './index.css';
+import DesignationMaster from "./pages/DesignationMaster";
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -49,12 +52,20 @@ function App() {
           <Route
             path="/departments"
             element={
-              <ProtectedRoute roles={["User", "Staff","Admin","Super Admin"]}>
+              <ProtectedRoute roles={["Admin","Super Admin"]}>
                 <DepartmentMaster />
               </ProtectedRoute>
             }
           />
 
+          <Route
+            path="/designations"
+            element={
+              <ProtectedRoute roles={["Admin","Super Admin"]}>
+                <DesignationMaster />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/users"
             element={
@@ -64,9 +75,26 @@ function App() {
             }
           />
 
+          
+
+          <Route
+            path="/companies"
+            element={
+              <ProtectedRoute roles={["Super Admin"]}>
+                <CompanyMaster />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/roles"
+            element={
+              <ProtectedRoute roles={["Admin", "Super Admin"]}>
+                <RoleMaster />
+              </ProtectedRoute>
+            }
+          />
           {/* Fallback Route */}
           <Route path="*" element={<Navigate to="/login" replace />} />
-
         </Routes>
       </BrowserRouter>
     </AuthProvider>

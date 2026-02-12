@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { toast } from "react-toastify";
-import Input from "../../../ui/Input";
-import Select from "../../../ui/Select";
-import Button from "../../../ui/Button";
-import API from "../../../../api";
-import { useAuth } from "../../../../auth/AuthContext";
+import Input from "../../../components/ui/Input";
+import Select from "../../../components/ui/Select";
+import Button from "../../../components/ui/Button";
+import API from "../../../api";
+import { useAuth } from "../../../auth/AuthContext";
 
 export default function DepartmentForm({
   editData,
@@ -15,36 +15,60 @@ export default function DepartmentForm({
   onCancel,
 }) {
   const { user } = useAuth();
+  const normalizeRole = (role) => String(role || "").replace(/\s+/g, "").toLowerCase();
+  const isSuperAdmin = normalizeRole(userRole) === "superadmin";
   const currentUserId = user?.userId ?? user?.id ?? "system";
   const [departmentName, setDepartmentName] = useState(editData?.departmentName || "");
   const [departmentAcr, setDepartmentAcr] = useState(editData?.departmentAcr || "");
-  const [companyId, setCompanyId] = useState(editData?.companyId || selectedCompanyId || "");
+  const [companyId, setCompanyId] = useState(
+    editData?.companyId || (!isSuperAdmin ? selectedCompanyId : "")
+  );
   const [companies, setCompanies] = useState([]);
 
   useEffect(() => {
-    if (userRole !== "Super Admin") return;
+    setCompanyId(editData?.companyId || (!isSuperAdmin ? selectedCompanyId : ""));
+  }, [editData, isSuperAdmin, selectedCompanyId]);
+
+  useEffect(() => {
+    if (!isSuperAdmin && (selectedCompanyName || !selectedCompanyId)) return;
 
     const fetchCompanies = async () => {
       try {
         const res = await API.get("/companies");
-        setCompanies(res.data || []);
-        if (selectedCompanyId && !editData) {
+        const data = Array.isArray(res.data)
+          ? res.data
+          : Array.isArray(res.data?.data)
+            ? res.data.data
+            : [];
+
+        setCompanies(data);
+        if (isSuperAdmin && selectedCompanyId && !editData) {
           setCompanyId(selectedCompanyId);
         }
       } catch (err) {
         console.error("Error fetching companies:", err);
+        toast.error("Failed to load companies");
       }
     };
 
     fetchCompanies();
-  }, [userRole, selectedCompanyId, editData]);
+  }, [isSuperAdmin, selectedCompanyId, selectedCompanyName, editData]);
+  console.log("Company id ",selectedCompanyId);
+  
+  const adminCompanyName = useMemo(() => {
+    if (selectedCompanyName) return selectedCompanyName;
+    if (!selectedCompanyId) return "No company selected";
+
+    const match = companies.find((c) => String(c.companyId) === String(selectedCompanyId));
+    return match?.companyName || `Company #${selectedCompanyId}`;
+  }, [selectedCompanyId, selectedCompanyName, companies]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
     if (!departmentName.trim()) return toast.error("Department Name is required");
     if (!departmentAcr.trim()) return toast.error("Acronym is required");
-    if (userRole === "Super Admin" && !companyId) return toast.error("Please select a company");
+    if (isSuperAdmin && !companyId) return toast.error("Please select a company");
 
     const payload = {
       departmentName: departmentName.trim(),
@@ -78,18 +102,17 @@ export default function DepartmentForm({
 
       <div>
         <label className="block font-medium text-gray-700 mb-2">Company</label>
-        {userRole === "Super Admin" ? (
+        {isSuperAdmin ? (
           <Select
             value={companyId}
             onChange={(e) => setCompanyId(e.target.value)}
             options={companies
-              .filter((c) => c.companyId !== 1)
               .map((c) => ({ value: c.companyId, label: c.companyName }))}
             placeholder="Select Company"
             disabled={!!editData}
           />
         ) : (
-          <Input value={selectedCompanyName || "No company selected"} disabled />
+          <Input value={adminCompanyName} disabled />
         )}
       </div>
 

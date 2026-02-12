@@ -1,83 +1,196 @@
+const { Op } = require('sequelize');
 const { Department } = require('../models');
 
-// Get all departments (in real usage: filter by companyId almost always)
+// ────────────────────────────────────────────────
+//  HELPERS
+// ────────────────────────────────────────────────
+
+const sendError = (res, status, message, error = null) => {
+  const response = { message };
+  if (error && process.env.NODE_ENV !== 'production') {
+    response.error = error.message;
+  }
+  return res.status(status).json(response);
+};
+
+// ────────────────────────────────────────────────
+//  CONTROLLERS
+// ────────────────────────────────────────────────
+
+/**
+ * GET /departments
+ * List departments with optional filters
+ * Query params:
+ *   - companyId (integer)
+ *   - status    ('Active' | 'Inactive' | 'Archived')
+ *   - (future: page, limit, search)
+ */
 exports.getAllDepartments = async (req, res) => {
   try {
+    const { companyId, status } = req.query;
+
+    const where = {};
+
+    if (companyId) {
+      where.companyId = Number(companyId); // explicit conversion + NaN safety
+      if (isNaN(where.companyId)) {
+        return sendError(res, 400, 'companyId must be a valid integer');
+      }
+    }
+
+    if (status) {
+      if (!['Active', 'Inactive', 'Archived'].includes(status)) {
+        return sendError(res, 400, 'Invalid status value');
+      }
+      where.status = status;
+    } else {
+      // Default: only show Active departments (most common use-case)
+      where.status = 'Active';
+    }
+
     const departments = await Department.findAll({
-      include: [
-        { model: require('../models').Company, as: 'company' },
-        
-        // { model: require('../models').Employee, as: 'employees' }   // ← only include if needed (can be heavy)
-      ]
+      where,
+      attributes: [
+        'departmentId',
+        'departmentName',
+        'departmentAcr',
+        'companyId',
+        'status',
+        'createdAt',
+        'updatedAt',
+      ],
+      order: [['departmentName', 'ASC']],
+      // Optional future pagination (uncomment when needed)
+      // limit: limit ? Math.min(Number(limit), 100) : undefined,
+      // offset: page && limit ? (page - 1) * limit : undefined,
     });
-    res.json(departments);
+
+    res.status(200).json(departments);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('[getAllDepartments] Error:', error);
+    sendError(res, 500, 'Failed to fetch departments', error);
   }
 };
 
-// Get single department by ID
+/**
+ * GET /departments/:id
+ */
 exports.getDepartmentById = async (req, res) => {
   try {
-    const department = await Department.findByPk(req.params.id, {
-      include: [
-        { model: require('../models').Company, as: 'company' },
-        
-        // { model: require('../models').Employee, as: 'employees' }
-      ]
+    const id = Number(req.params.id);
+    if (isNaN(id)) {
+      return sendError(res, 400, 'Invalid department ID');
+    }
+
+    const department = await Department.findByPk(id, {
+      attributes: [
+        'departmentId',
+        'departmentName',
+        'departmentAcr',
+        'companyId',
+        'status',
+        'createdAt',
+        'updatedAt',
+      ],
+      // include: [{ model: require('../models').Company, as: 'company', attributes: ['companyName'] }],
     });
 
     if (!department) {
-      return res.status(404).json({ message: 'Department not found' });
+      return sendError(res, 404, 'Department not found');
     }
 
-    res.json(department);
+    res.status(200).json(department);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('[getDepartmentById] Error:', error);
+    sendError(res, 500, 'Failed to fetch department', error);
   }
 };
 
-// Create new department
+/**
+ * POST /departments
+ */
 exports.createDepartment = async (req, res) => {
   try {
-    const department = await Department.create(req.body);
+    const {
+      departmentName,
+      departmentAcr,
+      companyId,
+      status = 'Active',
+      createdBy,
+    } = req.body;
+
+    // Basic validation
+    if (!departmentName || !departmentAcr || !companyId) {
+      return sendError(res, 400, 'departmentName, departmentAcr and companyId are required');
+    }
+
+    const department = await Department.create({
+      departmentName: departmentName.trim(),
+      departmentAcr: departmentAcr.trim().toUpperCase(),
+      companyId: Number(companyId),
+      status,
+      createdBy: createdBy || null, // or req.user?.userId if you have auth middleware
+    });
+
     res.status(201).json(department);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('[createDepartment] Error:', error);
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return sendError(res, 409, 'Department name or acronym already exists for this company');
+    }
+    sendError(res, 500, 'Failed to create department', error);
   }
 };
 
-// Update department
+/**
+ * PUT /departments/:id
+ */
 exports.updateDepartment = async (req, res) => {
   try {
-    const [updated] = await Department.update(req.body, {
-      where: { departmentId: req.params.id }
+    const id = Number(req.params.id);
+    if (isNaN(id)) return sendError(res, 400, 'Invalid department ID');
+
+    const [affectedCount] = await Department.update(req.body, {
+      where: { departmentId: id },
+      individualHooks: true, // triggers before/after update hooks if any
     });
 
-    if (!updated) {
-      return res.status(404).json({ message: 'Department not found' });
+    if (affectedCount === 0) {
+      return sendError(res, 404, 'Department not found or no changes');
     }
 
-    const department = await Department.findByPk(req.params.id);
-    res.json(department);
+    const updated = await Department.findByPk(id);
+    res.status(200).json(updated);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('[updateDepartment] Error:', error);
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return sendError(res, 409, 'Department name or acronym conflict');
+    }
+    sendError(res, 500, 'Failed to update department', error);
   }
 };
 
-// Delete department (soft delete supported via paranoid: true)
+/**
+ * DELETE /departments/:id
+ * Soft delete (paranoid: true)
+ */
 exports.deleteDepartment = async (req, res) => {
   try {
-    const deleted = await Department.destroy({
-      where: { departmentId: req.params.id }
+    const id = Number(req.params.id);
+    if (isNaN(id)) return sendError(res, 400, 'Invalid department ID');
+
+    const deletedCount = await Department.destroy({
+      where: { departmentId: id },
+      // force: false  ← default = soft delete
     });
 
-    if (!deleted) {
-      return res.status(404).json({ message: 'Department not found' });
+    if (deletedCount === 0) {
+      return sendError(res, 404, 'Department not found');
     }
 
-    res.json({ message: 'Department deleted successfully' });
+    res.status(200).json({ message: 'Department deleted successfully' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('[deleteDepartment] Error:', error);
+    sendError(res, 500, 'Failed to delete department', error);
   }
 };

@@ -1,6 +1,6 @@
 const db = require('../models');
 const bcrypt = require('bcryptjs');
-const { User, Role, StudentDetails, Employee } = db;
+const { User, Role, StudentDetails, Employee, Company, Department } = db;
 
 const normalizeRoleName = (value = '') => value.toLowerCase().replace(/[\s-]/g, '');
 const STAFF_ROLE_KEYS = new Set(['teachingstaff', 'nonteachingstaff']);
@@ -201,5 +201,79 @@ exports.deleteUser = async (req, res) => {
   } catch (error) {
     await transaction.rollback();
     res.status(500).json({ error: error.message });
+  }
+};
+
+// Get company details by userNumber
+// Used by Admin/Super Admin dashboard context setup
+exports.getCompanyByUserNumber = async (req, res) => {
+  try {
+    const { userNumber } = req.params;
+
+    const user = await User.findOne({
+      where: { userNumber },
+      attributes: ['userId', 'userNumber', 'companyId'],
+      include: [{ model: Company, as: 'company', attributes: ['companyId', 'companyName', 'companyAcr'] }],
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (!user.company) {
+      return res.status(404).json({ message: 'Company not mapped for this user' });
+    }
+
+    return res.json({
+      userId: user.userId,
+      userNumber: user.userNumber,
+      companyId: user.company.companyId,
+      companyName: user.company.companyName,
+      companyAcr: user.company.companyAcr,
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+// Get department + company details by userNumber
+// Used by Department Admin dashboard context setup
+exports.getDepartmentByUserNumber = async (req, res) => {
+  try {
+    const { userNumber } = req.params;
+
+    const user = await User.findOne({
+      where: { userNumber },
+      attributes: ['userId', 'userNumber', 'companyId', 'departmentId'],
+      include: [
+        { model: Company, as: 'company', attributes: ['companyId', 'companyName', 'companyAcr'] },
+        { model: Department, as: 'department', attributes: ['departmentId', 'departmentName', 'departmentAcr'] },
+      ],
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (!user.company) {
+      return res.status(404).json({ message: 'Company not mapped for this user' });
+    }
+
+    if (!user.department) {
+      return res.status(404).json({ message: 'Department not mapped for this user' });
+    }
+
+    return res.json({
+      userId: user.userId,
+      userNumber: user.userNumber,
+      companyId: user.company.companyId,
+      companyName: user.company.companyName,
+      companyAcr: user.company.companyAcr,
+      departmentId: user.department.departmentId,
+      departmentName: user.department.departmentName,
+      departmentAcr: user.department.departmentAcr,
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
   }
 };
