@@ -12,6 +12,8 @@ const mountRoutes = require('./routes/mountRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const shouldSync = process.env.DB_SYNC === "true";
+const shouldAlter = process.env.DB_SYNC_ALTER === "true";
 
 // Middleware
 app.use(helmet());
@@ -44,11 +46,12 @@ db.sequelize.authenticate()
   .then(async () => {
     console.log('Database connection established successfully.');
 
-    if (process.env.DB_SYNC === "true") {
-      await db.sequelize.sync({
-        alter: true
-      });
-      console.log('All models were synchronized successfully.');
+    if (shouldSync) {
+      const syncOptions = shouldAlter ? { alter: true } : {};
+      await db.sequelize.sync(syncOptions);
+      console.log(
+        `All models were synchronized successfully${shouldAlter ? " (alter=true)" : ""}.`
+      );
     } else {
       console.log('DB sync disabled (DB_SYNC != "true").');
     }

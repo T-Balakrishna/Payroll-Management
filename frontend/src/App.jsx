@@ -34,7 +34,7 @@ function App() {
           <Route
             path="/departments"
             element={
-              <ProtectedRoute roles={["User", "Staff","Admin"]}>
+              <ProtectedRoute roles={["User", "Staff","Admin","Super Admin"]}>
                 <DepartmentMaster />
               </ProtectedRoute>
             }
@@ -42,7 +42,7 @@ function App() {
           <Route
             path="/users"
             element={
-              <ProtectedRoute roles={["User", "Staff","Admin"]}>
+              <ProtectedRoute roles={["User", "Staff","Admin","Super Admin"]}>
                 <AddUser />
               </ProtectedRoute>
             }

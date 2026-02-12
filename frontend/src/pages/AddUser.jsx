@@ -11,84 +11,29 @@ function AddOrEditUser({
   setFormData,
   onSave,
   onCancel,
-  departments,
-  setDepartments,
-  selectedCompanyName,
-  selectedCompanyId,
   userRole,
   companies,
-  autoGenerate,
-  setAutoGenerate, // Added to allow updating autoGenerate state
-  handleAutoGenerate,
   isEdit,
+  roles,
+  currentUserCompanyId,
 }) {
+  const visibleRoles = roles.filter(
+    (role) => role.status === "Active" && (userRole !== "Admin" || role.roleName !== "Super Admin")
+  );
+  const shouldShowCompanyField = true;
+  const isCompanyFixed = userRole !== "Super Admin" && Boolean(currentUserCompanyId);
+  const fixedCompany = companies.find((c) => Number(c.companyId) === Number(currentUserCompanyId));
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    if (name === "role") {
-      if (value === "Admin" && userRole === "Super Admin") {
-        setFormData({ ...formData, role: value, departmentId: 1, biometricNumber: "" });
-        setAutoGenerate(false); // Uncheck Auto Generate
-      } else if (value === "Super Admin") {
-        setFormData({ ...formData, role: value, companyId: 1, departmentId: 1, biometricNumber: "" });
-        setAutoGenerate(false); // Uncheck Auto Generate
-      } else {
-        setFormData({ ...formData, role: value, departmentId: "", biometricNumber: "" });
-        setAutoGenerate(false); // Uncheck Auto Generate
-      }
-    } else if (name === "companyId") {
-      setFormData({ ...formData, companyId: value, departmentId: "", biometricNumber: "" });
-      setAutoGenerate(false); // Uncheck Auto Generate
-    } else if (name === "departmentId") {
-      setFormData({ ...formData, departmentId: value });
-      setAutoGenerate(false); // Uncheck Auto Generate
-    } else if (name === "biometricNumber") {
-      // Ensure only integer values or empty string
-      const intValue = value === "" ? "" : parseInt(value, 10);
-      setFormData({ ...formData, [name]: isNaN(intValue) ? "" : intValue.toString() });
-    } else {
-      setFormData({ ...formData, [name]: value });
-    }
+    setFormData({ ...formData, [name]: value });
   };
 
-  // Fetch departments dynamically when company changes
   useEffect(() => {
-    const fetchDepartments = async () => {
-      // Use selectedCompanyId for non-Super Admins if companyId is not set
-      const companyIdToFetch = formData.companyId || selectedCompanyId;
-      if (!companyIdToFetch) {
-        setDepartments([]);
-        return;
-      }
-      try {
-        const res = await API.get(`/departments`, {
-          params: { companyId: companyIdToFetch },
-        });
-        console.log("Fetched departments:", res.data); // Debug log
-        setDepartments(res.data || []);
-      } catch (err) {
-        console.error("Error fetching departments:", err.response?.data || err.message);
-        toast.error("Error fetching departments");
-        setDepartments([]);
-      }
-    };
-    fetchDepartments();
-  }, [formData.companyId, selectedCompanyId, setDepartments]);
-
-  const showCompanyField = () => {
-    if (userRole === "Super Admin") {
-      if (formData.role === "Super Admin") return false;
-      return true;
+    if (isCompanyFixed && !isEdit) {
+      setFormData((prev) => ({ ...prev, companyId: currentUserCompanyId || "" }));
     }
-    return false; // Non-Super Admins don't see company field
-  };
-
-  const showDepartmentField = () => {
-    return formData.role === "Staff" || formData.role === "Department Admin";
-  };
-
-  const showBiometricNumberField = () => {
-    return formData.role === "Staff";
-  };
+  }, [isCompanyFixed, isEdit, currentUserCompanyId, setFormData]);
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm overflow-y-auto">
@@ -111,6 +56,20 @@ function AddOrEditUser({
         </h2>
 
         <form onSubmit={onSave} className="space-y-3">
+          {/* User Name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">User Name</label>
+            <input
+              type="text"
+              name="userName"
+              placeholder="User Name"
+              value={formData.userName}
+              onChange={handleChange}
+              className="w-full border border-gray-300 rounded-md p-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              required
+            />
+          </div>
+
           {/* Email */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
@@ -143,29 +102,23 @@ function AddOrEditUser({
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
             <select
-              name="role"
-              value={formData.role}
+              name="roleId"
+              value={formData.roleId}
               onChange={handleChange}
               className="w-full border border-gray-300 rounded-md p-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               required
             >
               <option value="">Select Role</option>
-              {(() => {
-                let availableRoles = ["Super Admin", "Admin", "Department Admin", "Staff"];
-                if (userRole === "Admin") {
-                  availableRoles = ["Admin", "Department Admin", "Staff"];
-                }
-                return availableRoles.map((role) => (
-                  <option key={role} value={role}>
-                    {role}
-                  </option>
-                ));
-              })()}
+              {visibleRoles.map((role) => (
+                <option key={role.roleId} value={role.roleId}>
+                  {role.roleName}
+                </option>
+              ))}
             </select>
           </div>
 
           {/* Company */}
-          {showCompanyField() && (
+          {shouldShowCompanyField && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
               <select
@@ -173,83 +126,38 @@ function AddOrEditUser({
                 value={formData.companyId || ""}
                 onChange={handleChange}
                 className="w-full border border-gray-300 rounded-md p-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                disabled={isCompanyFixed}
+                required
               >
-                <option value="">Select Company</option>
-                {companies
-                  .filter((c) => c.companyId !== 1)
-                  .map((c) => (
+                {!isCompanyFixed && <option value="">Select Company</option>}
+                {isCompanyFixed ? (
+                  <option value={currentUserCompanyId}>
+                    {fixedCompany?.companyName || fixedCompany?.companyAcr || `Company ${currentUserCompanyId}`}
+                  </option>
+                ) : (
+                  companies.map((c) => (
                     <option key={c.companyId} value={c.companyId}>
                       {c.companyName}
                     </option>
-                  ))}
+                  ))
+                )}
               </select>
-            </div>
-          )}
-
-          {/* Department */}
-          {showDepartmentField() && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-              <select
-                name="departmentId"
-                value={formData.departmentId ?? ""}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-md p-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                required
-              >
-                <option value="">Select Department</option>
-                {departments.map((d) => (
-                  <option key={d.departmentId} value={d.departmentId}>
-                    {d.departmentAckr}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Biometric Number */}
-          {showBiometricNumberField() && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Biometric Number</label>
-              <input
-                type="text"
-                name="biometricNumber"
-                placeholder="Biometric Number"
-                value={formData.biometricNumber || ""}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-md p-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                pattern="[0-9]*"
-                title="Please enter a valid integer"
-              />
             </div>
           )}
 
           {/* User Number */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">User Number</label>
-            <div className="flex items-center gap-2 py-1">
-              <input
-                type="text"
-                name="userNumber"
-                placeholder="User Number"
-                value={formData.userNumber}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-md p-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                disabled={autoGenerate || isEdit}
-                required
-              />
-              <label className="flex items-center gap-1 text-sm">
-                <input
-                  type="checkbox"
-                  checked={autoGenerate}
-                  onChange={(e) =>
-                    handleAutoGenerate(e.target.checked, formData.departmentId)
-                  }
-                  disabled={isEdit}
-                />
-                Auto Generate
-              </label>
-            </div>
+            <input
+              type="text"
+              name="userNumber"
+              placeholder="User Number"
+              value={formData.userNumber}
+              onChange={handleChange}
+              className="w-full border border-gray-300 rounded-md p-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              disabled={isEdit}
+              required
+            />
           </div>
 
           {/* Buttons */}
@@ -277,20 +185,18 @@ function AddOrEditUser({
 // 🔹 Main Component
 export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
   const { user } = useAuth();
-  const [departments, setDepartments] = useState([]);
   const [allDepartments, setAllDepartments] = useState([]);
   const [users, setUsers] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [refreshFlag, setRefreshFlag] = useState(false);
   const [formData, setFormData] = useState({
+    userName: "",
     userNumber: "",
     userMail: "",
-    role: "",
-    departmentId: "",
+    roleId: "",
     companyId: selectedCompanyId || "",
     password: "",
-    biometricNumber: "",
   });
-  const [autoGenerate, setAutoGenerate] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState("");
   const [isEdit, setIsEdit] = useState(false);
@@ -299,6 +205,11 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
 
   const currentUserRole = user?.role || "";
   const currentUserId = user?.userId ?? user?.id ?? "system";
+  const currentUserCompanyId =
+    user?.companyId ||
+    user?.company?.companyId ||
+    selectedCompanyId ||
+    "";
 
   const getCompanyAcronym = (id) => {
     const company = companies.find((c) => c.companyId === id);
@@ -316,17 +227,8 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
       try {
         const companyRes = await API.get("/companies");
         setCompanies(companyRes.data);
-
-        let deptRes;
-        if (selectedCompanyId) {
-          deptRes = await API.get("/departments", {
-            params: { companyId: selectedCompanyId },
-          });
-        } else {
-          deptRes = await API.get("/departments");
-        }
-        console.log("Initial departments:", deptRes.data); // Debug log
-        setDepartments(deptRes.data);
+        const roleRes = await API.get("/roles");
+        setRoles(roleRes.data || []);
 
         const res = await API.get("/users", {
           params: selectedCompanyId ? { companyId: selectedCompanyId } : {},
@@ -347,36 +249,15 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
 
   const openAddUserForm = () => {
     setFormData({
+      userName: "",
       userNumber: "",
       userMail: "",
-      role: "",
-      departmentId: "",
-      companyId: selectedCompanyId || (currentUserRole === "Super Admin" ? "" : 1),
+      roleId: "",
+      companyId: currentUserRole !== "Super Admin" ? currentUserCompanyId : (selectedCompanyId || ""),
       password: "",
-      biometricNumber: "",
     });
-    setAutoGenerate(false);
     setIsEdit(false);
     setShowForm(true);
-  };
-
-  const handleAutoGenerate = async (checked, departmentId) => {
-    setAutoGenerate(checked);
-    if (!checked) return setFormData((prev) => ({ ...prev, userNumber: "" }));
-
-    try {
-      const companyIdToUse = formData.companyId || selectedCompanyId || 1;
-      const departmentIdToUse = departmentId || 1;
-      const res = await API.post(`/users/lastEmpNumber/${departmentIdToUse}`, {
-        role: formData.role,
-        companyId: companyIdToUse,
-        departmentId: departmentIdToUse,
-      });
-      setFormData((prev) => ({ ...prev, userNumber: res.data.lastEmpNumber }));
-    } catch (err) {
-      console.error("Error generating userNumber:", err.response?.data || err.message);
-      toast.error("Error generating user number");
-    }
   };
 
   const handleSave = async (e) => {
@@ -386,13 +267,15 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
       ...formData,
       createdBy: currentUserId,
       updatedBy: currentUserId,
-      companyId: formData.companyId || selectedCompanyId || 1,
-      departmentId: formData.departmentId || 1,
+      companyId: currentUserRole !== "Super Admin"
+        ? (currentUserCompanyId || formData.companyId)
+        : (formData.companyId || selectedCompanyId || 1),
+      departmentId: 1,
     };
 
     try {
       if (isEdit) {
-        await API.put(`/users/${formData.userNumber}`, payload);
+        await API.put(`/users/${formData.userId}`, payload);
       } else {
         await API.post("/users", payload);
       }
@@ -459,7 +342,7 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
                 <tr key={u.userNumber} className="border-t hover:bg-gray-50">
                   <td className="py-2 px-4">{u.userNumber}</td>
                   <td className="py-2 px-4">{u.userMail}</td>
-                  <td className="py-2 px-4">{u.roleId}</td>
+                  <td className="py-2 px-4">{u.role?.roleName || u.roleId}</td>
                   {!selectedCompanyId && (
                     <td className="py-2 px-4">{getCompanyAcronym(u.companyId)}</td>
                   )}
@@ -468,8 +351,15 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
                     <button
                       className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-md"
                       onClick={() => {
-                        setFormData(u);
-                        setAutoGenerate(false);
+                        setFormData({
+                          userId: u.userId,
+                          userName: u.userName || "",
+                          userNumber: u.userNumber,
+                          userMail: u.userMail,
+                          roleId: u.roleId,
+                          companyId: u.companyId,
+                          password: "",
+                        });
                         setShowForm(true);
                         setIsEdit(true);
                       }}
@@ -490,7 +380,7 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
                         }).then(async (result) => {
                           if (result.isConfirmed) {
                             try {
-                              await API.delete(`/users/${u.userNumber}`, {
+                              await API.delete(`/users/${u.userId}`, {
                                 data: { updatedBy: currentUserId },
                               });
                               Swal.fire({
@@ -540,16 +430,11 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
           setFormData={setFormData}
           onSave={handleSave}
           onCancel={() => setShowForm(false)}
-          departments={departments}
-          setDepartments={setDepartments}
-          selectedCompanyName={selectedCompanyName}
-          selectedCompanyId={selectedCompanyId}
           userRole={currentUserRole}
           companies={companies}
-          autoGenerate={autoGenerate}
-          setAutoGenerate={setAutoGenerate} // Pass setAutoGenerate
-          handleAutoGenerate={handleAutoGenerate}
           isEdit={isEdit}
+          roles={roles}
+          currentUserCompanyId={currentUserCompanyId}
         />
       )}
     </div>
