@@ -39,7 +39,8 @@ import RoleMaster from './RoleMaster.jsx';
 import EmployeeGradeMaster from './EmployeeGradeMaster.jsx';
 
 // import BusMaster from './BusMaster.jsx';
-// import BiometricDeviceMaster from './BiometricDeviceMaster.jsx';
+import BiometricDeviceMaster from './BiometricDeviceMaster.jsx';
+import BiometricPunchMaster from './BiometricPunchMaster.jsx';
 // import AttendanceMaster from './AttendanceMaster.jsx';
 // import HolidayMaster from './HolidayMaster.jsx';
 // import HolidayPlanMaster from './HolidayPlanMaster.jsx';
@@ -287,8 +288,8 @@ const AdminDashboard = () => {
       // case "attendance": return <AttendanceMaster {...common} />;
       // case "shiftType": return <ShiftTypeMaster {...common} />;
       // case "shiftAssignment": return <ShiftAssignment {...common} />;
-      // case "biometricDevice": return <BiometricDeviceMaster {...common} />;
-      // case "punches": return <BiometricPunchDetails {...common} />;
+      case "biometricDevice": return <BiometricDeviceMaster {...common} />;
+      case "punches": return <BiometricPunchMaster {...common} />;
       // case "holidayPlan": return <HolidayPlanMaster {...common} />;
       // case "holiday": return <HolidayMaster {...common} />;
       // case "leaveType": return <LeaveTypeMaster {...common} />;

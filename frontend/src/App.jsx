@@ -9,6 +9,8 @@ import DepartmentMaster from "./pages/DepartmentMaster";
 import CompanyMaster from "./pages/CompanyMaster";
 import RoleMaster from "./pages/RoleMaster";
 import EmployeeGradeMaster from "./pages/EmployeeGradeMaster";
+import BiometricDeviceMaster from "./pages/BiometricDeviceMaster";
+import BiometricPunchMaster from "./pages/BiometricPunchMaster";
 import { AuthProvider } from "./auth/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AddUser from "./pages/AddUser";
@@ -99,6 +101,22 @@ function App() {
             element={
               <ProtectedRoute roles={["Admin", "Super Admin"]}>
                 <EmployeeGradeMaster />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/biometric-devices"
+            element={
+              <ProtectedRoute roles={["Admin", "Super Admin"]}>
+                <BiometricDeviceMaster />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/biometric-punches"
+            element={
+              <ProtectedRoute roles={["Admin", "Super Admin"]}>
+                <BiometricPunchMaster />
               </ProtectedRoute>
             }
           />

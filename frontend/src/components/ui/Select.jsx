@@ -6,6 +6,7 @@ export default function Select({
   placeholder = "Select...",
   disabled = false,
   required = false,
+  allowPlaceholderSelection = false,
 }) {
   return (
     <div>
@@ -23,7 +24,7 @@ export default function Select({
           disabled ? "bg-gray-100 cursor-not-allowed" : ""
         }`}
       >
-        <option value="" disabled>
+        <option value="" disabled={!allowPlaceholderSelection}>
           {placeholder}
         </option>
         {options.map((opt) => (

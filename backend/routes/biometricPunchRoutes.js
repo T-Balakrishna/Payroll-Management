@@ -4,6 +4,7 @@ const biometricPunchController = require('../controllers/biometricPunchControlle
 
 // Routes for biometric punches
 // Frontend should call: /api/biometricPunches   (camelCase plural)
+router.get("/fetch", biometricPunchController.fetchPunches);
 router.get('/', biometricPunchController.getAllBiometricPunches);
 router.get('/:id', biometricPunchController.getBiometricPunchById);
 router.post('/', biometricPunchController.createBiometricPunch);
