@@ -31,7 +31,7 @@ import {
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement, Filler);
 
 // --- COMPONENT IMPORTS ---
-// import AddUser from './AddUser.jsx';
+import AddUser from './AddUser.jsx';
 import CompanyMaster from './CompanyMaster.jsx';
 import DepartmentMaster from './DepartmentMaster.jsx';
 import DesignationMaster from './DesignationMaster.jsx';
@@ -161,7 +161,7 @@ const AdminDashboard = () => {
   // 4. Categorized Sidebar Menu (Matches all your newer models)
   const menuItems = [
     { id: 'dashboard', label: t('Dashboard'), icon: Home, color: 'text-blue-500', category: 'General' },
-    { id: 'users', label: t('employeeManagement'), icon: Users, color: 'text-emerald-500', category: 'General' },
+    { id: 'users', label: t('Add User'), icon: Users, color: 'text-emerald-500', category: 'General' },
     { id: 'roles', label: t('Role Management'), icon: Users, color: 'text-blue-500', category: 'General' },
     
     // Organization Section

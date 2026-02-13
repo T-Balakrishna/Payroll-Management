@@ -22,7 +22,6 @@ export default function BiometricDeviceForm({
   const [name, setName] = useState(editData?.name || "");
   const [deviceIp, setDeviceIp] = useState(editData?.deviceIp || "");
   const [location, setLocation] = useState(editData?.location || "");
-  const [status, setStatus] = useState(editData?.status || "Active");
   const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useState(
     typeof editData?.isAutoSyncEnabled === "boolean" ? editData.isAutoSyncEnabled : true
   );
@@ -34,7 +33,6 @@ export default function BiometricDeviceForm({
   useEffect(() => {
     const id = setTimeout(() => {
       setCompanyId(editData?.companyId || (!isSuperAdmin ? selectedCompanyId : ""));
-      setStatus(editData?.status || "Active");
       setIsAutoSyncEnabled(
         typeof editData?.isAutoSyncEnabled === "boolean" ? editData.isAutoSyncEnabled : true
       );
@@ -87,7 +85,7 @@ export default function BiometricDeviceForm({
       name: name.trim(),
       deviceIp: deviceIp.trim(),
       location: location.trim(),
-      status: status || "Active",
+      status: editData?.status || "Active",
       isAutoSyncEnabled,
       companyId: companyId || selectedCompanyId || 1,
       createdBy: editData?.createdBy || currentUserId,
@@ -126,18 +124,6 @@ export default function BiometricDeviceForm({
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Select
-          label="Status"
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          options={[
-            { value: "Active", label: "Active" },
-            { value: "Inactive", label: "Inactive" },
-            { value: "Maintenance", label: "Maintenance" },
-            { value: "Offline", label: "Offline" },
-          ]}
-        />
-
         <Select
           label="Auto Sync"
           value={isAutoSyncEnabled ? "true" : "false"}

@@ -136,13 +136,6 @@ export default function CompanyMaster() {
     });
   };
 
-  const normalizeStatus = (rawStatus) => {
-    const value = String(rawStatus || "").trim().toLowerCase();
-    if (value === "inactive") return "Inactive";
-    if (value === "suspended") return "Suspended";
-    return "Active";
-  };
-
   const toNullable = (value) => {
     const parsed = String(value || "").trim();
     return parsed ? parsed : null;
@@ -193,7 +186,7 @@ export default function CompanyMaster() {
         payloads.push({
           companyName,
           companyAcr,
-          status: normalizeStatus(row.status),
+          status: "Active",
           registrationNumber: toNullable(row.registrationNumber),
           pan: toNullable(row.pan),
           gst: toNullable(row.gst),
@@ -248,7 +241,6 @@ export default function CompanyMaster() {
     const headers = [
       "companyName",
       "companyAcr",
-      "status",
       "registrationNumber",
       "pan",
       "gst",
@@ -269,7 +261,6 @@ export default function CompanyMaster() {
       [
         "xx",
         "yy",
-        "Active",
         "xx",
         "xx",
         "xx",
@@ -288,7 +279,6 @@ export default function CompanyMaster() {
       [
         "xx",
         "yy",
-        "Inactive",
         "yy",
         "yy",
         "yy",
@@ -404,6 +394,7 @@ export default function CompanyMaster() {
         }}
         title={editData ? "Edit Company" : "Add New Company"}
         icon={Building2}
+        maxWidth="max-w-6xl"
       >
         <CompanyForm
           editData={editData}

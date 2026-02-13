@@ -29,11 +29,6 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password/:token" element={<ResetPassword />} />
-
           <Route
             path="/adminDashboard"
             element={
@@ -48,75 +43,6 @@ function App() {
             element={
               <ProtectedRoute roles={["User", "Staff"]}>
                 <UserDashboard />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/departments"
-            element={
-              <ProtectedRoute roles={["Admin","Super Admin"]}>
-                <DepartmentMaster />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/designations"
-            element={
-              <ProtectedRoute roles={["Admin","Super Admin"]}>
-                <DesignationMaster />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/users"
-            element={
-              <ProtectedRoute roles={["User", "Staff","Admin","Super Admin"]}>
-                <AddUser />
-              </ProtectedRoute>
-            }
-          />
-
-          
-
-          <Route
-            path="/companies"
-            element={
-              <ProtectedRoute roles={["Super Admin"]}>
-                <CompanyMaster />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/roles"
-            element={
-              <ProtectedRoute roles={["Admin", "Super Admin"]}>
-                <RoleMaster />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/employee-grades"
-            element={
-              <ProtectedRoute roles={["Admin", "Super Admin"]}>
-                <EmployeeGradeMaster />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/biometric-devices"
-            element={
-              <ProtectedRoute roles={["Admin", "Super Admin"]}>
-                <BiometricDeviceMaster />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/biometric-punches"
-            element={
-              <ProtectedRoute roles={["Admin", "Super Admin"]}>
-                <BiometricPunchMaster />
               </ProtectedRoute>
             }
           />

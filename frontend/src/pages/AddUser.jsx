@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { User, Search, Plus, X, Trash, Pencil, Cpu } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Plus, X, Trash, Pencil, Cpu } from "lucide-react";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import API from "../api";
@@ -202,6 +202,7 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
   const [isEdit, setIsEdit] = useState(false);
   const [companies, setCompanies] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const fileInputRef = useRef(null);
 
   const currentUserRole = user?.role || "";
   const currentUserId = user?.userId ?? user?.id ?? "system";
@@ -210,6 +211,7 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
     user?.company?.companyId ||
     selectedCompanyId ||
     "";
+  const isSuperAdmin = String(currentUserRole).trim().toLowerCase() === "super admin";
 
   const getCompanyAcronym = (id) => {
     const company = companies.find((c) => c.companyId === id);
@@ -218,7 +220,7 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
 
   const getDepartmentAcronym = (id) => {
     const dept = allDepartments.find((d) => d.departmentId === id);
-    return dept ? dept.departmentAckr : "";
+    return dept ? dept.departmentAcr || dept.departmentAckr || "" : "";
   };
 
   useEffect(() => {
@@ -297,23 +299,267 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
     }
   };
 
+  const parseCsvLine = (line) => {
+    const values = [];
+    let current = "";
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i += 1) {
+      const char = line[i];
+      if (char === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          current += '"';
+          i += 1;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (char === "," && !inQuotes) {
+        values.push(current.trim());
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+    values.push(current.trim());
+    return values.map((v) => v.replace(/^"(.*)"$/, "$1").trim());
+  };
+
+  const parseCsvText = (text) => {
+    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    if (lines.length < 2) return [];
+
+    const headers = parseCsvLine(lines[0]);
+    return lines.slice(1).map((line) => {
+      const values = parseCsvLine(line);
+      return headers.reduce((acc, key, idx) => {
+        acc[key] = values[idx] ?? "";
+        return acc;
+      }, {});
+    });
+  };
+
+  const resolveCompanyId = (row, mapByName, mapByAcr) => {
+    if (!isSuperAdmin) {
+      return String(currentUserCompanyId || selectedCompanyId || "").trim();
+    }
+
+    if (selectedCompanyId) return String(selectedCompanyId);
+
+    const companyIdRaw = String(row.companyId || "").trim();
+    if (companyIdRaw) return companyIdRaw;
+
+    const byName = mapByName.get(String(row.companyName || "").trim().toLowerCase());
+    const byAcr = mapByAcr.get(String(row.companyAcr || "").trim().toLowerCase());
+    return String(byName || byAcr || "").trim();
+  };
+
+  const resolveDepartmentId = (row, companyId, deptByName, deptByAcr) => {
+    const rawDepartmentId = String(row.departmentId || "").trim();
+    if (rawDepartmentId) return rawDepartmentId;
+
+    const nameKey = `${companyId}::${String(row.departmentName || "").trim().toLowerCase()}`;
+    const acrKey = `${companyId}::${String(row.departmentAcr || "").trim().toLowerCase()}`;
+    return String(deptByName.get(nameKey) || deptByAcr.get(acrKey) || "").trim();
+  };
+
+  const handleBulkUpload = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const rows = parseCsvText(text);
+      if (rows.length === 0) {
+        toast.error("CSV file is empty or invalid");
+        return;
+      }
+
+      const roleIdByName = new Map(
+        roles.map((r) => [String(r.roleName || "").trim().toLowerCase(), String(r.roleId)])
+      );
+      const companyIdByName = new Map(
+        companies.map((c) => [String(c.companyName || "").trim().toLowerCase(), String(c.companyId)])
+      );
+      const companyIdByAcr = new Map(
+        companies.map((c) => [String(c.companyAcr || "").trim().toLowerCase(), String(c.companyId)])
+      );
+      const departmentIdByName = new Map(
+        allDepartments.map((d) => [
+          `${String(d.companyId)}::${String(d.departmentName || "").trim().toLowerCase()}`,
+          String(d.departmentId),
+        ])
+      );
+      const departmentIdByAcr = new Map(
+        allDepartments.map((d) => [
+          `${String(d.companyId)}::${String(d.departmentAcr || d.departmentAckr || "").trim().toLowerCase()}`,
+          String(d.departmentId),
+        ])
+      );
+
+      let skippedRows = 0;
+      const payloads = rows
+        .map((row) => {
+          const companyId = resolveCompanyId(row, companyIdByName, companyIdByAcr);
+          const roleId =
+            String(row.roleId || "").trim() ||
+            roleIdByName.get(String(row.roleName || "").trim().toLowerCase()) ||
+            "";
+          const departmentId = resolveDepartmentId(
+            row,
+            companyId,
+            departmentIdByName,
+            departmentIdByAcr
+          );
+
+          const payload = {
+            userNumber: String(row.userNumber || "").trim(),
+            userName: String(row.userName || "").trim() || null,
+            userMail: String(row.userMail || "").trim(),
+            password: String(row.password || "").trim(),
+            roleId,
+            companyId,
+            departmentId: departmentId || "1",
+            status: "Active",
+            createdBy: currentUserId,
+            updatedBy: currentUserId,
+          };
+
+          const isValid =
+            payload.userNumber &&
+            payload.userMail &&
+            payload.password &&
+            String(payload.roleId || "").trim() &&
+            String(payload.companyId || "").trim() &&
+            String(payload.departmentId || "").trim();
+
+          if (!isValid) {
+            skippedRows += 1;
+            return null;
+          }
+          return payload;
+        })
+        .filter(Boolean);
+
+      if (payloads.length === 0) {
+        toast.error(
+          "CSV must include valid userNumber, userMail, password, roleId/roleName, company mapping and department mapping"
+        );
+        return;
+      }
+
+      const results = await Promise.allSettled(
+        payloads.map((payload) => API.post("/users", payload))
+      );
+      const successCount = results.filter((r) => r.status === "fulfilled").length;
+      const failCount = results.length - successCount;
+
+      if (successCount > 0) {
+        setRefreshFlag((prev) => !prev);
+      }
+
+      const suffix = skippedRows > 0 ? `, ${skippedRows} skipped (invalid rows)` : "";
+      if (failCount === 0) {
+        Swal.fire("Uploaded!", `${successCount} users uploaded successfully${suffix}`, "success");
+      } else {
+        Swal.fire("Completed with errors", `${successCount} uploaded, ${failCount} failed${suffix}`, "warning");
+      }
+    } catch (err) {
+      console.error("User bulk upload failed:", err);
+      toast.error("Bulk upload failed");
+    }
+  };
+
+  const csvValue = (value) => {
+    const text = String(value ?? "");
+    if (/[",\n]/.test(text)) {
+      return `"${text.replace(/"/g, '""')}"`;
+    }
+    return text;
+  };
+
+  const downloadSampleTemplate = () => {
+    const baseHeaders = [
+      "userNumber",
+      "userName",
+      "userMail",
+      "password",
+      "roleName",
+      "departmentName",
+      "departmentAcr",
+    ];
+    const headers = isSuperAdmin
+      ? ["userNumber", "userName", "userMail", "password", "roleName", "companyName", "companyAcr", "departmentName", "departmentAcr"]
+      : baseHeaders;
+
+    const sampleCompanyName = selectedCompanyName || "Acme Private Limited";
+    const sampleCompanyAcr = "APL";
+    const superAdminRows = [
+      ["USR1001", "John Doe", "john.doe@acme.com", "Pass@123", "Admin", sampleCompanyName, sampleCompanyAcr, "Human Resources", "HR"],
+      ["USR1002", "Jane Smith", "jane.smith@acme.com", "Pass@123", "Employee", sampleCompanyName, sampleCompanyAcr, "Finance", "FIN"],
+    ];
+    const adminRows = [
+      ["USR1001", "John Doe", "john.doe@acme.com", "Pass@123", "Admin", "Human Resources", "HR"],
+      ["USR1002", "Jane Smith", "jane.smith@acme.com", "Pass@123", "Employee", "Finance", "FIN"],
+    ];
+    const sampleRows = isSuperAdmin ? superAdminRows : adminRows;
+
+    const csv = [
+      headers.join(","),
+      ...sampleRows.map((row) => row.map(csvValue).join(",")),
+    ].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "user_bulk_upload_template.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="h-full flex flex-col px-6">
       {isLoading && <div>Loading...</div>}
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex justify-between items-center gap-3 mb-4">
         <input
           type="text"
           placeholder="Search user..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="border border-gray-300 bg-white text-black rounded-lg px-4 py-2 w-1/3 outline-none"
+          className="border border-gray-300 bg-white text-black rounded-lg px-4 py-2 w-1/3 min-w-52 outline-none"
         />
-        <button
-          onClick={openAddUserForm}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md"
-        >
-          <Plus size={18} /> Add User
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={openAddUserForm}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md"
+          >
+            <Plus size={18} /> Add User
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            className="hidden"
+            onChange={handleBulkUpload}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow-sm whitespace-nowrap"
+          >
+            Upload CSV
+          </button>
+          <button
+            type="button"
+            onClick={downloadSampleTemplate}
+            className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg shadow-sm whitespace-nowrap"
+          >
+            Download Sample
+          </button>
+        </div>
       </div>
 
       <div

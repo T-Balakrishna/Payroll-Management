@@ -182,13 +182,6 @@ export default function DesignationMaster({
     });
   };
 
-  const normalizeStatus = (rawStatus) => {
-    const value = String(rawStatus || "").trim().toLowerCase();
-    if (value === "inactive") return "Inactive";
-    if (value === "archived") return "Archived";
-    return "Active";
-  };
-
   const handleBulkUpload = async (event) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -230,7 +223,7 @@ export default function DesignationMaster({
           return {
             designationName: String(row.designationName || "").trim(),
             designationAcr: String(row.designationAcr || "").trim().toUpperCase(),
-            status: normalizeStatus(row.status),
+            status: "Active",
             companyId: resolvedCompanyId,
             createdBy: currentUserId,
             updatedBy: currentUserId,
@@ -265,16 +258,16 @@ export default function DesignationMaster({
 
   const downloadSampleTemplate = () => {
     const headers = isSuperAdmin
-      ? ["designationName", "designationAcr", "status", "companyName", "companyAcr"]
-      : ["designationName", "designationAcr", "status"];
+      ? ["designationName", "designationAcr", "companyName", "companyAcr"]
+      : ["designationName", "designationAcr"];
     const sampleRows = isSuperAdmin
       ? [
-          ["xx", "yy", "active", "xx", ""],
-          ["xx", "yy", "inactive", "", "yy"],
+          ["xx", "yy", "xx", ""],
+          ["xx", "yy", "", "yy"],
         ]
       : [
-          ["xx", "yy", "active"],
-          ["xx", "yy", "inactive"],
+          ["xx", "yy"],
+          ["xx", "yy"],
         ];
 
     const csv = [headers.join(","), ...sampleRows.map((row) => row.join(","))].join("\n");

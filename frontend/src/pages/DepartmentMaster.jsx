@@ -172,13 +172,6 @@ export default function DepartmentMaster({ userRole, selectedCompanyId, selected
     });
   };
 
-  const normalizeStatus = (rawStatus) => {
-    const value = String(rawStatus || "").trim().toLowerCase();
-    if (value === "inactive") return "Inactive";
-    if (value === "archived") return "Archived";
-    return "Active";
-  };
-
   const handleBulkUpload = async (event) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -220,7 +213,7 @@ export default function DepartmentMaster({ userRole, selectedCompanyId, selected
           return {
             departmentName: String(row.departmentName || "").trim(),
             departmentAcr: String(row.departmentAcr || "").trim().toUpperCase(),
-            status: normalizeStatus(row.status),
+            status: "Active",
             companyId: resolvedCompanyId,
             createdBy: currentUserId,
             updatedBy: currentUserId,
@@ -255,16 +248,16 @@ export default function DepartmentMaster({ userRole, selectedCompanyId, selected
 
   const downloadSampleTemplate = () => {
     const headers = isSuperAdmin
-      ? ["departmentName", "departmentAcr", "status", "companyName", "companyAcr"]
-      : ["departmentName", "departmentAcr", "status"];
+      ? ["departmentName", "departmentAcr", "companyName", "companyAcr"]
+      : ["departmentName", "departmentAcr"];
     const sampleRows = isSuperAdmin
       ? [
-          ["xx", "yy", "active", "xx", ""],
-          ["xx", "yy", "inactive", "", "yy"],
+          ["xx", "yy", "xx", ""],
+          ["xx", "yy", "", "yy"],
         ]
       : [
-          ["xx", "yy", "active"],
-          ["xx", "yy", "inactive"],
+          ["xx", "yy"],
+          ["xx", "yy"],
         ];
 
     const csv = [headers.join(","), ...sampleRows.map((row) => row.join(","))].join("\n");
