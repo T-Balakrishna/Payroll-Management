@@ -1,12 +1,12 @@
-const { EmployeeLoan } = require('../models');
-
+import db from '../models/index.js';
+const { EmployeeLoan } = db;
 // Get all employee loans (in practice: filter by companyId / staffId / status)
-exports.getAllEmployeeLoans = async (req, res) => {
+export const getAllEmployeeLoans = async (req, res) => {
   try {
     const employeeLoans = await EmployeeLoan.findAll({
       include: [
-        { model: require('../models').Employee, as: 'employee' },
-        { model: require('../models').Employee, as: 'approver' }
+        { model: db.Employee, as: 'employee' },
+        { model: db.Employee, as: 'approver' }
       ]
     });
     res.json(employeeLoans);
@@ -16,12 +16,12 @@ exports.getAllEmployeeLoans = async (req, res) => {
 };
 
 // Get single employee loan by ID
-exports.getEmployeeLoanById = async (req, res) => {
+export const getEmployeeLoanById = async (req, res) => {
   try {
     const employeeLoan = await EmployeeLoan.findByPk(req.params.id, {
       include: [
-        { model: require('../models').Employee, as: 'employee' },
-        { model: require('../models').Employee, as: 'approver' }
+        { model: db.Employee, as: 'employee' },
+        { model: db.Employee, as: 'approver' }
       ]
     });
 
@@ -36,7 +36,7 @@ exports.getEmployeeLoanById = async (req, res) => {
 };
 
 // Create new employee loan record
-exports.createEmployeeLoan = async (req, res) => {
+export const createEmployeeLoan = async (req, res) => {
   try {
     const employeeLoan = await EmployeeLoan.create(req.body);
     res.status(201).json(employeeLoan);
@@ -46,7 +46,7 @@ exports.createEmployeeLoan = async (req, res) => {
 };
 
 // Update employee loan (e.g. change status, add paidInstallments, remarks, etc.)
-exports.updateEmployeeLoan = async (req, res) => {
+export const updateEmployeeLoan = async (req, res) => {
   try {
     const [updated] = await EmployeeLoan.update(req.body, {
       where: { employeeLoanId: req.params.id }   // ← using employeeLoanId
@@ -64,7 +64,7 @@ exports.updateEmployeeLoan = async (req, res) => {
 };
 
 // Delete / cancel employee loan (soft delete not present, but you can add paranoid: true)
-exports.deleteEmployeeLoan = async (req, res) => {
+export const deleteEmployeeLoan = async (req, res) => {
   try {
     const deleted = await EmployeeLoan.destroy({
       where: { employeeLoanId: req.params.id }

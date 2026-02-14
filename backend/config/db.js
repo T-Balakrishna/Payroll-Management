@@ -1,5 +1,4 @@
-const { Sequelize } = require('sequelize');
-
+import { Sequelize } from 'sequelize';
 // Database configuration
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
@@ -17,4 +16,4 @@ const dbConfig = {
   }
 };
 
-module.exports = dbConfig;
+export default dbConfig;

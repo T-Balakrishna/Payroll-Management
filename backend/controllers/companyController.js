@@ -1,16 +1,16 @@
-const { Company } = require('../models');
-
+import db from '../models/index.js';
+const { Company } = db;
 // Get all companies
 // (In multi-tenant systems this is usually restricted to super-admins only)
-exports.getAllCompanies = async (req, res) => {
+export const getAllCompanies = async (req, res) => {
   try {
     const companies = await Company.findAll({
       include: [
         
         // You can optionally include these — but be careful with performance
-        // { model: require('../models').Employee, as: 'employees' },
-        // { model: require('../models').Department, as: 'departments' },
-        // { model: require('../models').BiometricDevice, as: 'devices' },
+        // { model: db.Employee, as: 'employees' },
+        // { model: db.Department, as: 'departments' },
+        // { model: db.BiometricDevice, as: 'devices' },
       ]
     });
     res.json(companies);
@@ -20,13 +20,13 @@ exports.getAllCompanies = async (req, res) => {
 };
 
 // Get single company by ID
-exports.getCompanyById = async (req, res) => {
+export const getCompanyById = async (req, res) => {
   try {
     const company = await Company.findByPk(req.params.id, {
       include: [
         
-        // { model: require('../models').Employee, as: 'employees' },
-        // { model: require('../models').Department, as: 'departments' },
+        // { model: db.Employee, as: 'employees' },
+        // { model: db.Department, as: 'departments' },
       ]
     });
 
@@ -42,7 +42,7 @@ exports.getCompanyById = async (req, res) => {
 
 // Create new company
 // (Typically restricted to system administrators / onboarding flow)
-exports.createCompany = async (req, res) => {
+export const createCompany = async (req, res) => {
   try {
     const company = await Company.create(req.body);
     res.status(201).json(company);
@@ -52,7 +52,7 @@ exports.createCompany = async (req, res) => {
 };
 
 // Update company
-exports.updateCompany = async (req, res) => {
+export const updateCompany = async (req, res) => {
   try {
     const [updated] = await Company.update(req.body, {
       where: { companyId: req.params.id }
@@ -71,7 +71,7 @@ exports.updateCompany = async (req, res) => {
 
 // Delete company (soft delete supported via paranoid: true)
 // WARNING: In real systems, company deletion is extremely rare and usually restricted
-exports.deleteCompany = async (req, res) => {
+export const deleteCompany = async (req, res) => {
   try {
     const deleted = await Company.destroy({
       where: { companyId: req.params.id }

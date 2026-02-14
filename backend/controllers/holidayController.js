@@ -1,13 +1,13 @@
-const { Holiday } = require('../models');
-
+import db from '../models/index.js';
+const { Holiday } = db;
 // Get all holidays
 // In practice: almost always filter by companyId + date range
-exports.getAllHolidays = async (req, res) => {
+export const getAllHolidays = async (req, res) => {
   try {
     const holidays = await Holiday.findAll({
       include: [
-        { model: require('../models').HolidayPlan, as: 'plan' },
-        { model: require('../models').Company, as: 'company' },
+        { model: db.HolidayPlan, as: 'plan' },
+        { model: db.Company, as: 'company' },
         
       ]
     });
@@ -18,12 +18,12 @@ exports.getAllHolidays = async (req, res) => {
 };
 
 // Get single holiday by ID
-exports.getHolidayById = async (req, res) => {
+export const getHolidayById = async (req, res) => {
   try {
     const holiday = await Holiday.findByPk(req.params.id, {
       include: [
-        { model: require('../models').HolidayPlan, as: 'plan' },
-        { model: require('../models').Company, as: 'company' },
+        { model: db.HolidayPlan, as: 'plan' },
+        { model: db.Company, as: 'company' },
         
       ]
     });
@@ -39,7 +39,7 @@ exports.getHolidayById = async (req, res) => {
 };
 
 // Create new holiday entry
-exports.createHoliday = async (req, res) => {
+export const createHoliday = async (req, res) => {
   try {
     const holiday = await Holiday.create(req.body);
     res.status(201).json(holiday);
@@ -49,7 +49,7 @@ exports.createHoliday = async (req, res) => {
 };
 
 // Update holiday
-exports.updateHoliday = async (req, res) => {
+export const updateHoliday = async (req, res) => {
   try {
     const [updated] = await Holiday.update(req.body, {
       where: { holidayId: req.params.id }
@@ -67,7 +67,7 @@ exports.updateHoliday = async (req, res) => {
 };
 
 // Delete holiday (soft delete via paranoid: true)
-exports.deleteHoliday = async (req, res) => {
+export const deleteHoliday = async (req, res) => {
   try {
     const deleted = await Holiday.destroy({
       where: { holidayId: req.params.id }

@@ -1,9 +1,8 @@
-const { Op } = require('sequelize');
-const sequelize = require('../config/db');
-const db = require('../models');
-const PDFDocument = require('pdfkit');
-const ExcelJS = require('exceljs');
-
+import { Op } from 'sequelize';
+import sequelize from '../config/db.js';
+import db from '../models/index.js';
+import PDFDocument from 'pdfkit';
+import ExcelJS from 'exceljs';
 const SalaryGeneration = db.SalaryGeneration;
 const Employee = db.Employee;
 const Department = db.Department;
@@ -14,7 +13,7 @@ const EmployeeLoan = db.EmployeeLoan;
 // 1. PF (PROVIDENT FUND) REPORT
 // ==========================================
 
-exports.getPFReport = async (req, res) => {
+export const getPFReport = async (req, res) => {
   try {
     const { companyId, departmentId, month, year } = req.query;
 
@@ -115,7 +114,7 @@ exports.getPFReport = async (req, res) => {
 // 2. ESI (EMPLOYEE STATE INSURANCE) REPORT
 // ==========================================
 
-exports.getESIReport = async (req, res) => {
+export const getESIReport = async (req, res) => {
   try {
     const { companyId, departmentId, month, year } = req.query;
 
@@ -212,7 +211,7 @@ exports.getESIReport = async (req, res) => {
 // 3. TAX DEDUCTION (TDS) REPORT
 // ==========================================
 
-exports.getTaxReport = async (req, res) => {
+export const getTaxReport = async (req, res) => {
   try {
     const { companyId, departmentId, month, year, quarter } = req.query;
 
@@ -328,7 +327,7 @@ exports.getTaxReport = async (req, res) => {
 // 4. PROFESSIONAL TAX REPORT
 // ==========================================
 
-exports.getProfessionalTaxReport = async (req, res) => {
+export const getProfessionalTaxReport = async (req, res) => {
   try {
     const { companyId, departmentId, month, year, state } = req.query;
 
@@ -425,7 +424,7 @@ exports.getProfessionalTaxReport = async (req, res) => {
 // 5. LOAN/ADVANCE REPORT
 // ==========================================
 
-exports.getLoanReport = async (req, res) => {
+export const getLoanReport = async (req, res) => {
   try {
     const { companyId, departmentId, status, loanType } = req.query;
 
@@ -512,7 +511,7 @@ exports.getLoanReport = async (req, res) => {
 // 6. DOWNLOAD PF REPORT AS PDF
 // ==========================================
 
-exports.downloadPFReportPDF = async (req, res) => {
+export const downloadPFReportPDF = async (req, res) => {
   try {
     const { companyId, month, year } = req.query;
 
@@ -668,7 +667,7 @@ exports.downloadPFReportPDF = async (req, res) => {
 // 7. DOWNLOAD STATUTORY REPORTS AS EXCEL
 // ==========================================
 
-exports.downloadStatutoryReportsExcel = async (req, res) => {
+export const downloadStatutoryReportsExcel = async (req, res) => {
   try {
     const { companyId, month, year, reportType } = req.query;
 

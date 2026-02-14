@@ -1,7 +1,6 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const companyController = require('../controllers/companyController');
-
+import * as companyController from '../controllers/companyController.js';
 // Routes for companies
 // Frontend should call: /api/companies   (camelCase plural)
 router.get('/', companyController.getAllCompanies);
@@ -10,4 +9,4 @@ router.post('/', companyController.createCompany);
 router.put('/:id', companyController.updateCompany);
 router.delete('/:id', companyController.deleteCompany);
 
-module.exports = router;
+export default router;

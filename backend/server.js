@@ -1,15 +1,14 @@
 // server.js
 
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
-const cookieParser = require("cookie-parser");
-require('dotenv').config();
-
-const db = require('./models');
-const mountRoutes = require('./routes/mountRoutes'); 
-
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import cookieParser from "cookie-parser";
+import dotenv from 'dotenv';
+dotenv.config();
+import db from './models/index.js';
+import mountRoutes from './routes/mountRoutes.js';
 const app = express();
 const PORT = process.env.PORT || 5000;
 const shouldSync = process.env.DB_SYNC === "true";
@@ -64,4 +63,4 @@ db.sequelize.authenticate()
     process.exit(1);
   });
 
-module.exports = app;
+export default app;

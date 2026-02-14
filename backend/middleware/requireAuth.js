@@ -1,6 +1,5 @@
-const jwt = require("jsonwebtoken");
-
-module.exports = function requireAuth(req, res, next) {
+import jwt from "jsonwebtoken";
+export default function requireAuth(req, res, next) {
   const token = req.cookies.access_token;
 
   if (!token) {
@@ -13,4 +12,4 @@ module.exports = function requireAuth(req, res, next) {
   } catch {
     return res.sendStatus(403);
   }
-};
+}

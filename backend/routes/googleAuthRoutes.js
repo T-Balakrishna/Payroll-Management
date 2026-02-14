@@ -1,8 +1,10 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
 
-const { GoogleAuth } = require('../models');
+import db from '../models/index.js';
 
+
+const { GoogleAuth } = db;
 // IMPORTANT: Add your authentication middleware here
 // Example: const { protect, authorize } = require('../middleware/auth');
 // router.use(protect);   // ← protects all routes in this file
@@ -66,4 +68,4 @@ router.delete('/my-accounts/:googleAuthId', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

@@ -1,18 +1,18 @@
-const { SalaryGeneration } = require('../models');
-
+import db from '../models/index.js';
+const { SalaryGeneration } = db;
 // Get all salary generations
 // In real usage: filter by staffId, companyId, month/year, status, etc.
-exports.getAllSalaryGenerations = async (req, res) => {
+export const getAllSalaryGenerations = async (req, res) => {
   try {
     const salaryGenerations = await SalaryGeneration.findAll({
       include: [
-        { model: require('../models').Employee, as: 'employee' },
-        { model: require('../models').EmployeeSalaryMaster, as: 'employeeSalaryMaster' },
-        { model: require('../models').Company, as: 'company' },
-        { model: require('../models').User, as: 'generator' },
-        { model: require('../models').User, as: 'approver' },
-        { model: require('../models').User, as: 'payer' },
-        // { model: require('../models').SalaryGenerationDetail, as: 'salaryGenerationDetails' }  // heavy — include only when needed
+        { model: db.Employee, as: 'employee' },
+        { model: db.EmployeeSalaryMaster, as: 'employeeSalaryMaster' },
+        { model: db.Company, as: 'company' },
+        { model: db.User, as: 'generator' },
+        { model: db.User, as: 'approver' },
+        { model: db.User, as: 'payer' },
+        // { model: db.SalaryGenerationDetail, as: 'salaryGenerationDetails' }  // heavy — include only when needed
       ]
     });
     res.json(salaryGenerations);
@@ -22,16 +22,16 @@ exports.getAllSalaryGenerations = async (req, res) => {
 };
 
 // Get single salary generation by ID
-exports.getSalaryGenerationById = async (req, res) => {
+export const getSalaryGenerationById = async (req, res) => {
   try {
     const salaryGeneration = await SalaryGeneration.findByPk(req.params.id, {
       include: [
-        { model: require('../models').Employee, as: 'employee' },
-        { model: require('../models').EmployeeSalaryMaster, as: 'employeeSalaryMaster' },
-        { model: require('../models').Company, as: 'company' },
-        { model: require('../models').User, as: 'generator' },
-        { model: require('../models').User, as: 'approver' },
-        { model: require('../models').User, as: 'payer' },
+        { model: db.Employee, as: 'employee' },
+        { model: db.EmployeeSalaryMaster, as: 'employeeSalaryMaster' },
+        { model: db.Company, as: 'company' },
+        { model: db.User, as: 'generator' },
+        { model: db.User, as: 'approver' },
+        { model: db.User, as: 'payer' },
       ]
     });
 
@@ -47,7 +47,7 @@ exports.getSalaryGenerationById = async (req, res) => {
 
 // Create new salary generation record
 // (usually created automatically during payroll run)
-exports.createSalaryGeneration = async (req, res) => {
+export const createSalaryGeneration = async (req, res) => {
   try {
     const salaryGeneration = await SalaryGeneration.create(req.body);
     res.status(201).json(salaryGeneration);
@@ -58,7 +58,7 @@ exports.createSalaryGeneration = async (req, res) => {
 
 // Update salary generation
 // (e.g. approve, mark as paid, update remarks/status)
-exports.updateSalaryGeneration = async (req, res) => {
+export const updateSalaryGeneration = async (req, res) => {
   try {
     const [updated] = await SalaryGeneration.update(req.body, {
       where: { salaryGenerationId: req.params.id }
@@ -77,7 +77,7 @@ exports.updateSalaryGeneration = async (req, res) => {
 
 // Delete salary generation (soft delete via paranoid: true)
 // Usually rare — prefer changing status to 'Cancelled'
-exports.deleteSalaryGeneration = async (req, res) => {
+export const deleteSalaryGeneration = async (req, res) => {
   try {
     const deleted = await SalaryGeneration.destroy({
       where: { salaryGenerationId: req.params.id }

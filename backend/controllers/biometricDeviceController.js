@@ -1,7 +1,7 @@
-const { BiometricDevice, Company } = require("../models");
-
+import db from '../models/index.js';
+const { BiometricDevice, Company } = db;
 // Get all biometric devices
-exports.getAllBiometricDevices = async (req, res) => {
+export const getAllBiometricDevices = async (req, res) => {
   try {
     const { companyId } = req.query;
     const where = {};
@@ -19,7 +19,7 @@ exports.getAllBiometricDevices = async (req, res) => {
 };
 
 // Get single biometric device by ID
-exports.getBiometricDeviceById = async (req, res) => {
+export const getBiometricDeviceById = async (req, res) => {
   try {
     const biometricDevice = await BiometricDevice.findByPk(req.params.id, {
       include: [{ model: Company, as: "company" }],
@@ -36,7 +36,7 @@ exports.getBiometricDeviceById = async (req, res) => {
 };
 
 // Create new biometric device
-exports.createBiometricDevice = async (req, res) => {
+export const createBiometricDevice = async (req, res) => {
   try {
     const biometricDevice = await BiometricDevice.create(req.body);
     res.status(201).json(biometricDevice);
@@ -46,7 +46,7 @@ exports.createBiometricDevice = async (req, res) => {
 };
 
 // Update biometric device
-exports.updateBiometricDevice = async (req, res) => {
+export const updateBiometricDevice = async (req, res) => {
   try {
     const [updated] = await BiometricDevice.update(req.body, {
       where: { deviceId: req.params.id },
@@ -64,7 +64,7 @@ exports.updateBiometricDevice = async (req, res) => {
 };
 
 // Delete biometric device (soft delete if paranoid: true)
-exports.deleteBiometricDevice = async (req, res) => {
+export const deleteBiometricDevice = async (req, res) => {
   try {
     const deleted = await BiometricDevice.destroy({
       where: { deviceId: req.params.id },

@@ -1,7 +1,6 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const shiftTypeController = require('../controllers/shiftTypeController');
-
+import * as shiftTypeController from '../controllers/shiftTypeController.js';
 // Routes for shift types
 // Frontend should call: /api/shiftTypes
 router.get('/', shiftTypeController.getAllShiftTypes);
@@ -10,4 +9,4 @@ router.post('/', shiftTypeController.createShiftType);
 router.put('/:id', shiftTypeController.updateShiftType);
 router.delete('/:id', shiftTypeController.deleteShiftType);
 
-module.exports = router;
+export default router;

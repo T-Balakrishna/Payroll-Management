@@ -1,15 +1,15 @@
-const { LeaveAllocation } = require('../models');
-
+import db from '../models/index.js';
+const { LeaveAllocation } = db;
 // Get all leave allocations
 // In real usage: always filter by companyId, staffId, leavePeriodId, etc.
-exports.getAllLeaveAllocations = async (req, res) => {
+export const getAllLeaveAllocations = async (req, res) => {
   try {
     const allocations = await LeaveAllocation.findAll({
       include: [
-        { model: require('../models').Employee, as: 'employee' },
-        { model: require('../models').LeaveType, as: 'leaveType' },
-        { model: require('../models').LeavePolicy, as: 'leavePolicy' },
-        { model: require('../models').Company, as: 'company' },
+        { model: db.Employee, as: 'employee' },
+        { model: db.LeaveType, as: 'leaveType' },
+        { model: db.LeavePolicy, as: 'leavePolicy' },
+        { model: db.Company, as: 'company' },
       ]
     });
     res.json(allocations);
@@ -19,14 +19,14 @@ exports.getAllLeaveAllocations = async (req, res) => {
 };
 
 // Get single leave allocation by ID
-exports.getLeaveAllocationById = async (req, res) => {
+export const getLeaveAllocationById = async (req, res) => {
   try {
     const allocation = await LeaveAllocation.findByPk(req.params.id, {
       include: [
-        { model: require('../models').Employee, as: 'employee' },
-        { model: require('../models').LeaveType, as: 'leaveType' },
-        { model: require('../models').LeavePolicy, as: 'leavePolicy' },
-        { model: require('../models').Company, as: 'company' },
+        { model: db.Employee, as: 'employee' },
+        { model: db.LeaveType, as: 'leaveType' },
+        { model: db.LeavePolicy, as: 'leavePolicy' },
+        { model: db.Company, as: 'company' },
       ]
     });
 
@@ -41,7 +41,7 @@ exports.getLeaveAllocationById = async (req, res) => {
 };
 
 // Create new leave allocation
-exports.createLeaveAllocation = async (req, res) => {
+export const createLeaveAllocation = async (req, res) => {
   try {
     const allocation = await LeaveAllocation.create(req.body);
     res.status(201).json(allocation);
@@ -52,7 +52,7 @@ exports.createLeaveAllocation = async (req, res) => {
 
 // Update leave allocation
 // (e.g. adjust usedLeaves, carry forward, status, etc.)
-exports.updateLeaveAllocation = async (req, res) => {
+export const updateLeaveAllocation = async (req, res) => {
   try {
     const [updated] = await LeaveAllocation.update(req.body, {
       where: { leaveAllocationId: req.params.id }
@@ -70,7 +70,7 @@ exports.updateLeaveAllocation = async (req, res) => {
 };
 
 // Delete leave allocation (soft delete via paranoid: true)
-exports.deleteLeaveAllocation = async (req, res) => {
+export const deleteLeaveAllocation = async (req, res) => {
   try {
     const deleted = await LeaveAllocation.destroy({
       where: { leaveAllocationId: req.params.id }

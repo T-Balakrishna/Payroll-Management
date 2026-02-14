@@ -1,11 +1,10 @@
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
-const { OAuth2Client } = require("google-auth-library");
-const db = require("../models");
-const { sendMail } = require("../services/mailService");
-const crypto = require("crypto");
-const { Op } = require("sequelize");
-
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+import { OAuth2Client } from "google-auth-library";
+import db from '../models/index.js';
+import { sendMail } from "../services/mailService.js";
+import crypto from "crypto";
+import { Op } from "sequelize";
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClient = googleClientId ? new OAuth2Client(googleClientId) : null;
 
@@ -34,7 +33,7 @@ const setTokenCookie = (res, token) => {
  * @route   POST /api/auth/login
  * @desc    Email/UserNumber + password login
  */
-exports.login = async (req, res) => {
+export const login = async (req, res) => {
   try {
     const { identifier, password } = req.body;
 
@@ -97,7 +96,7 @@ exports.login = async (req, res) => {
  * @route   POST /api/auth/google-login
  * @desc    Google OAuth login
  */
-exports.googleLogin = async (req, res) => {
+export const googleLogin = async (req, res) => {
   try {
     const { token: googleToken } = req.body;
 
@@ -179,7 +178,7 @@ exports.googleLogin = async (req, res) => {
  * @route   GET /api/auth/me
  * @desc    Get logged-in user info
  */
-exports.me = async (req, res) => {
+export const me = async (req, res) => {
   try {
     // requireAuth middleware already verified token
     res.json({
@@ -195,7 +194,7 @@ exports.me = async (req, res) => {
  * @route   POST /api/auth/logout
  * @desc    Clear HttpOnly cookie
  */
-exports.logout = (req, res) => {
+export const logout = (req, res) => {
   res.clearCookie("access_token", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -209,7 +208,7 @@ exports.logout = (req, res) => {
  * @route POST /api/auth/forgot-password
  * @desc Send password reset link to email
  */
-exports.forgotPassword = async (req, res) => {
+export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -290,7 +289,7 @@ exports.forgotPassword = async (req, res) => {
  * @route POST /api/auth/reset-password/:token
  * @desc Reset password using token
  */
-exports.resetPassword = async (req, res) => {
+export const resetPassword = async (req, res) => {
   try {
     const { token } = req.params;
     const { password, confirmPassword } = req.body;

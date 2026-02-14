@@ -1,12 +1,12 @@
-const { HolidayPlan } = require('../models');
-
+import db from '../models/index.js';
+const { HolidayPlan } = db;
 // Get all holiday plans (usually filtered by companyId in real usage)
-exports.getAllHolidayPlans = async (req, res) => {
+export const getAllHolidayPlans = async (req, res) => {
   try {
     const holidayPlans = await HolidayPlan.findAll({
       include: [
-        { model: require('../models').Company, as: 'company' },
-        // { model: require('../models').Holiday, as: 'holidays' }   // ← only include when really needed
+        { model: db.Company, as: 'company' },
+        // { model: db.Holiday, as: 'holidays' }   // ← only include when really needed
       ]
     });
     res.json(holidayPlans);
@@ -16,12 +16,12 @@ exports.getAllHolidayPlans = async (req, res) => {
 };
 
 // Get single holiday plan by ID
-exports.getHolidayPlanById = async (req, res) => {
+export const getHolidayPlanById = async (req, res) => {
   try {
     const holidayPlan = await HolidayPlan.findByPk(req.params.id, {
       include: [
-        { model: require('../models').Company, as: 'company' },
-        // { model: require('../models').Holiday, as: 'holidays' }
+        { model: db.Company, as: 'company' },
+        // { model: db.Holiday, as: 'holidays' }
       ]
     });
 
@@ -36,7 +36,7 @@ exports.getHolidayPlanById = async (req, res) => {
 };
 
 // Create new holiday plan
-exports.createHolidayPlan = async (req, res) => {
+export const createHolidayPlan = async (req, res) => {
   try {
     const holidayPlan = await HolidayPlan.create(req.body);
     res.status(201).json(holidayPlan);
@@ -46,7 +46,7 @@ exports.createHolidayPlan = async (req, res) => {
 };
 
 // Update holiday plan
-exports.updateHolidayPlan = async (req, res) => {
+export const updateHolidayPlan = async (req, res) => {
   try {
     const [updated] = await HolidayPlan.update(req.body, {
       where: { holidayPlanId: req.params.id }
@@ -64,7 +64,7 @@ exports.updateHolidayPlan = async (req, res) => {
 };
 
 // Delete holiday plan (soft delete via paranoid: true)
-exports.deleteHolidayPlan = async (req, res) => {
+export const deleteHolidayPlan = async (req, res) => {
   try {
     const deleted = await HolidayPlan.destroy({
       where: { holidayPlanId: req.params.id }

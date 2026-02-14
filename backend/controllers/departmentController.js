@@ -1,6 +1,7 @@
-const { Op } = require('sequelize');
-const { Department } = require('../models');
+import { Op } from 'sequelize';
+import db from '../models/index.js';
 
+const { Department } = db;
 const normalizeStatus = (status) => {
   const value = String(status || '').trim().toLowerCase();
   if (value === 'inactive') return 'Inactive';
@@ -23,7 +24,7 @@ const formatSequelizeError = (error) => {
 };
 
 // Get all departments (in real usage: filter by companyId almost always)
-exports.getAllDepartments = async (req, res) => {
+export const getAllDepartments = async (req, res) => {
   try {
     const where = {};
     if (req.query.companyId) where.companyId = req.query.companyId;
@@ -32,9 +33,9 @@ exports.getAllDepartments = async (req, res) => {
       where,
       paranoid: false,
       include: [
-        { model: require('../models').Company, as: 'company' },
+        { model: db.Company, as: 'company' },
         
-        // { model: require('../models').Employee, as: 'employees' }   // ← only include if needed (can be heavy)
+        // { model: db.Employee, as: 'employees' }   // ← only include if needed (can be heavy)
       ]
     });
     res.json(departments);
@@ -50,14 +51,14 @@ exports.getAllDepartments = async (req, res) => {
 /**
  * GET /departments/:id
  */
-exports.getDepartmentById = async (req, res) => {
+export const getDepartmentById = async (req, res) => {
   try {
     const department = await Department.findByPk(req.params.id, {
       paranoid: false,
       include: [
-        { model: require('../models').Company, as: 'company' },
+        { model: db.Company, as: 'company' },
         
-        // { model: require('../models').Employee, as: 'employees' }
+        // { model: db.Employee, as: 'employees' }
       ]
     });
 
@@ -78,7 +79,7 @@ exports.getDepartmentById = async (req, res) => {
 /**
  * POST /departments
  */
-exports.createDepartment = async (req, res) => {
+export const createDepartment = async (req, res) => {
   try {
     const payload = {
       ...req.body,
@@ -95,7 +96,7 @@ exports.createDepartment = async (req, res) => {
 /**
  * PUT /departments/:id
  */
-exports.updateDepartment = async (req, res) => {
+export const updateDepartment = async (req, res) => {
   try {
     const payload = {
       ...req.body,
@@ -119,7 +120,7 @@ exports.updateDepartment = async (req, res) => {
 };
 
 // "Delete" department by setting status inactive (no hard/soft delete)
-exports.deleteDepartment = async (req, res) => {
+export const deleteDepartment = async (req, res) => {
   try {
     const department = await Department.findByPk(req.params.id, { paranoid: false });
     if (!department) {

@@ -1,5 +1,5 @@
-const { Designation } = require('../models');
-
+import db from '../models/index.js';
+const { Designation } = db;
 const normalizeStatus = (status) => {
   const value = String(status || '').trim().toLowerCase();
   if (value === 'inactive') return 'Inactive';
@@ -22,7 +22,7 @@ const formatSequelizeError = (error) => {
 };
 
 // Get all designations (in practice: almost always filtered by companyId)
-exports.getAllDesignations = async (req, res) => {
+export const getAllDesignations = async (req, res) => {
   try {
     const where = {};
     if (req.query.companyId) where.companyId = req.query.companyId;
@@ -31,9 +31,9 @@ exports.getAllDesignations = async (req, res) => {
       where,
       paranoid: false, // include soft-deleted rows as well
       include: [
-        { model: require('../models').Company, as: 'company' },
+        { model: db.Company, as: 'company' },
         
-        // { model: require('../models').Employee, as: 'employees' }   // ← include only when really needed (can be large)
+        // { model: db.Employee, as: 'employees' }   // ← include only when really needed (can be large)
       ]
     });
     res.json(designations);
@@ -43,14 +43,14 @@ exports.getAllDesignations = async (req, res) => {
 };
 
 // Get single designation by ID
-exports.getDesignationById = async (req, res) => {
+export const getDesignationById = async (req, res) => {
   try {
     const designation = await Designation.findByPk(req.params.id, {
       paranoid: false,
       include: [
-        { model: require('../models').Company, as: 'company' },
+        { model: db.Company, as: 'company' },
         
-        // { model: require('../models').Employee, as: 'employees' }
+        // { model: db.Employee, as: 'employees' }
       ]
     });
 
@@ -65,7 +65,7 @@ exports.getDesignationById = async (req, res) => {
 };
 
 // Create new designation
-exports.createDesignation = async (req, res) => {
+export const createDesignation = async (req, res) => {
   try {
     const payload = {
       ...req.body,
@@ -80,7 +80,7 @@ exports.createDesignation = async (req, res) => {
 };
 
 // Update designation
-exports.updateDesignation = async (req, res) => {
+export const updateDesignation = async (req, res) => {
   try {
     const payload = {
       ...req.body,
@@ -104,7 +104,7 @@ exports.updateDesignation = async (req, res) => {
 };
 
 // "Delete" designation by setting status inactive (no hard/soft delete)
-exports.deleteDesignation = async (req, res) => {
+export const deleteDesignation = async (req, res) => {
   try {
     const designation = await Designation.findByPk(req.params.id, { paranoid: false });
     if (!designation) {

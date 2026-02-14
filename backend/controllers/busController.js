@@ -1,13 +1,13 @@
-const { Bus } = require('../models');
-
+import db from '../models/index.js';
+const { Bus } = db;
 // Get all buses (in real usage: almost always filter by companyId)
-exports.getAllBuses = async (req, res) => {
+export const getAllBuses = async (req, res) => {
   try {
     const buses = await Bus.findAll({
       include: [
-        { model: require('../models').Company, as: 'company' },
+        { model: db.Company, as: 'company' },
         
-        // { model: require('../models').Employee, as: 'assignedEmployees' }  // ← uncomment only if you really need the full list of assigned employees here
+        // { model: db.Employee, as: 'assignedEmployees' }  // ← uncomment only if you really need the full list of assigned employees here
       ]
     });
     res.json(buses);
@@ -17,13 +17,13 @@ exports.getAllBuses = async (req, res) => {
 };
 
 // Get single bus by ID
-exports.getBusById = async (req, res) => {
+export const getBusById = async (req, res) => {
   try {
     const bus = await Bus.findByPk(req.params.id, {
       include: [
-        { model: require('../models').Company, as: 'company' },
+        { model: db.Company, as: 'company' },
         
-        // { model: require('../models').Employee, as: 'assignedEmployees' }
+        // { model: db.Employee, as: 'assignedEmployees' }
       ]
     });
 
@@ -38,7 +38,7 @@ exports.getBusById = async (req, res) => {
 };
 
 // Create new bus
-exports.createBus = async (req, res) => {
+export const createBus = async (req, res) => {
   try {
     const bus = await Bus.create(req.body);
     res.status(201).json(bus);
@@ -48,7 +48,7 @@ exports.createBus = async (req, res) => {
 };
 
 // Update bus
-exports.updateBus = async (req, res) => {
+export const updateBus = async (req, res) => {
   try {
     const [updated] = await Bus.update(req.body, {
       where: { busId: req.params.id }
@@ -66,7 +66,7 @@ exports.updateBus = async (req, res) => {
 };
 
 // Delete bus (soft delete supported via paranoid: true)
-exports.deleteBus = async (req, res) => {
+export const deleteBus = async (req, res) => {
   try {
     const deleted = await Bus.destroy({
       where: { busId: req.params.id }

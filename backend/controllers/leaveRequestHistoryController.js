@@ -1,14 +1,14 @@
-const { LeaveRequestHistory } = require('../models');
-
+import db from '../models/index.js';
+const { LeaveRequestHistory } = db;
 // Get all leave request histories
 // In real usage: almost always filtered by leaveRequestId (admin/debug only)
-exports.getAllLeaveRequestHistories = async (req, res) => {
+export const getAllLeaveRequestHistories = async (req, res) => {
   try {
     const histories = await LeaveRequestHistory.findAll({
       include: [
-        { model: require('../models').LeaveRequest, as: 'request' },
-        { model: require('../models').Employee, as: 'actor' },
-        { model: require('../models').Company, as: 'company' },
+        { model: db.LeaveRequest, as: 'request' },
+        { model: db.Employee, as: 'actor' },
+        { model: db.Company, as: 'company' },
         
       ],
       order: [['actionDate', 'DESC']]
@@ -20,13 +20,13 @@ exports.getAllLeaveRequestHistories = async (req, res) => {
 };
 
 // Get single leave request history by ID
-exports.getLeaveRequestHistoryById = async (req, res) => {
+export const getLeaveRequestHistoryById = async (req, res) => {
   try {
     const history = await LeaveRequestHistory.findByPk(req.params.id, {
       include: [
-        { model: require('../models').LeaveRequest, as: 'request' },
-        { model: require('../models').Employee, as: 'actor' },
-        { model: require('../models').Company, as: 'company' },
+        { model: db.LeaveRequest, as: 'request' },
+        { model: db.Employee, as: 'actor' },
+        { model: db.Company, as: 'company' },
         
       ]
     });
@@ -43,7 +43,7 @@ exports.getLeaveRequestHistoryById = async (req, res) => {
 
 // Create new leave request history entry
 // (normally called via LeaveRequestHistory.logAction static method)
-exports.createLeaveRequestHistory = async (req, res) => {
+export const createLeaveRequestHistory = async (req, res) => {
   try {
     const history = await LeaveRequestHistory.create(req.body);
     res.status(201).json(history);

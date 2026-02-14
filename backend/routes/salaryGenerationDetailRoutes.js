@@ -1,7 +1,6 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const salaryGenerationDetailController = require('../controllers/salaryGenerationDetailController');
-
+import * as salaryGenerationDetailController from '../controllers/salaryGenerationDetailController.js';
 // Routes for salary generation details
 // Frontend should call: /api/salaryGenerationDetails
 router.get('/', salaryGenerationDetailController.getAllSalaryGenerationDetails);
@@ -10,4 +9,4 @@ router.post('/', salaryGenerationDetailController.createSalaryGenerationDetail);
 router.put('/:id', salaryGenerationDetailController.updateSalaryGenerationDetail);
 router.delete('/:id', salaryGenerationDetailController.deleteSalaryGenerationDetail);
 
-module.exports = router;
+export default router;

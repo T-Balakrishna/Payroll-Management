@@ -1,12 +1,12 @@
-const { Employee } = require('../models');
-
+import db from '../models/index.js';
+const { Employee } = db;
 // Get all employees
-exports.getAllEmployees = async (req, res) => {
+export const getAllEmployees = async (req, res) => {
   try {
     const employees = await Employee.findAll({
       include: [
-        { model: require('../models').Department, as: 'department' },
-        { model: require('../models').Designation, as: 'designation' },
+        { model: db.Department, as: 'department' },
+        { model: db.Designation, as: 'designation' },
       ]
     });
     res.json(employees);
@@ -16,12 +16,12 @@ exports.getAllEmployees = async (req, res) => {
 };
 
 // Get employee by ID
-exports.getEmployeeById = async (req, res) => {
+export const getEmployeeById = async (req, res) => {
   try {
     const employee = await Employee.findByPk(req.params.id, {
       include: [
-        { model: require('../models').Department, as: 'department' },
-        { model: require('../models').Designation, as: 'designation' },
+        { model: db.Department, as: 'department' },
+        { model: db.Designation, as: 'designation' },
       ]
     });
     if (!employee) return res.status(404).json({ message: 'Employee not found' });
@@ -32,7 +32,7 @@ exports.getEmployeeById = async (req, res) => {
 };
 
 // Create new employee
-exports.createEmployee = async (req, res) => {
+export const createEmployee = async (req, res) => {
   try {
     const employee = await Employee.create(req.body);
     res.status(201).json(employee);
@@ -42,7 +42,7 @@ exports.createEmployee = async (req, res) => {
 };
 
 // Update employee
-exports.updateEmployee = async (req, res) => {
+export const updateEmployee = async (req, res) => {
   try {
     const [updated] = await Employee.update(req.body, { where: { staffId: req.params.id } });
     if (!updated) return res.status(404).json({ message: 'Employee not found' });
@@ -54,7 +54,7 @@ exports.updateEmployee = async (req, res) => {
 };
 
 // Delete employee
-exports.deleteEmployee = async (req, res) => {
+export const deleteEmployee = async (req, res) => {
   try {
     const deleted = await Employee.destroy({ where: { staffId: req.params.id } });
     if (!deleted) return res.status(404).json({ message: 'Employee not found' });

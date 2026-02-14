@@ -1,5 +1,4 @@
-const nodemailer=require("nodemailer");
-
+import nodemailer from "nodemailer";
 const transporter=nodemailer.createTransport({
     service:"gmail",
     auth:{
@@ -18,4 +17,4 @@ const sendMail=async({to,subject,text,html})=>{
     });
 };
 
-module.exports={sendMail};
+export { sendMail };

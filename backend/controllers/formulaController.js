@@ -1,14 +1,14 @@
-const { Formula } = require('../models');
-
+import db from '../models/index.js';
+const { Formula } = db;
 // Get all formulas (in practice: filter by companyId + isActive)
-exports.getAllFormulas = async (req, res) => {
+export const getAllFormulas = async (req, res) => {
   try {
     const formulas = await Formula.findAll({
       include: [
-        { model: require('../models').Company, as: 'company' },
-        { model: require('../models').SalaryComponent, as: 'targetComponent' },
-        { model: require('../models').User, as: 'creator' },    // note: your model uses 'id' here
-        { model: require('../models').User, as: 'updater' },
+        { model: db.Company, as: 'company' },
+        { model: db.SalaryComponent, as: 'targetComponent' },
+        { model: db.User, as: 'creator' },    // note: your model uses 'id' here
+        { model: db.User, as: 'updater' },
       ]
     });
     res.json(formulas);
@@ -18,12 +18,12 @@ exports.getAllFormulas = async (req, res) => {
 };
 
 // Get single formula by ID
-exports.getFormulaById = async (req, res) => {
+export const getFormulaById = async (req, res) => {
   try {
     const formula = await Formula.findByPk(req.params.id, {
       include: [
-        { model: require('../models').Company, as: 'company' },
-        { model: require('../models').SalaryComponent, as: 'targetComponent' },
+        { model: db.Company, as: 'company' },
+        { model: db.SalaryComponent, as: 'targetComponent' },
         
       ]
     });
@@ -39,7 +39,7 @@ exports.getFormulaById = async (req, res) => {
 };
 
 // Create new formula
-exports.createFormula = async (req, res) => {
+export const createFormula = async (req, res) => {
   try {
     const formula = await Formula.create(req.body);
     res.status(201).json(formula);
@@ -49,7 +49,7 @@ exports.createFormula = async (req, res) => {
 };
 
 // Update formula
-exports.updateFormula = async (req, res) => {
+export const updateFormula = async (req, res) => {
   try {
     const [updated] = await Formula.update(req.body, {
       where: { formulaId: req.params.id }
@@ -67,7 +67,7 @@ exports.updateFormula = async (req, res) => {
 };
 
 // Delete formula (soft delete via paranoid: true)
-exports.deleteFormula = async (req, res) => {
+export const deleteFormula = async (req, res) => {
   try {
     const deleted = await Formula.destroy({
       where: { formulaId: req.params.id }

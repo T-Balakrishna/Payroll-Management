@@ -1,15 +1,15 @@
-const { SalaryComponent } = require('../models');
-
+import db from '../models/index.js';
+const { SalaryComponent } = db;
 // Get all salary components
 // In real usage: almost always filtered by companyId
-exports.getAllSalaryComponents = async (req, res) => {
+export const getAllSalaryComponents = async (req, res) => {
   try {
     const salaryComponents = await SalaryComponent.findAll({
       include: [
-        { model: require('../models').Company, as: 'company' },
+        { model: db.Company, as: 'company' },
         
-        // { model: require('../models').Formula, as: 'formulas' },           // heavy — include only when needed
-        // { model: require('../models').EmployeeSalaryComponent, as: 'employeeSalaryComponents' }
+        // { model: db.Formula, as: 'formulas' },           // heavy — include only when needed
+        // { model: db.EmployeeSalaryComponent, as: 'employeeSalaryComponents' }
       ]
     });
     res.json(salaryComponents);
@@ -19,11 +19,11 @@ exports.getAllSalaryComponents = async (req, res) => {
 };
 
 // Get single salary component by ID
-exports.getSalaryComponentById = async (req, res) => {
+export const getSalaryComponentById = async (req, res) => {
   try {
     const salaryComponent = await SalaryComponent.findByPk(req.params.id, {
       include: [
-        { model: require('../models').Company, as: 'company' },
+        { model: db.Company, as: 'company' },
         
       ]
     });
@@ -39,7 +39,7 @@ exports.getSalaryComponentById = async (req, res) => {
 };
 
 // Create new salary component
-exports.createSalaryComponent = async (req, res) => {
+export const createSalaryComponent = async (req, res) => {
   try {
     const salaryComponent = await SalaryComponent.create(req.body);
     res.status(201).json(salaryComponent);
@@ -49,7 +49,7 @@ exports.createSalaryComponent = async (req, res) => {
 };
 
 // Update salary component
-exports.updateSalaryComponent = async (req, res) => {
+export const updateSalaryComponent = async (req, res) => {
   try {
     const [updated] = await SalaryComponent.update(req.body, {
       where: { salaryComponentId: req.params.id }
@@ -67,7 +67,7 @@ exports.updateSalaryComponent = async (req, res) => {
 };
 
 // Delete salary component (soft delete via paranoid: true)
-exports.deleteSalaryComponent = async (req, res) => {
+export const deleteSalaryComponent = async (req, res) => {
   try {
     const deleted = await SalaryComponent.destroy({
       where: { salaryComponentId: req.params.id }

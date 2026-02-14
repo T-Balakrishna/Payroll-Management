@@ -1,7 +1,6 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const employeeSalaryMasterController = require('../controllers/employeeSalaryMasterController');
-
+import * as employeeSalaryMasterController from '../controllers/employeeSalaryMasterController.js';
 // Routes for employee salary masters
 // Frontend calls: /api/employeeSalaryMasters
 router.get('/', employeeSalaryMasterController.getAllEmployeeSalaryMasters);
@@ -10,4 +9,4 @@ router.post('/', employeeSalaryMasterController.createEmployeeSalaryMaster);
 router.put('/:id', employeeSalaryMasterController.updateEmployeeSalaryMaster);
 router.delete('/:id', employeeSalaryMasterController.deleteEmployeeSalaryMaster);
 
-module.exports = router;
+export default router;

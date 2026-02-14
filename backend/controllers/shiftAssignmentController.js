@@ -1,16 +1,16 @@
-const { ShiftAssignment } = require('../models');
-
+import db from '../models/index.js';
+const { ShiftAssignment } = db;
 // Get all shift assignments
 // In real usage: almost always filtered by staffId, date range, companyId, status
-exports.getAllShiftAssignments = async (req, res) => {
+export const getAllShiftAssignments = async (req, res) => {
   try {
     const shiftAssignments = await ShiftAssignment.findAll({
       include: [
-        { model: require('../models').Employee, as: 'employee' },
-        { model: require('../models').ShiftType, as: 'shiftType' },
-        { model: require('../models').Company, as: 'company' },
+        { model: db.Employee, as: 'employee' },
+        { model: db.ShiftType, as: 'shiftType' },
+        { model: db.Company, as: 'company' },
         
-        // { model: require('../models').Attendance, as: 'attendances' }   // heavy — include only when needed
+        // { model: db.Attendance, as: 'attendances' }   // heavy — include only when needed
       ]
     });
     res.json(shiftAssignments);
@@ -20,13 +20,13 @@ exports.getAllShiftAssignments = async (req, res) => {
 };
 
 // Get single shift assignment by ID
-exports.getShiftAssignmentById = async (req, res) => {
+export const getShiftAssignmentById = async (req, res) => {
   try {
     const shiftAssignment = await ShiftAssignment.findByPk(req.params.id, {
       include: [
-        { model: require('../models').Employee, as: 'employee' },
-        { model: require('../models').ShiftType, as: 'shiftType' },
-        { model: require('../models').Company, as: 'company' },
+        { model: db.Employee, as: 'employee' },
+        { model: db.ShiftType, as: 'shiftType' },
+        { model: db.Company, as: 'company' },
         
       ]
     });
@@ -42,7 +42,7 @@ exports.getShiftAssignmentById = async (req, res) => {
 };
 
 // Create new shift assignment
-exports.createShiftAssignment = async (req, res) => {
+export const createShiftAssignment = async (req, res) => {
   try {
     const shiftAssignment = await ShiftAssignment.create(req.body);
     res.status(201).json(shiftAssignment);
@@ -52,7 +52,7 @@ exports.createShiftAssignment = async (req, res) => {
 };
 
 // Update shift assignment
-exports.updateShiftAssignment = async (req, res) => {
+export const updateShiftAssignment = async (req, res) => {
   try {
     const [updated] = await ShiftAssignment.update(req.body, {
       where: { shiftAssignmentId: req.params.id }
@@ -70,7 +70,7 @@ exports.updateShiftAssignment = async (req, res) => {
 };
 
 // Delete shift assignment (soft delete via paranoid: true)
-exports.deleteShiftAssignment = async (req, res) => {
+export const deleteShiftAssignment = async (req, res) => {
   try {
     const deleted = await ShiftAssignment.destroy({
       where: { shiftAssignmentId: req.params.id }

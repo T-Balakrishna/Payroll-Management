@@ -1,7 +1,6 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const attendanceController = require('../controllers/attendanceController');
-
+import * as attendanceController from '../controllers/attendanceController.js';
 // Routes for attendance
 // Frontend should call: /api/attendances
 router.get('/', attendanceController.getAllAttendances);
@@ -12,4 +11,4 @@ router.post('/', attendanceController.createAttendance);
 router.put('/:id', attendanceController.updateAttendance);
 router.delete('/:id', attendanceController.deleteAttendance);
 
-module.exports = router;
+export default router;

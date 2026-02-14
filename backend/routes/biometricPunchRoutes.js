@@ -1,7 +1,6 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const biometricPunchController = require('../controllers/biometricPunchController');
-
+import * as biometricPunchController from '../controllers/biometricPunchController.js';
 // Routes for biometric punches
 // Frontend should call: /api/biometricPunches   (camelCase plural)
 router.get("/fetch", biometricPunchController.fetchPunches);
@@ -11,4 +10,4 @@ router.post('/', biometricPunchController.createBiometricPunch);
 router.put('/:id', biometricPunchController.updateBiometricPunch);
 router.delete('/:id', biometricPunchController.deleteBiometricPunch);
 
-module.exports = router;
+export default router;

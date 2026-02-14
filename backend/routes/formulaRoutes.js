@@ -1,7 +1,6 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const formulaController = require('../controllers/formulaController');
-
+import * as formulaController from '../controllers/formulaController.js';
 // Routes for formulas
 // Frontend should call: /api/formulas
 router.get('/', formulaController.getAllFormulas);
@@ -10,4 +9,4 @@ router.post('/', formulaController.createFormula);
 router.put('/:id', formulaController.updateFormula);
 router.delete('/:id', formulaController.deleteFormula);
 
-module.exports = router;
+export default router;

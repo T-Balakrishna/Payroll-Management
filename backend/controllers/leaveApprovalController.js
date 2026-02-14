@@ -1,14 +1,14 @@
-const { LeaveApproval } = require('../models');
-
+import db from '../models/index.js';
+const { LeaveApproval } = db;
 // Get all leave approvals
 // In real usage: filter by leaveRequestId, approverId, companyId, status, etc.
-exports.getAllLeaveApprovals = async (req, res) => {
+export const getAllLeaveApprovals = async (req, res) => {
   try {
     const approvals = await LeaveApproval.findAll({
       include: [
-        { model: require('../models').LeaveRequest, as: 'leaveRequest' },
-        { model: require('../models').Employee, as: 'approver' },
-        { model: require('../models').Company, as: 'company' },
+        { model: db.LeaveRequest, as: 'leaveRequest' },
+        { model: db.Employee, as: 'approver' },
+        { model: db.Company, as: 'company' },
         
       ]
     });
@@ -19,13 +19,13 @@ exports.getAllLeaveApprovals = async (req, res) => {
 };
 
 // Get single leave approval by ID
-exports.getLeaveApprovalById = async (req, res) => {
+export const getLeaveApprovalById = async (req, res) => {
   try {
     const approval = await LeaveApproval.findByPk(req.params.id, {
       include: [
-        { model: require('../models').LeaveRequest, as: 'leaveRequest' },
-        { model: require('../models').Employee, as: 'approver' },
-        { model: require('../models').Company, as: 'company' },
+        { model: db.LeaveRequest, as: 'leaveRequest' },
+        { model: db.Employee, as: 'approver' },
+        { model: db.Company, as: 'company' },
         
       ]
     });
@@ -42,7 +42,7 @@ exports.getLeaveApprovalById = async (req, res) => {
 
 // Create new leave approval record
 // (usually created automatically when a leave request enters approval workflow)
-exports.createLeaveApproval = async (req, res) => {
+export const createLeaveApproval = async (req, res) => {
   try {
     const approval = await LeaveApproval.create(req.body);
     res.status(201).json(approval);
@@ -53,7 +53,7 @@ exports.createLeaveApproval = async (req, res) => {
 
 // Update leave approval
 // (e.g. change status to Approved/Rejected/Forwarded, add comments)
-exports.updateLeaveApproval = async (req, res) => {
+export const updateLeaveApproval = async (req, res) => {
   try {
     const [updated] = await LeaveApproval.update(req.body, {
       where: { leaveApprovalId: req.params.id }
@@ -71,7 +71,7 @@ exports.updateLeaveApproval = async (req, res) => {
 };
 
 // Delete leave approval record (soft delete via paranoid: true)
-exports.deleteLeaveApproval = async (req, res) => {
+export const deleteLeaveApproval = async (req, res) => {
   try {
     const deleted = await LeaveApproval.destroy({
       where: { leaveApprovalId: req.params.id }

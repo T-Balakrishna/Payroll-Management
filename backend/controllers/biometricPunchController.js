@@ -1,6 +1,8 @@
-const { Op } = require("sequelize");
-const { BiometricPunch, Employee, BiometricDevice, Company, User, Role } = require("../models");
+import { Op } from "sequelize";
+import db from '../models/index.js';
+import ZKLib from 'zklib';
 
+const { BiometricPunch, Employee, BiometricDevice, Company, User, Role } = db;
 const normalizeRole = (value = "") => String(value).replace(/\s+/g, "").toLowerCase();
 const classifyRoleType = (roleName = "") => {
   const key = normalizeRole(roleName);
@@ -20,7 +22,7 @@ const parseBooleanFilter = (value) => {
   return undefined;
 };
 
-exports.getAllBiometricPunches = async (req, res) => {
+export const getAllBiometricPunches = async (req, res) => {
   try {
     const {
       companyId,
@@ -157,14 +159,14 @@ exports.getAllBiometricPunches = async (req, res) => {
 };
 
 // Get single biometric punch by ID
-exports.getBiometricPunchById = async (req, res) => {
+export const getBiometricPunchById = async (req, res) => {
   try {
     const biometricPunch = await BiometricPunch.findByPk(req.params.id, {
       include: [
-        { model: require('../models').Employee,       as: 'employee' },
-        { model: require('../models').BiometricDevice, as: 'device' },
-        { model: require('../models').Company,        as: 'company' },
-        { model: require('../models').User,           as: 'creator' },
+        { model: db.Employee,       as: 'employee' },
+        { model: db.BiometricDevice, as: 'device' },
+        { model: db.Company,        as: 'company' },
+        { model: db.User,           as: 'creator' },
       ]
     });
 
@@ -180,7 +182,7 @@ exports.getBiometricPunchById = async (req, res) => {
 
 // Create new biometric punch record
 // (usually done by device sync service, not directly by user)
-exports.createBiometricPunch = async (req, res) => {
+export const createBiometricPunch = async (req, res) => {
   try {
     const biometricPunch = await BiometricPunch.create(req.body);
     res.status(201).json(biometricPunch);
@@ -190,7 +192,7 @@ exports.createBiometricPunch = async (req, res) => {
 };
 
 // Update biometric punch (e.g. manual correction, change punchType, add remarks, etc.)
-exports.updateBiometricPunch = async (req, res) => {
+export const updateBiometricPunch = async (req, res) => {
   try {
     const [updated] = await BiometricPunch.update(req.body, {
       where: { punchId: req.params.id }
@@ -208,7 +210,7 @@ exports.updateBiometricPunch = async (req, res) => {
 };
 
 // Delete biometric punch record (soft delete if paranoid: true)
-exports.deleteBiometricPunch = async (req, res) => {
+export const deleteBiometricPunch = async (req, res) => {
   try {
     const deleted = await BiometricPunch.destroy({
       where: { punchId: req.params.id }
@@ -224,17 +226,8 @@ exports.deleteBiometricPunch = async (req, res) => {
   }
 };
 
-exports.fetchPunches = async (req, res) => {
+export const fetchPunches = async (req, res) => {
   try {
-    let ZKLib;
-    try {
-      ZKLib = require("zklib");
-    } catch (err) {
-      return res.status(500).json({
-        error: "zklib package not installed. Run: npm i zklib",
-      });
-    }
-
     const { companyId } = req.query; // Optional: sync only for one company
 
     const deviceQuery = { where: { status: "Active", isAutoSyncEnabled: true } };

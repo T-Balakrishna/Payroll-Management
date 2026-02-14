@@ -1,12 +1,11 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
 
-const departmentController = require('../controllers/departmentController');
-
+import * as departmentController from '../controllers/departmentController.js';
 router.get('/', departmentController.getAllDepartments);
 router.get('/:id', departmentController.getDepartmentById);
 router.post('/', departmentController.createDepartment);
 router.put('/:id', departmentController.updateDepartment);
 router.delete('/:id', departmentController.deleteDepartment);
 
-module.exports = router;
+export default router;

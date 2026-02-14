@@ -1,4 +1,6 @@
-const { Op } = require("sequelize");
+import { Op } from "sequelize";
+import db from '../models/index.js';
+
 const {
   Attendance,
   Employee,
@@ -9,8 +11,7 @@ const {
   BiometricPunch,
   Company,
   BiometricDevice,
-} = require("../models");
-
+} = db;
 const toDateOnly = (value) => {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return null;
@@ -356,15 +357,15 @@ const decideAttendanceStatus = ({
 };
 
 // Get all attendances (usually filtered by company or date range in real use)
-exports.getAllAttendances = async (req, res) => {
+export const getAllAttendances = async (req, res) => {
   try {
     const attendances = await Attendance.findAll({
       include: [
-        { model: require('../models').Employee, as: 'employee' },
-        { model: require('../models').Company,   as: 'company' },
-        { model: require('../models').ShiftType, as: 'shiftType' },
-        { model: require('../models').ShiftAssignment, as: 'shiftAssignment' },
-        { model: require('../models').User, as: 'approver' },
+        { model: db.Employee, as: 'employee' },
+        { model: db.Company,   as: 'company' },
+        { model: db.ShiftType, as: 'shiftType' },
+        { model: db.ShiftAssignment, as: 'shiftAssignment' },
+        { model: db.User, as: 'approver' },
         
       ]
     });
@@ -375,15 +376,15 @@ exports.getAllAttendances = async (req, res) => {
 };
 
 // Get attendance by ID
-exports.getAttendanceById = async (req, res) => {
+export const getAttendanceById = async (req, res) => {
   try {
     const attendance = await Attendance.findByPk(req.params.id, {
       include: [
-        { model: require('../models').Employee, as: 'employee' },
-        { model: require('../models').Company,   as: 'company' },
-        { model: require('../models').ShiftType, as: 'shiftType' },
-        { model: require('../models').ShiftAssignment, as: 'shiftAssignment' },
-        { model: require('../models').User, as: 'approver' },
+        { model: db.Employee, as: 'employee' },
+        { model: db.Company,   as: 'company' },
+        { model: db.ShiftType, as: 'shiftType' },
+        { model: db.ShiftAssignment, as: 'shiftAssignment' },
+        { model: db.User, as: 'approver' },
         
       ]
     });
@@ -399,7 +400,7 @@ exports.getAttendanceById = async (req, res) => {
 };
 
 // Create new attendance record
-exports.createAttendance = async (req, res) => {
+export const createAttendance = async (req, res) => {
   try {
     const attendance = await Attendance.create(req.body);
     res.status(201).json(attendance);
@@ -409,7 +410,7 @@ exports.createAttendance = async (req, res) => {
 };
 
 // Update attendance
-exports.updateAttendance = async (req, res) => {
+export const updateAttendance = async (req, res) => {
   try {
     const [updated] = await Attendance.update(req.body, {
       where: { attendanceId: req.params.id }
@@ -427,7 +428,7 @@ exports.updateAttendance = async (req, res) => {
 };
 
 // Delete attendance (soft delete supported via paranoid: true)
-exports.deleteAttendance = async (req, res) => {
+export const deleteAttendance = async (req, res) => {
   try {
     const deleted = await Attendance.destroy({
       where: { attendanceId: req.params.id }
@@ -446,7 +447,7 @@ exports.deleteAttendance = async (req, res) => {
 // Process attendance from biometric punches and compute working hours.
 // POST /api/attendances/process-punches
 // body: { companyId, dateFrom, dateTo, staffId?, includeAbsent? }
-exports.processPunchesToAttendance = async (req, res) => {
+export const processPunchesToAttendance = async (req, res) => {
   try {
     const companyId = req.body?.companyId ?? req.query?.companyId;
     const staffId = req.body?.staffId ?? req.query?.staffId;
@@ -783,7 +784,7 @@ exports.processPunchesToAttendance = async (req, res) => {
 // seeds one month punch logs, processes attendance, and returns summary in one call.
 // POST /api/attendances/test/seed-process-verify
 // body: { month: "YYYY-MM", companyId?, staffId?, includeAbsent? }
-exports.seedProcessVerifyAttendanceTest = async (req, res) => {
+export const seedProcessVerifyAttendanceTest = async (req, res) => {
   try {
     if (process.env.NODE_ENV === "production") {
       return res.status(403).json({ error: "Not allowed in production" });
@@ -798,7 +799,7 @@ exports.seedProcessVerifyAttendanceTest = async (req, res) => {
 
     const seeded = await seedOneMonthPunchesForTest({ month, companyId, staffId });
 
-    const processResult = await exports.processPunchesToAttendance(
+    const processResult = await processPunchesToAttendance(
       {
         body: {
           companyId: seeded.companyId,

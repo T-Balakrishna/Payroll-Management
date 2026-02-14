@@ -1,7 +1,6 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const busController = require('../controllers/busController');
-
+import * as busController from '../controllers/busController.js';
 // Routes for buses
 // Frontend should call: /api/buses   (camelCase plural)
 router.get('/', busController.getAllBuses);
@@ -10,4 +9,4 @@ router.post('/', busController.createBus);
 router.put('/:id', busController.updateBus);
 router.delete('/:id', busController.deleteBus);
 
-module.exports = router;
+export default router;

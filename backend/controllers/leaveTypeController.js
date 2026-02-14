@@ -1,15 +1,15 @@
-const { LeaveType } = require('../models');
-
+import db from '../models/index.js';
+const { LeaveType } = db;
 // Get all leave types
 // In real usage: almost always filtered by companyId
-exports.getAllLeaveTypes = async (req, res) => {
+export const getAllLeaveTypes = async (req, res) => {
   try {
     const leaveTypes = await LeaveType.findAll({
       include: [
-        { model: require('../models').Company, as: 'company' },
-        // { model: require('../models').LeavePolicy, as: 'leavePolicies' },   // heavy — include only when needed
-        // { model: require('../models').LeaveAllocation, as: 'allocations' }
-        // { model: require('../models').LeaveRequest, as: 'requests' }
+        { model: db.Company, as: 'company' },
+        // { model: db.LeavePolicy, as: 'leavePolicies' },   // heavy — include only when needed
+        // { model: db.LeaveAllocation, as: 'allocations' }
+        // { model: db.LeaveRequest, as: 'requests' }
       ]
     });
     res.json(leaveTypes);
@@ -19,11 +19,11 @@ exports.getAllLeaveTypes = async (req, res) => {
 };
 
 // Get single leave type by ID
-exports.getLeaveTypeById = async (req, res) => {
+export const getLeaveTypeById = async (req, res) => {
   try {
     const leaveType = await LeaveType.findByPk(req.params.id, {
       include: [
-        { model: require('../models').Company, as: 'company' },
+        { model: db.Company, as: 'company' },
       ]
     });
 
@@ -38,7 +38,7 @@ exports.getLeaveTypeById = async (req, res) => {
 };
 
 // Create new leave type
-exports.createLeaveType = async (req, res) => {
+export const createLeaveType = async (req, res) => {
   try {
     const leaveType = await LeaveType.create(req.body);
     res.status(201).json(leaveType);
@@ -48,7 +48,7 @@ exports.createLeaveType = async (req, res) => {
 };
 
 // Update leave type
-exports.updateLeaveType = async (req, res) => {
+export const updateLeaveType = async (req, res) => {
   try {
     const [updated] = await LeaveType.update(req.body, {
       where: { leaveTypeId: req.params.id }
@@ -66,7 +66,7 @@ exports.updateLeaveType = async (req, res) => {
 };
 
 // Delete leave type (soft delete via paranoid: true)
-exports.deleteLeaveType = async (req, res) => {
+export const deleteLeaveType = async (req, res) => {
   try {
     const deleted = await LeaveType.destroy({
       where: { leaveTypeId: req.params.id }

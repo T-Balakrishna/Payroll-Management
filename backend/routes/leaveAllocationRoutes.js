@@ -1,7 +1,6 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const leaveAllocationController = require('../controllers/leaveAllocationController');
-
+import * as leaveAllocationController from '../controllers/leaveAllocationController.js';
 // Routes for leave allocations
 // Frontend should call: /api/leaveAllocations
 router.get('/', leaveAllocationController.getAllLeaveAllocations);
@@ -10,4 +9,4 @@ router.post('/', leaveAllocationController.createLeaveAllocation);
 router.put('/:id', leaveAllocationController.updateLeaveAllocation);
 router.delete('/:id', leaveAllocationController.deleteLeaveAllocation);
 
-module.exports = router;
+export default router;

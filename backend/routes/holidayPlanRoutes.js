@@ -1,7 +1,6 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const holidayPlanController = require('../controllers/holidayPlanController');
-
+import * as holidayPlanController from '../controllers/holidayPlanController.js';
 // Routes for holiday plans
 // Frontend should call: /api/holidayPlans
 router.get('/', holidayPlanController.getAllHolidayPlans);
@@ -10,4 +9,4 @@ router.post('/', holidayPlanController.createHolidayPlan);
 router.put('/:id', holidayPlanController.updateHolidayPlan);
 router.delete('/:id', holidayPlanController.deleteHolidayPlan);
 
-module.exports = router;
+export default router;

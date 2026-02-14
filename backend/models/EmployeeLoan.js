@@ -1,7 +1,6 @@
 // models/EmployeeLoan.js
-const { DataTypes } = require('sequelize');
-
-module.exports = (sequelize) => {
+import { DataTypes } from 'sequelize';
+export default (sequelize) => {
   const EmployeeLoan = sequelize.define('EmployeeLoan', {
     employeeLoanId: {
       type: DataTypes.INTEGER,

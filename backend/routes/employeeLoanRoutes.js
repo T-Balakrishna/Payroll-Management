@@ -1,7 +1,6 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const employeeLoanController = require('../controllers/employeeLoanController');
-
+import * as employeeLoanController from '../controllers/employeeLoanController.js';
 // Routes for employee loans
 // Frontend should call: /api/employeeLoans
 router.get('/', employeeLoanController.getAllEmployeeLoans);
@@ -10,4 +9,4 @@ router.post('/', employeeLoanController.createEmployeeLoan);
 router.put('/:id', employeeLoanController.updateEmployeeLoan);
 router.delete('/:id', employeeLoanController.deleteEmployeeLoan);
 
-module.exports = router;
+export default router;

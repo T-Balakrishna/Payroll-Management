@@ -1,13 +1,13 @@
-const { Permission } = require('../models');
-
+import db from '../models/index.js';
+const { Permission } = db;
 // Get all permissions
 // In real usage: almost always filtered by staffId, companyId, permissionDate, etc.
-exports.getAllPermissions = async (req, res) => {
+export const getAllPermissions = async (req, res) => {
   try {
     const permissions = await Permission.findAll({
       include: [
-        { model: require('../models').Employee, as: 'employee' },
-        { model: require('../models').Company, as: 'company' },
+        { model: db.Employee, as: 'employee' },
+        { model: db.Company, as: 'company' },
         
       ]
     });
@@ -18,12 +18,12 @@ exports.getAllPermissions = async (req, res) => {
 };
 
 // Get single permission by ID
-exports.getPermissionById = async (req, res) => {
+export const getPermissionById = async (req, res) => {
   try {
     const permission = await Permission.findByPk(req.params.id, {
       include: [
-        { model: require('../models').Employee, as: 'employee' },
-        { model: require('../models').Company, as: 'company' },
+        { model: db.Employee, as: 'employee' },
+        { model: db.Company, as: 'company' },
         
       ]
     });
@@ -39,7 +39,7 @@ exports.getPermissionById = async (req, res) => {
 };
 
 // Create new permission record
-exports.createPermission = async (req, res) => {
+export const createPermission = async (req, res) => {
   try {
     const permission = await Permission.create(req.body);
     res.status(201).json(permission);
@@ -49,7 +49,7 @@ exports.createPermission = async (req, res) => {
 };
 
 // Update permission
-exports.updatePermission = async (req, res) => {
+export const updatePermission = async (req, res) => {
   try {
     const [updated] = await Permission.update(req.body, {
       where: { permissionId: req.params.id }
@@ -67,7 +67,7 @@ exports.updatePermission = async (req, res) => {
 };
 
 // Delete permission (soft delete via paranoid: true)
-exports.deletePermission = async (req, res) => {
+export const deletePermission = async (req, res) => {
   try {
     const deleted = await Permission.destroy({
       where: { permissionId: req.params.id }

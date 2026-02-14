@@ -1,12 +1,12 @@
-const { Role } = require('../models');
-
+import db from '../models/index.js';
+const { Role } = db;
 // Get all roles
-exports.getAllRoles = async (req, res) => {
+export const getAllRoles = async (req, res) => {
   try {
     const roles = await Role.findAll({
       include: [
         
-        // { model: require('../models').User, as: 'users' }   // ← only include if needed (can be heavy)
+        // { model: db.User, as: 'users' }   // ← only include if needed (can be heavy)
       ]
     });
     res.json(roles);
@@ -16,12 +16,12 @@ exports.getAllRoles = async (req, res) => {
 };
 
 // Get single role by ID
-exports.getRoleById = async (req, res) => {
+export const getRoleById = async (req, res) => {
   try {
     const role = await Role.findByPk(req.params.id, {
       include: [
         
-        // { model: require('../models').User, as: 'users' }
+        // { model: db.User, as: 'users' }
       ]
     });
 
@@ -36,7 +36,7 @@ exports.getRoleById = async (req, res) => {
 };
 
 // Create new role
-exports.createRole = async (req, res) => {
+export const createRole = async (req, res) => {
   try {
     const role = await Role.create(req.body);
     res.status(201).json(role);
@@ -46,7 +46,7 @@ exports.createRole = async (req, res) => {
 };
 
 // Update role
-exports.updateRole = async (req, res) => {
+export const updateRole = async (req, res) => {
   try {
     const [updated] = await Role.update(req.body, {
       where: { roleId: req.params.id }
@@ -64,7 +64,7 @@ exports.updateRole = async (req, res) => {
 };
 
 // Delete role (soft delete supported via paranoid: true)
-exports.deleteRole = async (req, res) => {
+export const deleteRole = async (req, res) => {
   try {
     const deleted = await Role.destroy({
       where: { roleId: req.params.id }

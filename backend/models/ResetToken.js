@@ -1,7 +1,6 @@
 // models/ResetToken.js
-const { DataTypes } = require("sequelize");
-
-module.exports = (sequelize) => {
+import { DataTypes } from "sequelize";
+export default (sequelize) => {
   const ResetToken = sequelize.define("ResetToken", {
     tokenId: {
       type: DataTypes.INTEGER,

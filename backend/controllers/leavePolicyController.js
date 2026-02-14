@@ -1,13 +1,13 @@
-const { LeavePolicy } = require('../models');
-
+import db from '../models/index.js';
+const { LeavePolicy } = db;
 // Get all leave policies
 // In practice: almost always filtered by companyId
-exports.getAllLeavePolicies = async (req, res) => {
+export const getAllLeavePolicies = async (req, res) => {
   try {
     const leavePolicies = await LeavePolicy.findAll({
       include: [
-        { model: require('../models').Company, as: 'company' },
-        // { model: require('../models').LeaveAllocation, as: 'leaveAllocations' } // heavy — include only when needed
+        { model: db.Company, as: 'company' },
+        // { model: db.LeaveAllocation, as: 'leaveAllocations' } // heavy — include only when needed
       ]
     });
     res.json(leavePolicies);
@@ -17,11 +17,11 @@ exports.getAllLeavePolicies = async (req, res) => {
 };
 
 // Get single leave policy by ID
-exports.getLeavePolicyById = async (req, res) => {
+export const getLeavePolicyById = async (req, res) => {
   try {
     const leavePolicy = await LeavePolicy.findByPk(req.params.id, {
       include: [
-        { model: require('../models').Company, as: 'company' },
+        { model: db.Company, as: 'company' },
       ]
     });
 
@@ -36,7 +36,7 @@ exports.getLeavePolicyById = async (req, res) => {
 };
 
 // Create new leave policy
-exports.createLeavePolicy = async (req, res) => {
+export const createLeavePolicy = async (req, res) => {
   try {
     const leavePolicy = await LeavePolicy.create(req.body);
     res.status(201).json(leavePolicy);
@@ -46,7 +46,7 @@ exports.createLeavePolicy = async (req, res) => {
 };
 
 // Update leave policy
-exports.updateLeavePolicy = async (req, res) => {
+export const updateLeavePolicy = async (req, res) => {
   try {
     const [updated] = await LeavePolicy.update(req.body, {
       where: { leavePolicyId: req.params.id }
@@ -64,7 +64,7 @@ exports.updateLeavePolicy = async (req, res) => {
 };
 
 // Delete leave policy (soft delete via paranoid: true)
-exports.deleteLeavePolicy = async (req, res) => {
+export const deleteLeavePolicy = async (req, res) => {
   try {
     const deleted = await LeavePolicy.destroy({
       where: { leavePolicyId: req.params.id }

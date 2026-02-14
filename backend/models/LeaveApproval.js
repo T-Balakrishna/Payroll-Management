@@ -1,6 +1,5 @@
-const { DataTypes } = require('sequelize');
-
-module.exports = (sequelize) => {
+import { DataTypes } from 'sequelize';
+export default (sequelize) => {
   const LeaveApproval = sequelize.define('LeaveApproval', {
     leaveApprovalId: {  // ← Changed from 'id'
       type: DataTypes.INTEGER,

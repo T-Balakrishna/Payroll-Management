@@ -1,8 +1,11 @@
 /* eslint-disable no-console */
-const path = require("path");
-require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
-const db = require("../models");
-
+import path from "path";
+import { fileURLToPath } from "url";
+import dotenv from "dotenv";
+import db from "../models/index.js";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
 const {
   sequelize,
   Employee,

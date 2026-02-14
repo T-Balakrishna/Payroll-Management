@@ -1,8 +1,7 @@
 // routes/statutoryReports.js
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const statutoryReportsController = require('../controllers/statutoryReportsController');
-
+import * as statutoryReportsController from '../controllers/statutoryReportsController.js';
 // ==========================================
 // PF REPORT ROUTES
 // ==========================================
@@ -34,4 +33,4 @@ router.get('/loan', statutoryReportsController.getLoanReport);
 // ==========================================
 router.get('/download/excel', statutoryReportsController.downloadStatutoryReportsExcel);
 
-module.exports = router;
+export default router;

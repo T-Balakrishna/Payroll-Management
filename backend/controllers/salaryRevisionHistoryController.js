@@ -1,17 +1,17 @@
-const { SalaryRevisionHistory } = require('../models');
-
+import db from '../models/index.js';
+const { SalaryRevisionHistory } = db;
 // Get all salary revision histories
 // In real usage: almost always filtered by staffId, companyId, revisionDate, revisionType
-exports.getAllSalaryRevisionHistories = async (req, res) => {
+export const getAllSalaryRevisionHistories = async (req, res) => {
   try {
     const histories = await SalaryRevisionHistory.findAll({
       include: [
-        { model: require('../models').Employee, as: 'employee' },
-        { model: require('../models').Company, as: 'company' },
-        { model: require('../models').EmployeeSalaryMaster, as: 'oldSalaryMaster' },
-        { model: require('../models').EmployeeSalaryMaster, as: 'newSalaryMaster' },
-        { model: require('../models').User, as: 'approver' },
-        { model: require('../models').User, as: 'processor' },
+        { model: db.Employee, as: 'employee' },
+        { model: db.Company, as: 'company' },
+        { model: db.EmployeeSalaryMaster, as: 'oldSalaryMaster' },
+        { model: db.EmployeeSalaryMaster, as: 'newSalaryMaster' },
+        { model: db.User, as: 'approver' },
+        { model: db.User, as: 'processor' },
         
       ],
       order: [['revisionDate', 'DESC']]
@@ -23,16 +23,16 @@ exports.getAllSalaryRevisionHistories = async (req, res) => {
 };
 
 // Get single salary revision history by ID
-exports.getSalaryRevisionHistoryById = async (req, res) => {
+export const getSalaryRevisionHistoryById = async (req, res) => {
   try {
     const history = await SalaryRevisionHistory.findByPk(req.params.id, {
       include: [
-        { model: require('../models').Employee, as: 'employee' },
-        { model: require('../models').Company, as: 'company' },
-        { model: require('../models').EmployeeSalaryMaster, as: 'oldSalaryMaster' },
-        { model: require('../models').EmployeeSalaryMaster, as: 'newSalaryMaster' },
-        { model: require('../models').User, as: 'approver' },
-        { model: require('../models').User, as: 'processor' },
+        { model: db.Employee, as: 'employee' },
+        { model: db.Company, as: 'company' },
+        { model: db.EmployeeSalaryMaster, as: 'oldSalaryMaster' },
+        { model: db.EmployeeSalaryMaster, as: 'newSalaryMaster' },
+        { model: db.User, as: 'approver' },
+        { model: db.User, as: 'processor' },
         
       ]
     });
@@ -49,7 +49,7 @@ exports.getSalaryRevisionHistoryById = async (req, res) => {
 
 // Create new salary revision history entry
 // (usually created automatically when a salary revision is processed)
-exports.createSalaryRevisionHistory = async (req, res) => {
+export const createSalaryRevisionHistory = async (req, res) => {
   try {
     const history = await SalaryRevisionHistory.create(req.body);
     res.status(201).json(history);
@@ -60,7 +60,7 @@ exports.createSalaryRevisionHistory = async (req, res) => {
 
 // Update salary revision history
 // (rare — usually immutable after creation, but kept for consistency)
-exports.updateSalaryRevisionHistory = async (req, res) => {
+export const updateSalaryRevisionHistory = async (req, res) => {
   try {
     const [updated] = await SalaryRevisionHistory.update(req.body, {
       where: { salaryRevisionHistoryId: req.params.id }
@@ -79,7 +79,7 @@ exports.updateSalaryRevisionHistory = async (req, res) => {
 
 // Delete salary revision history (soft delete via paranoid: true)
 // Usually rare — history should be kept for audit trail
-exports.deleteSalaryRevisionHistory = async (req, res) => {
+export const deleteSalaryRevisionHistory = async (req, res) => {
   try {
     const deleted = await SalaryRevisionHistory.destroy({
       where: { salaryRevisionHistoryId: req.params.id }

@@ -1,15 +1,15 @@
-const { ShiftType } = require('../models');
-
+import db from '../models/index.js';
+const { ShiftType } = db;
 // Get all shift types
 // In real usage: almost always filtered by companyId
-exports.getAllShiftTypes = async (req, res) => {
+export const getAllShiftTypes = async (req, res) => {
   try {
     const shiftTypes = await ShiftType.findAll({
       include: [
-        { model: require('../models').Company, as: 'company' },
+        { model: db.Company, as: 'company' },
         
-        // { model: require('../models').ShiftAssignment, as: 'shiftAssignments' },   // heavy — include only when needed
-        // { model: require('../models').Attendance, as: 'attendances' }
+        // { model: db.ShiftAssignment, as: 'shiftAssignments' },   // heavy — include only when needed
+        // { model: db.Attendance, as: 'attendances' }
       ]
     });
     res.json(shiftTypes);
@@ -19,11 +19,11 @@ exports.getAllShiftTypes = async (req, res) => {
 };
 
 // Get single shift type by ID
-exports.getShiftTypeById = async (req, res) => {
+export const getShiftTypeById = async (req, res) => {
   try {
     const shiftType = await ShiftType.findByPk(req.params.id, {
       include: [
-        { model: require('../models').Company, as: 'company' },
+        { model: db.Company, as: 'company' },
         
       ]
     });
@@ -39,7 +39,7 @@ exports.getShiftTypeById = async (req, res) => {
 };
 
 // Create new shift type
-exports.createShiftType = async (req, res) => {
+export const createShiftType = async (req, res) => {
   try {
     const shiftType = await ShiftType.create(req.body);
     res.status(201).json(shiftType);
@@ -49,7 +49,7 @@ exports.createShiftType = async (req, res) => {
 };
 
 // Update shift type
-exports.updateShiftType = async (req, res) => {
+export const updateShiftType = async (req, res) => {
   try {
     const [updated] = await ShiftType.update(req.body, {
       where: { shiftTypeId: req.params.id }
@@ -67,7 +67,7 @@ exports.updateShiftType = async (req, res) => {
 };
 
 // Delete shift type (soft delete via paranoid: true)
-exports.deleteShiftType = async (req, res) => {
+export const deleteShiftType = async (req, res) => {
   try {
     const deleted = await ShiftType.destroy({
       where: { shiftTypeId: req.params.id }

@@ -1,7 +1,6 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const biometricDeviceController = require('../controllers/biometricDeviceController');
-
+import * as biometricDeviceController from '../controllers/biometricDeviceController.js';
 // Routes for biometric devices
 // Frontend should call: /api/biometricDevices   (camelCase plural)
 router.get('/', biometricDeviceController.getAllBiometricDevices);
@@ -10,4 +9,4 @@ router.post('/', biometricDeviceController.createBiometricDevice);
 router.put('/:id', biometricDeviceController.updateBiometricDevice);
 router.delete('/:id', biometricDeviceController.deleteBiometricDevice);
 
-module.exports = router;
+export default router;

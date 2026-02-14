@@ -1,7 +1,6 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const leaveRequestController = require('../controllers/leaveRequestController');
-
+import * as leaveRequestController from '../controllers/leaveRequestController.js';
 // Routes for leave requests
 router.get('/', leaveRequestController.getAllLeaveRequests);
 router.get('/:id', leaveRequestController.getLeaveRequestById);
@@ -9,4 +8,4 @@ router.post('/', leaveRequestController.createLeaveRequest);
 router.put('/:id', leaveRequestController.updateLeaveRequest);
 router.delete('/:id', leaveRequestController.deleteLeaveRequest);
 
-module.exports = router;
+export default router;

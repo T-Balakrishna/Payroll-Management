@@ -1,15 +1,15 @@
-const { EmployeeSalaryComponent } = require('../models');
-
+import db from '../models/index.js';
+const { EmployeeSalaryComponent } = db;
 // Get all employee salary components
 // In real usage → almost always filtered by employeeSalaryMasterId
-exports.getAllEmployeeSalaryComponents = async (req, res) => {
+export const getAllEmployeeSalaryComponents = async (req, res) => {
   try {
     const components = await EmployeeSalaryComponent.findAll({
       include: [
         // Optional – include only when really needed
-        // { model: require('../models').EmployeeSalaryMaster, as: 'salaryMaster' },
-        // { model: require('../models').SalaryComponent, as: 'component' },
-        // { model: require('../models').Formula, as: 'formula' }
+        // { model: db.EmployeeSalaryMaster, as: 'salaryMaster' },
+        // { model: db.SalaryComponent, as: 'component' },
+        // { model: db.Formula, as: 'formula' }
       ]
     });
     res.json(components);
@@ -19,13 +19,13 @@ exports.getAllEmployeeSalaryComponents = async (req, res) => {
 };
 
 // Get single employee salary component by ID
-exports.getEmployeeSalaryComponentById = async (req, res) => {
+export const getEmployeeSalaryComponentById = async (req, res) => {
   try {
     const component = await EmployeeSalaryComponent.findByPk(req.params.id, {
       include: [
-        // { model: require('../models').EmployeeSalaryMaster, as: 'salaryMaster' },
-        // { model: require('../models').SalaryComponent, as: 'component' },
-        // { model: require('../models').Formula, as: 'formula' }
+        // { model: db.EmployeeSalaryMaster, as: 'salaryMaster' },
+        // { model: db.SalaryComponent, as: 'component' },
+        // { model: db.Formula, as: 'formula' }
       ]
     });
 
@@ -40,7 +40,7 @@ exports.getEmployeeSalaryComponentById = async (req, res) => {
 };
 
 // Create new salary component entry for an employee salary structure
-exports.createEmployeeSalaryComponent = async (req, res) => {
+export const createEmployeeSalaryComponent = async (req, res) => {
   try {
     const component = await EmployeeSalaryComponent.create(req.body);
     res.status(201).json(component);
@@ -50,7 +50,7 @@ exports.createEmployeeSalaryComponent = async (req, res) => {
 };
 
 // Update salary component (e.g. change amount, order, remarks, recalculate)
-exports.updateEmployeeSalaryComponent = async (req, res) => {
+export const updateEmployeeSalaryComponent = async (req, res) => {
   try {
     const [updated] = await EmployeeSalaryComponent.update(req.body, {
       where: { employeeSalaryComponentId: req.params.id }
@@ -69,7 +69,7 @@ exports.updateEmployeeSalaryComponent = async (req, res) => {
 
 // Delete salary component entry
 // (usually only allowed before salary is processed / generated)
-exports.deleteEmployeeSalaryComponent = async (req, res) => {
+export const deleteEmployeeSalaryComponent = async (req, res) => {
   try {
     const deleted = await EmployeeSalaryComponent.destroy({
       where: { employeeSalaryComponentId: req.params.id }

@@ -1,7 +1,6 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const leaveTypeController = require('../controllers/leaveTypeController');
-
+import * as leaveTypeController from '../controllers/leaveTypeController.js';
 // Routes for leave types
 // Frontend should call: /api/leaveTypes
 router.get('/', leaveTypeController.getAllLeaveTypes);
@@ -10,4 +9,4 @@ router.post('/', leaveTypeController.createLeaveType);
 router.put('/:id', leaveTypeController.updateLeaveType);
 router.delete('/:id', leaveTypeController.deleteLeaveType);
 
-module.exports = router; 
+export default router; 

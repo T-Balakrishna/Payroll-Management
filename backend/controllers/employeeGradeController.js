@@ -1,7 +1,7 @@
-const { EmployeeGrade, Company } = require("../models");
-
+import db from '../models/index.js';
+const { EmployeeGrade, Company } = db;
 // Get all employee grades
-exports.getAllEmployeeGrades = async (req, res) => {
+export const getAllEmployeeGrades = async (req, res) => {
   try {
     const { companyId } = req.query;
     const where = {};
@@ -19,7 +19,7 @@ exports.getAllEmployeeGrades = async (req, res) => {
 };
 
 // Get single employee grade by ID
-exports.getEmployeeGradeById = async (req, res) => {
+export const getEmployeeGradeById = async (req, res) => {
   try {
     const employeeGrade = await EmployeeGrade.findByPk(req.params.id, {
       include: [{ model: Company, as: "company" }],
@@ -36,7 +36,7 @@ exports.getEmployeeGradeById = async (req, res) => {
 };
 
 // Create new employee grade
-exports.createEmployeeGrade = async (req, res) => {
+export const createEmployeeGrade = async (req, res) => {
   try {
     const employeeGrade = await EmployeeGrade.create(req.body);
     res.status(201).json(employeeGrade);
@@ -46,7 +46,7 @@ exports.createEmployeeGrade = async (req, res) => {
 };
 
 // Update employee grade
-exports.updateEmployeeGrade = async (req, res) => {
+export const updateEmployeeGrade = async (req, res) => {
   try {
     const [updated] = await EmployeeGrade.update(req.body, {
       where: { employeeGradeId: req.params.id },
@@ -64,7 +64,7 @@ exports.updateEmployeeGrade = async (req, res) => {
 };
 
 // Delete employee grade (soft delete supported via paranoid: true)
-exports.deleteEmployeeGrade = async (req, res) => {
+export const deleteEmployeeGrade = async (req, res) => {
   try {
     const deleted = await EmployeeGrade.destroy({
       where: { employeeGradeId: req.params.id },

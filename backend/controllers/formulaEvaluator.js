@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'url';
+import path from 'path';
 class FormulaEvaluator {
     constructor() {
         this.allowedComponents = [];
@@ -421,10 +423,10 @@ class FormulaEvaluator {
 
 // Export singleton instance
 const formulaEvaluator = new FormulaEvaluator();
-module.exports = formulaEvaluator;
+export default formulaEvaluator;
 
 // For testing (will only run if file is executed directly)
-if (require.main === module) {
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
     console.log('=== Enhanced Formula Evaluator Tests ===\n');
     
     const evaluator = new FormulaEvaluator();

@@ -1,7 +1,6 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const designationController = require('../controllers/designationController');
-
+import * as designationController from '../controllers/designationController.js';
 // Routes for designations
 // Frontend should call: /api/designations   (camelCase plural)
 router.get('/', designationController.getAllDesignations);
@@ -10,4 +9,4 @@ router.post('/', designationController.createDesignation);
 router.put('/:id', designationController.updateDesignation);
 router.delete('/:id', designationController.deleteDesignation);
 
-module.exports = router;
+export default router;
