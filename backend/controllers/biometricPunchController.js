@@ -1,6 +1,6 @@
 import { Op } from "sequelize";
 import db from '../models/index.js';
-import ZKLib from 'zklib';
+import ZKLib from 'node-zklib';
 
 const { BiometricPunch, Employee, BiometricDevice, Company, User, Role } = db;
 const normalizeRole = (value = "") => String(value).replace(/\s+/g, "").toLowerCase();

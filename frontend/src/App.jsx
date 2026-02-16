@@ -1,22 +1,15 @@
 import { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import LoginPage from "./pages/LoginPage";
 import AdminDashboard from "./pages/AdminDashboard";
-import UserDashboard from "./pages/UserDashboard";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
-import DepartmentMaster from "./pages/DepartmentMaster";
-import CompanyMaster from "./pages/CompanyMaster";
-import RoleMaster from "./pages/RoleMaster";
-import EmployeeGradeMaster from "./pages/EmployeeGradeMaster";
-import BiometricDeviceMaster from "./pages/BiometricDeviceMaster";
-import BiometricPunchMaster from "./pages/BiometricPunchMaster";
+import EmployeeDashboard from "./pages/EmployeeDashboard";
 import { AuthProvider } from "./auth/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
-import AddUser from "./pages/AddUser";
+import CalendarPage from "./pages/CalendarPage";
 import SplashScreen from "./components/common/SplashScreen";
+import LoginPage from "./pages/LoginPage";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import './index.css';
-import DesignationMaster from "./pages/DesignationMaster";
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -29,6 +22,9 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route
             path="/adminDashboard"
             element={
@@ -37,12 +33,21 @@ function App() {
               </ProtectedRoute>
             }
           />
+          
+          <Route
+            path="/calendar"
+            element={
+              <ProtectedRoute roles={["Admin","Super Admin"]}>
+                <CalendarPage />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
-            path="/userDashboard"
+            path="/employeeDashboard"
             element={
               <ProtectedRoute roles={["User", "Staff"]}>
-                <UserDashboard />
+                <EmployeeDashboard />
               </ProtectedRoute>
             }
           />

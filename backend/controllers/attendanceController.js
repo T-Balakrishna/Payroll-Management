@@ -841,3 +841,54 @@ export const seedProcessVerifyAttendanceTest = async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
 };
+
+export const fetchMonthAttendance = async (req, res) => {
+  try {
+    const { month, companyId, staffId } = req.query;
+
+    // Validate month format (YYYY-MM)
+    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+      return res.status(400).json({ msg: "month must be in YYYY-MM format" });
+    }
+
+    const [year, mon] = month.split("-").map(Number);
+    const startDate = `${year}-${String(mon).padStart(2, "0")}-01`;
+    const endDate = `${year}-${String(mon).padStart(2, "0")}-${new Date(year, mon, 0).getDate()}`;
+
+    const where = {
+      attendanceDate: { [Op.between]: [startDate, endDate] },
+    };
+
+    if (companyId) {
+      where.companyId = companyId;
+    }
+
+    if (staffId) {
+      where.staffId = staffId;
+    }
+
+    const attendances = await Attendance.findAll({
+      where,
+      attributes: ["attendanceDate", "attendanceStatus"], // only needed fields
+      order: [["attendanceDate", "ASC"]],
+      raw: true, // faster, plain objects
+    });
+
+    // Format response as simple { "YYYY-MM-DD": "Present", ... }
+    const formatted = {};
+    attendances.forEach((att) => {
+      formatted[att.attendanceDate] = att.attendanceStatus;
+    });
+
+    res.json({
+      month,
+      startDate,
+      endDate,
+      totalDays: attendances.length,
+      data: formatted,
+    });
+  } catch (err) {
+    console.error("Error in fetchMonthAttendance:", err);
+    res.status(500).json({ msg: "Failed to fetch monthly attendance" });
+  }
+};
