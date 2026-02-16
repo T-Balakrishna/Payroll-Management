@@ -325,15 +325,14 @@ export default function EmployeeDashboard() {
   };
 
   const handleLogout = async () => {
-    try {
-      await API.post("/auth/logout");
-      toast.success("Logged out successfully");
-      navigate("/login", { replace: true });
-    } catch (err) {
-      toast.error("Logout failed");
-      navigate("/login", { replace: true });
-    }
-  };
+        try {
+        await API.post("/auth/logout");
+        } catch (err) {
+        console.error("Logout error:", err);
+        } finally {
+        window.location.href = "/login";
+        }
+    };
 
   return (
     <div className="min-h-screen bg-gray-50">
