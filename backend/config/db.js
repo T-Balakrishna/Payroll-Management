@@ -1,4 +1,5 @@
 import { Sequelize } from 'sequelize';
+import 'dotenv/config';
 // Database configuration
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
