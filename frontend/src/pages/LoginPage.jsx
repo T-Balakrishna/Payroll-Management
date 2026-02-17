@@ -65,7 +65,7 @@ export default function LoginPage() {
       navigate(
         adminRoles.includes(user.role)
           ? "/adminDashboard"
-          : "/userDashboard",
+          : "/employeeDashboard",
         { replace: true }
       );
     }
@@ -88,7 +88,7 @@ export default function LoginPage() {
       navigate(
         adminRoles.includes(role)
           ? "/adminDashboard"
-          : "/userDashboard",
+          : "/employeeDashboard",
         { replace: true }
       );
 
@@ -116,7 +116,7 @@ export default function LoginPage() {
       navigate(
         adminRoles.includes(role)
           ? "/adminDashboard"
-          : "/userDashboard",
+          : "/employeeDashboard",
         { replace: true }
       );
 
@@ -197,7 +197,7 @@ export default function LoginPage() {
                 shape="rectangular"
                 logo_alignment="left"
                 text="continue_with"
-                width="100%"
+                width={300}
               />
             </div>
 

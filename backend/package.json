@@ -33,7 +33,8 @@
     "pdfkit": "^0.17.2",
     "sequelize": "^6.37.7",
     "uuid": "^13.0.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "zklib": "^0.2.11"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"
