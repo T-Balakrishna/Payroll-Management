@@ -9,10 +9,12 @@ import {
   UserCheck,
   Plus,
   XCircle,
-  CheckCircle,
-  AlertCircle,
   Loader2,
+  AlertCircle,
+  CheckCircle,
 } from "lucide-react";
+import Button from "../components/ui/Button";           // from ui/Button.jsx
+import Modal from "../components/ui/Modal";             // from ui/Modal.jsx
 import EmployeeProfilePage from "./EmployeeProfilePage";
 import CalendarPage from "./CalendarPage";
 import TakeLeavePage from "./TakeLeavePage";
@@ -25,7 +27,7 @@ export default function EmployeeDashboard() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [modalContent, setModalContent] = useState(null);
+  const [modalContent, setModalContent] = useState(null); // null | "profile" | "calendar" | "takeleave"
   const [tableType, setTableType] = useState("biometric");
 
   const [userName, setUserName] = useState("New User");
@@ -34,6 +36,7 @@ export default function EmployeeDashboard() {
   const [leaves, setLeaves] = useState([]);
   const [companyId, setCompanyId] = useState(null);
   const [departmentId, setDepartmentId] = useState(null);
+  const [resolvedStaffId, setResolvedStaffId] = useState(null);
 
   const openProfileModal = () => setModalContent("profile");
   const openCalendarModal = () => setModalContent("calendar");
@@ -50,7 +53,7 @@ export default function EmployeeDashboard() {
     });
   };
 
-  // Fetch full employee details
+  // Fetch employee details
   useEffect(() => {
     const fetchEmployeeData = async () => {
       if (!user?.id) return;
@@ -58,8 +61,8 @@ export default function EmployeeDashboard() {
       setIsLoading(true);
       try {
         const res = await API.get(`/users/${user.id}`);
-
         const employee = res.data;
+
         const fullName =
           `${employee.firstName || ""} ${employee.lastName || ""}`.trim() ||
           employee.employeeName ||
@@ -78,11 +81,26 @@ export default function EmployeeDashboard() {
 
         setCompanyId(employee.companyId || null);
         setDepartmentId(employee.departmentId || null);
+
+        const directStaffId =
+          employee.staffId || employee.employeeId || user?.staffId || user?.employeeId;
+        if (directStaffId) {
+          setResolvedStaffId(directStaffId);
+        } else if (employee.userNumber) {
+          const empRes = await API.get("/employees");
+          const matchedEmp = (empRes.data || []).find(
+            (emp) => String(emp.staffNumber || "") === String(employee.userNumber)
+          );
+          setResolvedStaffId(matchedEmp?.staffId || null);
+        } else {
+          setResolvedStaffId(null);
+        }
       } catch (err) {
         console.error("Error fetching employee data:", err);
-        toast.error("Failed to fetch user data");
+        toast.error("Failed to load user information");
         setUserName("New User");
         setPhotoUrl(null);
+        setResolvedStaffId(user?.staffId || user?.employeeId || null);
       } finally {
         setIsLoading(false);
       }
@@ -91,15 +109,21 @@ export default function EmployeeDashboard() {
     fetchEmployeeData();
   }, [user?.id]);
 
+  useEffect(() => {
+    if (user?.staffId || user?.employeeId) {
+      setResolvedStaffId(user.staffId || user.employeeId);
+    }
+  }, [user?.staffId, user?.employeeId]);
+
   // Fetch biometric punches
   useEffect(() => {
-    if (!user?.staffId && !user?.employeeId) return;
+    if (!resolvedStaffId) return;
 
     const fetchPunches = async () => {
       setIsLoading(true);
       try {
-        const staffId = user.staffId || user.employeeId;
-        const res = await API.get(`/punches/staff/${staffId}`);
+        const staffId = resolvedStaffId;
+        const res = await API.get(`/biometricPunches`, { params: { staffId } });
 
         const punchesData = res.data.map((row) => ({
           ...row,
@@ -114,7 +138,7 @@ export default function EmployeeDashboard() {
         );
       } catch (err) {
         console.error("Error fetching punches:", err);
-        toast.error("Failed to fetch attendance data");
+        toast.error("Failed to load Punch history");
         setPunches([]);
       } finally {
         setIsLoading(false);
@@ -122,16 +146,16 @@ export default function EmployeeDashboard() {
     };
 
     fetchPunches();
-  }, [user?.staffId, user?.employeeId]);
+  }, [resolvedStaffId]);
 
   // Fetch leaves
   useEffect(() => {
-    if (!user?.staffId) return;
+    if (!resolvedStaffId) return;
 
     const fetchLeaves = async () => {
       setIsLoading(true);
       try {
-        const res = await API.get(`/leaves/employee/${user.staffId}`);
+        const res = await API.get(`/leaves/employee/${resolvedStaffId}`);
 
         const leaveData = res.data.map((l) => ({
           from_date: l.startDate ? formatDate(l.startDate) : "N/A",
@@ -145,7 +169,7 @@ export default function EmployeeDashboard() {
         );
       } catch (err) {
         console.error("Error fetching leaves:", err);
-        toast.error("Failed to fetch leave data");
+        toast.error("Failed to load leave history");
         setLeaves([]);
       } finally {
         setIsLoading(false);
@@ -153,7 +177,7 @@ export default function EmployeeDashboard() {
     };
 
     fetchLeaves();
-  }, [user?.staffId]);
+  }, [resolvedStaffId]);
 
   const getStatusIcon = (status) => {
     switch (status?.toLowerCase()) {
@@ -171,7 +195,7 @@ export default function EmployeeDashboard() {
       return (
         <div className="bg-white rounded-2xl border border-gray-100 p-6 text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-600 mb-2" />
-          <p className="text-gray-600">Loading data...</p>
+          <p className="text-gray-600">Loading your data...</p>
         </div>
       );
     }
@@ -249,7 +273,7 @@ export default function EmployeeDashboard() {
                       colSpan="4"
                       className="text-center py-6 text-gray-500"
                     >
-                      No leave data available
+                      No leave records found
                     </td>
                   </tr>
                 )}
@@ -265,7 +289,7 @@ export default function EmployeeDashboard() {
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
         <div className="bg-gray-50 px-6 py-4 border-b border-gray-100">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-blue-600" /> Biometric History
+            <Clock className="w-5 h-5 text-blue-600" /> Punch History
           </h3>
         </div>
         <div className="overflow-x-auto max-h-96 overflow-y-auto">
@@ -313,7 +337,7 @@ export default function EmployeeDashboard() {
               ) : (
                 <tr>
                   <td colSpan="3" className="text-center py-6 text-gray-500">
-                    No punch data available
+                    No Punch records found
                   </td>
                 </tr>
               )}
@@ -325,18 +349,19 @@ export default function EmployeeDashboard() {
   };
 
   const handleLogout = async () => {
-        try {
-        await API.post("/auth/logout");
-        } catch (err) {
-        console.error("Logout error:", err);
-        } finally {
-        window.location.href = "/login";
-        }
-    };
+    try {
+      await API.post("/auth/logout");
+      toast.success("Logged out successfully");
+      window.location.href = "/login";
+    } catch (err) {
+      console.error("Logout error:", err);
+      toast.error("Logout failed. Please try again.");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+      {/* Custom Header (no MasterHeader) */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <button
@@ -372,12 +397,14 @@ export default function EmployeeDashboard() {
               )}
             </button>
 
-            <button
+            <Button
               onClick={handleLogout}
-              className="w-12 h-12 bg-red-100 hover:bg-red-200 rounded-xl flex items-center justify-center transition-colors duration-150"
+              variant="danger"
+              size="icon"
+              className="w-12 h-12"
             >
-              <LogOut className="w-6 h-6 text-red-600" />
-            </button>
+              <LogOut className="w-6 h-6" />
+            </Button>
           </div>
         </div>
       </div>
@@ -385,63 +412,49 @@ export default function EmployeeDashboard() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="flex flex-wrap justify-center gap-4 mb-8">
-          <button
+          <Button
             onClick={openTakeLeaveModal}
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl flex items-center gap-2 transition-colors duration-150"
+            variant="primary"
+            icon={<Plus className="w-5 h-5" />}
           >
-            <Plus className="w-5 h-5" /> Apply Leave
-          </button>
+            Apply Leave
+          </Button>
 
-          <button
+          <Button
             onClick={() => setTableType("biometric")}
-            className={`px-6 py-3 font-semibold rounded-xl flex items-center gap-2 transition-colors duration-150 ${
-              tableType === "biometric"
-                ? "bg-blue-600 text-white"
-                : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
-            }`}
+            variant={tableType === "biometric" ? "primary" : "secondary"}
+            icon={<UserCheck className="w-5 h-5" />}
           >
-            <UserCheck className="w-5 h-5" /> Attendance History
-          </button>
+            Punch History
+          </Button>
 
-          <button
+          <Button
             onClick={() => setTableType("leave")}
-            className={`px-6 py-3 font-semibold rounded-xl flex items-center gap-2 transition-colors duration-150 ${
-              tableType === "leave"
-                ? "bg-blue-600 text-white"
-                : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
-            }`}
+            variant={tableType === "leave" ? "primary" : "secondary"}
+            icon={<FileText className="w-5 h-5" />}
           >
-            <FileText className="w-5 h-5" /> Leave History
-          </button>
+            Leave History
+          </Button>
         </div>
 
         {renderTable()}
       </div>
 
-      {/* Modal */}
+      {/* Modal - using your ui/Modal */}
       {modalContent && (
-        <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white w-full max-w-6xl h-full max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl relative">
-            <button
-              className="absolute z-50 top-4 right-4 w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition-colors duration-150"
-              onClick={closeModal}
-            >
-              <XCircle className="w-6 h-6 text-gray-600" />
-            </button>
-
-            <div className="h-full overflow-y-auto">
-              {modalContent === "profile" && <EmployeeProfilePage />}
-              {modalContent === "calendar" && <CalendarPage />}
-              {modalContent === "takeleave" && (
-                <TakeLeavePage
-                  empId={user?.staffId || user?.employeeId}
-                  companyId={companyId}
-                  departmentId={departmentId}
-                />
-              )}
-            </div>
+        <Modal isOpen={!!modalContent} onClose={closeModal}>
+          <div className="h-full overflow-y-auto p-6">
+            {modalContent === "profile" && <EmployeeProfilePage />}
+            {modalContent === "calendar" && <CalendarPage />}
+            {modalContent === "takeleave" && (
+              <TakeLeavePage
+                empId={resolvedStaffId}
+                companyId={companyId}
+                departmentId={departmentId}
+              />
+            )}
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

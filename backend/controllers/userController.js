@@ -49,7 +49,22 @@ export const getUserById = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    res.json(user);
+    const employee = await Employee.findOne({
+      where: { staffNumber: user.userNumber },
+      attributes: ['staffId', 'firstName', 'lastName', 'profilePhoto', 'departmentId'],
+    });
+
+    const payload = user.toJSON();
+    if (employee) {
+      payload.staffId = employee.staffId;
+      payload.employeeId = employee.staffId; // Backward compatibility for existing frontend checks
+      if (!payload.firstName) payload.firstName = employee.firstName;
+      if (!payload.lastName) payload.lastName = employee.lastName;
+      if (!payload.photo) payload.photo = employee.profilePhoto;
+      if (!payload.departmentId) payload.departmentId = employee.departmentId;
+    }
+
+    res.json(payload);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
