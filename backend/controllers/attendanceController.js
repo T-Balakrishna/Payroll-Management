@@ -33,23 +33,6 @@ const diffHours = (a, b) => {
   return Math.max(0, (b.getTime() - a.getTime()) / (1000 * 60 * 60));
 };
 
-const parseWeeklyOff = (weeklyOffRaw) => {
-  if (!weeklyOffRaw) return {};
-  if (typeof weeklyOffRaw === "object") return weeklyOffRaw;
-  try {
-    return JSON.parse(weeklyOffRaw);
-  } catch {
-    return {};
-  }
-};
-
-const resolveWeekOffForDate = (dateOnly, weeklyOffObj) => {
-  const date = new Date(`${dateOnly}T00:00:00`);
-  const day = date.getDay(); // 0=Sun ... 6=Sat
-  const keys = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-  return Boolean(weeklyOffObj[keys[day]]);
-};
-
 const normalizeRecurringDays = (value) => {
   if (Array.isArray(value)) return value;
   if (!value) return [];
@@ -302,8 +285,11 @@ const buildAttendanceSummary = async ({ companyId, staffId, dateFrom, dateTo }) 
 
 const isAssignmentApplicable = (assignment, dateOnly) => {
   if (!assignment || assignment.status !== "Active") return false;
-  if (assignment.assignmentDate === dateOnly) return true;
-  if (!assignment.isRecurring) return false;
+  if (!assignment.isRecurring) {
+    if (assignment.startDate && dateOnly < assignment.startDate) return false;
+    if (assignment.endDate && dateOnly > assignment.endDate) return false;
+    return true;
+  }
 
   if (assignment.startDate && dateOnly < assignment.startDate) return false;
   if (assignment.endDate && dateOnly > assignment.endDate) return false;
@@ -320,8 +306,8 @@ const isAssignmentApplicable = (assignment, dateOnly) => {
   }
 
   if (recurringPattern === "monthly") {
-    if (assignment.assignmentDate) {
-      const base = new Date(`${assignment.assignmentDate}T00:00:00`);
+    if (assignment.startDate) {
+      const base = new Date(`${assignment.startDate}T00:00:00`);
       return base.getDate() === date.getDate();
     }
     return true;
@@ -507,32 +493,16 @@ export const processPunchesToAttendance = async (req, res) => {
       });
     }
 
-    const [assignments, shiftTypes, holidayPlans, holidays, punches] = await Promise.all([
+    const [assignments, shiftTypes, holidays, punches] = await Promise.all([
       ShiftAssignment.findAll({
         where: {
           companyId,
           staffId: { [Op.in]: staffIds },
           status: "Active",
-          [Op.or]: [
-            { assignmentDate: { [Op.between]: [dateFrom, dateTo] } },
-            {
-              isRecurring: true,
-              startDate: { [Op.lte]: dateTo },
-              endDate: { [Op.gte]: dateFrom },
-            },
-          ],
         },
       }),
       ShiftType.findAll({
         where: { companyId, status: "Active" },
-      }),
-      HolidayPlan.findAll({
-        where: {
-          companyId,
-          status: "Active",
-          startDate: { [Op.lte]: dateTo },
-          endDate: { [Op.gte]: dateFrom },
-        },
       }),
       Holiday.findAll({
         where: {
@@ -560,7 +530,6 @@ export const processPunchesToAttendance = async (req, res) => {
     }
 
     const shiftTypeMap = new Map(shiftTypes.map((s) => [String(s.shiftTypeId), s]));
-    const holidayPlanMap = new Map(holidayPlans.map((p) => [String(p.holidayPlanId), p]));
     const holidayMap = new Map(holidays.map((h) => [h.holidayDate, h]));
 
     const punchMap = new Map();
@@ -614,9 +583,14 @@ export const processPunchesToAttendance = async (req, res) => {
 
         if (!includeAbsent && dayPunches.length === 0) continue;
 
-        let selectedAssignment =
-          empAssignments.find((a) => a.assignmentDate === dateOnly) ||
-          empAssignments.find((a) => isAssignmentApplicable(a, dateOnly));
+        const selectedAssignment =
+          empAssignments
+            .filter((a) => isAssignmentApplicable(a, dateOnly))
+            .sort(
+              (a, b) =>
+                new Date(b.updatedAt || b.createdAt || 0).getTime() -
+                new Date(a.updatedAt || a.createdAt || 0).getTime()
+            )[0] || null;
 
         const shiftTypeId = selectedAssignment?.shiftTypeId || emp.shiftTypeId;
         const shiftType = shiftTypeMap.get(String(shiftTypeId || "")) || null;
@@ -628,12 +602,8 @@ export const processPunchesToAttendance = async (req, res) => {
         }
 
         const holiday = holidayMap.get(dateOnly);
-        const linkedPlan = shiftType?.holidayPlanId
-          ? holidayPlanMap.get(String(shiftType.holidayPlanId))
-          : null;
-        const weeklyOffObj = parseWeeklyOff(linkedPlan?.weeklyOff);
         const isHoliday = Boolean(holiday && holiday.type !== "Week Off");
-        const isWeekOff = Boolean(holiday?.type === "Week Off" || resolveWeekOffForDate(dateOnly, weeklyOffObj));
+        const isWeekOff = Boolean(holiday?.type === "Week Off");
 
         const firstPunch = dayPunches[0] || null;
         const lastPunch = dayPunches.length > 0 ? dayPunches[dayPunches.length - 1] : null;

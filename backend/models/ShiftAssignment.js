@@ -27,12 +27,6 @@ export default (sequelize) => {
       onDelete: 'CASCADE',
     },
 
-    assignmentDate: {
-      type: DataTypes.DATEONLY,
-      allowNull: false,
-      comment: 'Specific date for which the shift is assigned (for non-recurring)',
-    },
-
     startDate: {
       type: DataTypes.DATEONLY,
       allowNull: true,
@@ -116,12 +110,12 @@ export default (sequelize) => {
     indexes: [
       {
         unique: true,
-        fields: ['staffId', 'assignmentDate'],
-        name: 'unique_employee_date_assignment',
+        fields: ['staffId'],
+        name: 'unique_employee_shift_assignment',
       },
       {
-        fields: ['companyId', 'assignmentDate'],
-        name: 'idx_company_date',
+        fields: ['companyId', 'status'],
+        name: 'idx_company_status',
       },
       {
         fields: ['shiftTypeId'],

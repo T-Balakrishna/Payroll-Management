@@ -48,8 +48,8 @@ import BiometricPunchMaster from './BiometricPunchMaster.jsx';
 // import FormulaBuilder from './FormulaBuilder.jsx';
 
 // // New Imports based on your Models image
-// import ShiftTypeMaster from './ShiftTypeMaster.jsx';
-// import ShiftAssignment from './ShiftAssignment.jsx';
+import ShiftTypeMaster from './ShiftTypeMaster.jsx';
+import ShiftAssignmentMaster from './ShiftAssignmentMaster.jsx';
 // import BiometricPunchDetails from './BiometricPunchDetails.jsx';
 // import LeaveTypeMaster from './LeaveTypeMaster.jsx';
 // import LeavePolicyManagement from './LeavePolicyManagement.jsx';
@@ -286,8 +286,8 @@ const AdminDashboard = () => {
       case "employeeGrade": return <EmployeeGradeMaster {...common} />;
       // case "bus": return <BusMaster {...common} />;
       // case "attendance": return <AttendanceMaster {...common} />;
-      // case "shiftType": return <ShiftTypeMaster {...common} />;
-      // case "shiftAssignment": return <ShiftAssignment {...common} />;
+      case "shiftType": return <ShiftTypeMaster {...common} />;
+      case "shiftAssignment": return <ShiftAssignmentMaster {...common} />;
       case "biometricDevice": return <BiometricDeviceMaster {...common} />;
       case "punches": return <BiometricPunchMaster {...common} />;
       // case "holidayPlan": return <HolidayPlanMaster {...common} />;

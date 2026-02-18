@@ -140,18 +140,6 @@ export default (sequelize) => {
         min: { args: [0], msg: 'Early exit period must be at least 0 minutes.' },
       },
     },
-
-    holidayPlanId: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      references: {
-        model: 'holiday_plans',
-        key: 'holidayPlanId',
-      },
-      onDelete: 'SET NULL',
-      comment: 'Optional holiday list for this shift type',
-    },
-
     markAutoAttendanceOnHolidays: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
@@ -241,11 +229,6 @@ export default (sequelize) => {
     ShiftType.belongsTo(models.User, {
       foreignKey: 'updatedBy',
       as: 'updater',
-    });
-
-    ShiftType.belongsTo(models.HolidayPlan, {
-      foreignKey: 'holidayListId',
-      as: 'holidayPlan',
     });
 
     ShiftType.hasMany(models.ShiftAssignment, {

@@ -4,7 +4,12 @@ const { ShiftAssignment } = db;
 // In real usage: almost always filtered by staffId, date range, companyId, status
 export const getAllShiftAssignments = async (req, res) => {
   try {
+    const where = {};
+    if (req.query.companyId) where.companyId = req.query.companyId;
+    if (req.query.staffId) where.staffId = req.query.staffId;
+
     const shiftAssignments = await ShiftAssignment.findAll({
+      where,
       include: [
         { model: db.Employee, as: 'employee' },
         { model: db.ShiftType, as: 'shiftType' },
