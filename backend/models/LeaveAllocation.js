@@ -199,7 +199,7 @@ export default (sequelize) => {
     indexes: [
       {
         unique: true,
-        fields: ['staffId', 'leaveTypeId'],
+        fields: ['staffId', 'leaveTypeId', 'effectiveFrom', 'effectiveTo'],
         name: 'unique_allocation_per_employee_type_period',
       },
     ],
@@ -220,7 +220,6 @@ export default (sequelize) => {
   // Virtual fields (very useful)
   LeaveAllocation.prototype.getTotalAvailable = function () {
     return (
-      parseFloat(this.allocatedLeaves) +
       parseFloat(this.carryForwardFromPrevious) +
       parseFloat(this.totalAccruedTillDate)
     );
@@ -242,10 +241,10 @@ export default (sequelize) => {
   };
 
   LeaveAllocation.associate = (models) => {
-    LeaveAllocation.belongsTo(models.Employee, { foreignKey: 'staffId' });
-    LeaveAllocation.belongsTo(models.LeaveType, { foreignKey: 'leaveTypeId' });
-    LeaveAllocation.belongsTo(models.LeavePolicy, { foreignKey: 'leavePolicyId' });
-    LeaveAllocation.belongsTo(models.Company, { foreignKey: 'companyId' });
+    LeaveAllocation.belongsTo(models.Employee, { foreignKey: 'staffId', as: 'employee' });
+    LeaveAllocation.belongsTo(models.LeaveType, { foreignKey: 'leaveTypeId', as: 'leaveType' });
+    LeaveAllocation.belongsTo(models.LeavePolicy, { foreignKey: 'leavePolicyId', as: 'leavePolicy' });
+    LeaveAllocation.belongsTo(models.Company, { foreignKey: 'companyId', as: 'company' });
   };
 
   // if (process.env.NODE_ENV === 'development') {

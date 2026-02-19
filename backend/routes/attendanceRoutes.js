@@ -1,6 +1,8 @@
 import express from 'express';
 const router = express.Router();
 import * as attendanceController from '../controllers/attendanceController.js';
+// const requireAuth = require("../middleware/requireAuth");
+
 // Routes for attendance
 // Frontend should call: /api/attendances
 router.get('/', attendanceController.getAllAttendances);

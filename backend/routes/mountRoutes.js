@@ -13,6 +13,7 @@ import busRoutes from './busRoutes.js';
 import holidayPlanRoutes from './holidayPlanRoutes.js';
 import holidayRoutes from './holidayRoutes.js';
 import leaveTypeRoutes from './leaveTypeRoutes.js';
+import leavePeriodRoutes from './leavePeriodRoutes.js';
 import leavePolicyRoutes from './leavePolicyRoutes.js';
 import leaveAllocationRoutes from './leaveAllocationRoutes.js';
 import leaveRequestRoutes from './leaveRequestRoutes.js';
@@ -65,6 +66,7 @@ const mountRoutes = (app) => {
 
   // Leave
   app.use('/api/leaveTypes', leaveTypeRoutes);
+  app.use('/api/leavePeriods', leavePeriodRoutes);
 
   app.use('/api/leavePolicies', leavePolicyRoutes);
 

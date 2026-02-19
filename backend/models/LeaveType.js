@@ -13,6 +13,28 @@ export default (sequelize) => {
       comment: 'Name of the leave type (e.g. "Sick Leave", "Annual Leave")',
     },
 
+    leaveTypeName: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      unique: true,
+      comment: 'Legacy leave type name field kept for backward compatibility',
+    },
+
+    maxAllocationPertype: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+
+    allowApplicationAfterDays: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+
+    minWorkingDaysForLeave: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+
     description: {
       type: DataTypes.TEXT,
       allowNull: true,
@@ -40,6 +62,12 @@ export default (sequelize) => {
       comment: 'Whether unused leaves of this type can be carried forward',
     },
 
+    isCarryForward: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+
     countHolidaysAsLeave: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
@@ -47,15 +75,69 @@ export default (sequelize) => {
       comment: 'Whether holidays falling during this leave are counted as leave days',
     },
 
+    includeHolidaysAsLeave: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+
     maxConsecutiveLeaves: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       defaultValue: 0,
       validate: {
         isInt: true,
         min: { args: [0], msg: 'Maximum consecutive leaves cannot be negative' },
       },
       comment: 'Maximum consecutive days allowed for this leave type',
+    },
+
+    isLeaveWithoutPay: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+
+    isPartiallyPaidLeave: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+
+    isOptionalLeave: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+
+    allowNegativeBalance: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+
+    allowOverAllocation: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+
+    isCompensatory: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+
+    allowEncashment: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+
+    isEarnedLeave: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
     },
 
     status: {
@@ -74,9 +156,43 @@ export default (sequelize) => {
       onDelete: 'CASCADE',
     },
 
+    createdBy: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+
+    updatedBy: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+
   }, {
     tableName: 'leave_types',
     timestamps: true,
+    hooks: {
+      beforeValidate: (leaveType) => {
+        if (!leaveType.name && leaveType.leaveTypeName) leaveType.name = leaveType.leaveTypeName;
+        if (!leaveType.leaveTypeName && leaveType.name) leaveType.leaveTypeName = leaveType.name;
+
+        if (typeof leaveType.isCarryForward === 'boolean') {
+          leaveType.isCarryForwardEnabled = leaveType.isCarryForward;
+        } else {
+          leaveType.isCarryForward = Boolean(leaveType.isCarryForwardEnabled);
+        }
+
+        if (typeof leaveType.isLeaveWithoutPay === 'boolean') {
+          leaveType.isWithoutPay = leaveType.isLeaveWithoutPay;
+        } else {
+          leaveType.isLeaveWithoutPay = Boolean(leaveType.isWithoutPay);
+        }
+
+        if (typeof leaveType.includeHolidaysAsLeave === 'boolean') {
+          leaveType.countHolidaysAsLeave = leaveType.includeHolidaysAsLeave;
+        } else {
+          leaveType.includeHolidaysAsLeave = Boolean(leaveType.countHolidaysAsLeave);
+        }
+      },
+    },
     validate: {
       paidLeaveCannotBeWithoutPay() {
         if (this.isPaid && this.isWithoutPay) {
@@ -87,10 +203,10 @@ export default (sequelize) => {
   });
 
   LeaveType.associate = (models) => {
-    LeaveType.belongsTo(models.Company, { foreignKey: 'companyId' });
-    LeaveType.hasMany(models.LeavePolicy, { foreignKey: 'leaveTypeId' });
-    LeaveType.hasMany(models.LeaveAllocation, { foreignKey: 'leaveTypeId' });
-    LeaveType.hasMany(models.LeaveRequest, { foreignKey: 'leaveTypeId' });
+    LeaveType.belongsTo(models.Company, { foreignKey: 'companyId', as: 'company' });
+    LeaveType.hasMany(models.LeavePolicy, { foreignKey: 'leaveTypeId', as: 'leavePolicies' });
+    LeaveType.hasMany(models.LeaveAllocation, { foreignKey: 'leaveTypeId', as: 'allocations' });
+    LeaveType.hasMany(models.LeaveRequest, { foreignKey: 'leaveTypeId', as: 'requests' });
   };
 
   // if (process.env.NODE_ENV === 'development') {

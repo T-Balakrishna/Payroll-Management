@@ -312,3 +312,4 @@ export default (sequelize) => {
 
   return Employee;
 };
+

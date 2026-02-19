@@ -110,7 +110,6 @@ async function ensureHolidayPlan(companyId, monthStart, monthEnd) {
       holidayPlanName: `Seed Plan ${monthStart.slice(0, 7)}`,
       startDate: monthStart,
       endDate: monthEnd,
-      weeklyOff: { sunday: true, saturday: false },
       companyId,
       status: "Active",
     });

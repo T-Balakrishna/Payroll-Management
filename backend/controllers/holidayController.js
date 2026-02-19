@@ -1,15 +1,19 @@
 import db from '../models/index.js';
+
 const { Holiday } = db;
-// Get all holidays
-// In practice: almost always filter by companyId + date range
+
 export const getAllHolidays = async (req, res) => {
   try {
+    const where = {};
+    if (req.query.companyId && req.query.companyId!=0) where.companyId = req.query.companyId;
+    if (req.query.holidayPlanId) where.holidayPlanId = req.query.holidayPlanId;
+
     const holidays = await Holiday.findAll({
+      where,
       include: [
         { model: db.HolidayPlan, as: 'plan' },
-        { model: db.Company, as: 'company' },
-        
-      ]
+        { model: db.Company },
+      ],
     });
     res.json(holidays);
   } catch (error) {
@@ -17,15 +21,13 @@ export const getAllHolidays = async (req, res) => {
   }
 };
 
-// Get single holiday by ID
 export const getHolidayById = async (req, res) => {
   try {
     const holiday = await Holiday.findByPk(req.params.id, {
       include: [
         { model: db.HolidayPlan, as: 'plan' },
-        { model: db.Company, as: 'company' },
-        
-      ]
+        { model: db.Company },
+      ],
     });
 
     if (!holiday) {
@@ -38,21 +40,19 @@ export const getHolidayById = async (req, res) => {
   }
 };
 
-// Create new holiday entry
 export const createHoliday = async (req, res) => {
   try {
     const holiday = await Holiday.create(req.body);
     res.status(201).json(holiday);
   } catch (error) {
-    res.status(400).json({ error: error.message }); // better for validation errors
+    res.status(400).json({ error: error.message });
   }
 };
 
-// Update holiday
 export const updateHoliday = async (req, res) => {
   try {
     const [updated] = await Holiday.update(req.body, {
-      where: { holidayId: req.params.id }
+      where: { holidayId: req.params.id },
     });
 
     if (!updated) {
@@ -66,11 +66,10 @@ export const updateHoliday = async (req, res) => {
   }
 };
 
-// Delete holiday (soft delete via paranoid: true)
 export const deleteHoliday = async (req, res) => {
   try {
     const deleted = await Holiday.destroy({
-      where: { holidayId: req.params.id }
+      where: { holidayId: req.params.id },
     });
 
     if (!deleted) {

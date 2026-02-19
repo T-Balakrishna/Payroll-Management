@@ -4,6 +4,8 @@ import db from '../models/index.js';
 const {
   Attendance,
   Employee,
+  User,
+  Role,
   ShiftAssignment,
   ShiftType,
   Holiday,
@@ -12,6 +14,30 @@ const {
   Company,
   BiometricDevice,
 } = db;
+
+
+const normalizeRole = (role) => String(role || "").replace(/\s+/g, "").toLowerCase();
+const isSuperAdminRole = (role) => normalizeRole(role) === "superadmin";
+
+const getAuthContext = async (req) => {
+  const userId = req.user?.id;
+  if (!userId) return null;
+
+  const currentUser = await User.findByPk(userId, {
+    attributes: ["userId", "companyId"],
+    include: [{ model: Role, as: "role", attributes: ["roleName"] }],
+  });
+
+  if (!currentUser) return null;
+
+  return {
+    userId: currentUser.userId,
+    companyId: currentUser.companyId,
+    roleName: currentUser.role?.roleName || "",
+    isSuperAdmin: isSuperAdminRole(currentUser.role?.roleName),
+  };
+};
+
 const toDateOnly = (value) => {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return null;
@@ -151,7 +177,6 @@ const ensureHolidayPlanForSeed = async (companyId, startDate, endDate) => {
       holidayPlanName: `Seed Plan ${startDate.slice(0, 7)}`,
       startDate,
       endDate,
-      weeklyOff: { sunday: true, saturday: false },
       companyId,
       status: "Active",
     });
@@ -394,15 +419,90 @@ const decideAttendanceStatus = ({
 // Get all attendances (usually filtered by company or date range in real use)
 export const getAllAttendances = async (req, res) => {
   try {
+    const authContext = await getAuthContext(req);
+    const requestedCompanyId = req.query.companyId;
+
+    const effectiveCompanyId = authContext?.isSuperAdmin
+      ? (requestedCompanyId || null)
+      : (authContext?.companyId || requestedCompanyId || null);
+
+    if (!effectiveCompanyId) {
+      return res.status(400).json({
+        error: "companyId is required. Admin users can only fetch attendance from their own company.",
+      });
+    }
+
+    const where = {
+      companyId: effectiveCompanyId,
+    };
+
+    if (req.query.staffId) {
+      where.staffId = req.query.staffId;
+    }
+
+    if (req.query.status) {
+      where.attendanceStatus = req.query.status;
+    }
+
+    const dateFrom = toDateOnly(req.query.dateFrom);
+    const dateTo = toDateOnly(req.query.dateTo);
+
+    if (req.query.dateFrom && !dateFrom) {
+      return res.status(400).json({ error: "Invalid dateFrom" });
+    }
+    if (req.query.dateTo && !dateTo) {
+      return res.status(400).json({ error: "Invalid dateTo" });
+    }
+    if (dateFrom && dateTo && dateFrom > dateTo) {
+      return res.status(400).json({ error: "dateFrom cannot be greater than dateTo" });
+    }
+
+    if (dateFrom && dateTo) {
+      where.attendanceDate = { [Op.between]: [dateFrom, dateTo] };
+    } else if (dateFrom) {
+      where.attendanceDate = { [Op.gte]: dateFrom };
+    } else if (dateTo) {
+      where.attendanceDate = { [Op.lte]: dateTo };
+    }
+
+    const q = String(req.query.q || "").trim();
+    const employeeWhere = {};
+    if (req.query.departmentId) {
+      employeeWhere.departmentId = req.query.departmentId;
+    }
+    if (q) {
+      employeeWhere[Op.or] = [
+        { staffNumber: { [Op.like]: `%${q}%` } },
+        { firstName: { [Op.like]: `%${q}%` } },
+        { middleName: { [Op.like]: `%${q}%` } },
+        { lastName: { [Op.like]: `%${q}%` } },
+      ];
+    }
+
     const attendances = await Attendance.findAll({
+      where,
       include: [
-        { model: db.Employee, as: 'employee' },
-        { model: db.Company,   as: 'company' },
-        { model: db.ShiftType, as: 'shiftType' },
-        { model: db.ShiftAssignment, as: 'shiftAssignment' },
-        { model: db.User, as: 'approver' },
-        
-      ]
+        {
+          model: require("../models").Employee,
+          as: "employee",
+          attributes: [
+            "staffId",
+            "staffNumber",
+            "firstName",
+            "middleName",
+            "lastName",
+            "departmentId",
+            "status",
+            "employmentStatus",
+          ],
+          ...(Object.keys(employeeWhere).length > 0 ? { where: employeeWhere, required: true } : {}),
+        },
+        { model: require("../models").Company, as: "company", attributes: ["companyId", "companyName", "companyAcr"] },
+        { model: require("../models").ShiftType, as: "shiftType", attributes: ["shiftTypeId", "name"] },
+        { model: require("../models").ShiftAssignment, as: "shiftAssignment", attributes: ["shiftAssignmentId", "assignmentDate"] },
+        { model: require("../models").User, as: "approver", attributes: ["userId", "userName"] },
+      ],
+      order: [["attendanceDate", "DESC"], ["attendanceId", "DESC"]],
     });
     res.json(attendances);
   } catch (error) {
@@ -413,6 +513,7 @@ export const getAllAttendances = async (req, res) => {
 // Get attendance by ID
 export const getAttendanceById = async (req, res) => {
   try {
+    const authContext = await getAuthContext(req);
     const attendance = await Attendance.findByPk(req.params.id, {
       include: [
         { model: db.Employee, as: 'employee' },
@@ -426,6 +527,12 @@ export const getAttendanceById = async (req, res) => {
 
     if (!attendance) {
       return res.status(404).json({ message: 'Attendance record not found' });
+    }
+
+    if (!authContext?.isSuperAdmin && authContext?.companyId) {
+      if (Number(attendance.companyId) !== Number(authContext.companyId)) {
+        return res.status(403).json({ error: "Forbidden: cannot access attendance from another company" });
+      }
     }
 
     res.json(attendance);

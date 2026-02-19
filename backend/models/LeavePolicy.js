@@ -13,31 +13,21 @@ export default (sequelize) => {
       comment: 'Policy name (e.g. "Annual Leave Policy - Permanent Staff")',
     },
 
-    leaveType: {
-      type: DataTypes.ENUM(
-        'Sick Leave',
-        'Annual Leave',
-        'Maternity Leave',
-        'Paternity Leave',
-        'Casual Leave',
-        'Compensatory Off'
-      ),
+    leaveTypeId: {
+      type: DataTypes.INTEGER,
       allowNull: false,
-      comment: 'The type of leave this policy applies to',
+      references: {
+        model: 'leave_types',
+        key: 'leaveTypeId',
+      },
+      onDelete: 'CASCADE',
+      comment: 'Foreign key to leave type',
     },
-
 
     accrualFrequency: {
       type: DataTypes.ENUM('Monthly', 'Quarterly', 'Yearly', 'On Joining'),
       allowNull: false,
       defaultValue: 'Yearly',
-    },
-
-    accrualDays: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      defaultValue: 0,
-      comment: 'Number of leaves accrued per frequency period',
     },
 
     maxCarryForward: {
@@ -69,6 +59,26 @@ export default (sequelize) => {
       onDelete: 'CASCADE',
     },
 
+    createdBy: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'userId',
+      },
+      onDelete: 'SET NULL',
+    },
+
+    updatedBy: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'userId',
+      },
+      onDelete: 'SET NULL',
+    },
+
     status: {
       type: DataTypes.ENUM('Active', 'Inactive'),
       allowNull: false,
@@ -80,15 +90,21 @@ export default (sequelize) => {
     timestamps: true,
     indexes: [
       {
-        fields: ['companyId', 'leaveType'],
-        name: 'idx_company_leave_type',
+        fields: ['companyId', 'leaveTypeId'],
+        name: 'idx_policy_company_leave_type',
+      },
+      {
+        unique: true,
+        fields: ['companyId', 'name'],
+        name: 'uq_policy_company_name',
       },
     ],
   });
 
   LeavePolicy.associate = (models) => {
-    LeavePolicy.belongsTo(models.Company, { foreignKey: 'companyId' });
-    LeavePolicy.hasMany(models.LeaveAllocation, { foreignKey: 'leavePolicyId' });
+    LeavePolicy.belongsTo(models.Company, { foreignKey: 'companyId', as: 'company' });
+    LeavePolicy.belongsTo(models.LeaveType, { foreignKey: 'leaveTypeId', as: 'leaveType' });
+    LeavePolicy.hasMany(models.LeaveAllocation, { foreignKey: 'leavePolicyId', as: 'allocations' });
   };
 
   // if (process.env.NODE_ENV === 'development') {

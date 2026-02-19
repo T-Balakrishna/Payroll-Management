@@ -41,7 +41,7 @@ import EmployeeGradeMaster from './EmployeeGradeMaster.jsx';
 // import BusMaster from './BusMaster.jsx';
 import BiometricDeviceMaster from './BiometricDeviceMaster.jsx';
 import BiometricPunchMaster from './BiometricPunchMaster.jsx';
-// import AttendanceMaster from './AttendanceMaster.jsx';
+import AttendanceMaster from './AttendanceMaster.jsx';
 // import HolidayMaster from './HolidayMaster.jsx';
 // import HolidayPlanMaster from './HolidayPlanMaster.jsx';
 // import ReportGenerator from './ReportGenerator.jsx';
@@ -51,9 +51,12 @@ import BiometricPunchMaster from './BiometricPunchMaster.jsx';
 import ShiftTypeMaster from './ShiftTypeMaster.jsx';
 import ShiftAssignmentMaster from './ShiftAssignmentMaster.jsx';
 // import BiometricPunchDetails from './BiometricPunchDetails.jsx';
-// import LeaveTypeMaster from './LeaveTypeMaster.jsx';
-// import LeavePolicyManagement from './LeavePolicyManagement.jsx';
-// import LeaveAllocation from './LeaveAllocation.jsx';
+import LeaveTypeMaster from './LeaveTypeMaster.jsx';
+import LeavePolicyManagement from './LeavePolicyManagement.jsx';
+import HolidayPlanMaster from './HolidayPlanMaster.jsx';
+import LeaveAllocation from './LeaveAllocation.jsx';
+import LeavePeriodMaster from './LeavePeriodMaster.jsx';
+import AllotedLeaveMaster from './AllotedLeaveMaster.jsx';
 // import LeaveRequestManagement from './LeaveRequestManagement.jsx';
 // import LeaveApproval from './LeaveApproval.jsx';
 // import LeaveRequestHistory from './LeaveRequestHistory.jsx';
@@ -169,23 +172,24 @@ const AdminDashboard = () => {
     { id: 'department', label: t('Department Master'), icon: Building2, color: 'text-indigo-500', category: 'Organization' },
     { id: 'designation', label: t('Designation Master'), icon: Award, color: 'text-pink-500', category: 'Organization' },
     { id: 'employeeGrade', label: t('Employee Grade Master'), icon: List, color: 'text-amber-500', category: 'Organization' },
-    { id: 'bus', label: t('busMaster'), icon: Bus, color: 'text-purple-500', category: 'Organization' },
 
     // Attendance Section
-    { id: 'attendance', label: t('dailyAttendance'), icon: Activity, color: 'text-emerald-600', category: 'Attendance' },
-    { id: 'shiftType', label: t('shiftTypes'), icon: Clock, color: 'text-cyan-500', category: 'Attendance' },
-    { id: 'shiftAssignment', label: t('shiftAssignments'), icon: Briefcase, color: 'text-blue-400', category: 'Attendance' },
-    { id: 'biometricDevice', label: t('biometricDevices'), icon: Monitor, color: 'text-slate-500', category: 'Attendance' },
-    { id: 'punches', label: t('punchLogs'), icon: Fingerprint, color: 'text-purple-600', category: 'Attendance' },
-    { id: 'holidayPlan', label: t('holidayPlans'), icon: Calendar, color: 'text-yellow-600', category: 'Attendance' },
-    { id: 'holiday', label: t('holidays'), icon: Calendar, color: 'text-yellow-500', category: 'Attendance' },
-
+    { id: 'attendance', label: t('Attendance Master'), icon: Activity, color: 'text-emerald-600', category: 'Attendance' },
+    { id: 'shiftType', label: t('Shift Type Master'), icon: Clock, color: 'text-cyan-500', category: 'Attendance' },
+    { id: 'shiftAssignment', label: t('Shift Assignment Master'), icon: Briefcase, color: 'text-blue-400', category: 'Attendance' },
+    { id: 'biometricDevice', label: t('Biometric Device Master'), icon: Monitor, color: 'text-slate-500', category: 'Attendance' },
+    { id: 'punches', label: t('Biometric Punch Master'), icon: Fingerprint, color: 'text-purple-600', category: 'Attendance' },
+    
     // Leave Section
+    { id: 'leaveType', label: t('Leave Type Master'), icon: List, color: 'text-cyan-600', category: 'Leave' },
+    { id: 'leavePeriod', label: t('Leave Period Master'), icon: Calendar, color: 'text-amber-600', category: 'Leave' },
+    { id: 'leavePolicy', label: t('Leave Policy Master'), icon: Shield, color: 'text-blue-600', category: 'Leave' },
+    { id: 'leaveAllocation', label: t('Leave Allocation'), icon: FileBarChart, color: 'text-orange-500', category: 'Leave' },
+    { id: 'allotedLeave', label: t('Alloted Leave Master'), icon: List, color: 'text-teal-500', category: 'Leave' },
+    { id: 'leaveApproval', label: t('Leave Approval'), icon: UserCheck, color: 'text-green-600', category: 'Leave' },
     { id: 'leaveRequest', label: t('leaveRequests'), icon: CheckCircle, color: 'text-lime-500', category: 'Leave' },
-    { id: 'leaveApproval', label: t('leaveApprovals'), icon: UserCheck, color: 'text-green-600', category: 'Leave' },
-    { id: 'leaveAllocation', label: t('leaveAllocations'), icon: FileBarChart, color: 'text-orange-500', category: 'Leave' },
-    { id: 'leavePolicy', label: t('leavePolicies'), icon: Shield, color: 'text-blue-600', category: 'Leave' },
     { id: 'leaveHistory', label: t('requestHistory'), icon: History, color: 'text-slate-400', category: 'Leave' },
+    { id: 'holidayPlan', label: t('Holiday Master'), icon: Calendar, color: 'text-yellow-600', category: 'Leave' },
 
     // Payroll Section
     { id: 'salaryComponent', label: t('salaryComponents'), icon: Wallet, color: 'text-red-400', category: 'Payroll' },
@@ -284,17 +288,17 @@ const AdminDashboard = () => {
        case "designation": return <DesignationMaster {...common} />;
        case "roles": return <RoleMaster {...common} />;
       case "employeeGrade": return <EmployeeGradeMaster {...common} />;
-      // case "bus": return <BusMaster {...common} />;
-      // case "attendance": return <AttendanceMaster {...common} />;
+      case "attendance": return <AttendanceMaster {...common} />;
       case "shiftType": return <ShiftTypeMaster {...common} />;
       case "shiftAssignment": return <ShiftAssignmentMaster {...common} />;
       case "biometricDevice": return <BiometricDeviceMaster {...common} />;
       case "punches": return <BiometricPunchMaster {...common} />;
-      // case "holidayPlan": return <HolidayPlanMaster {...common} />;
-      // case "holiday": return <HolidayMaster {...common} />;
-      // case "leaveType": return <LeaveTypeMaster {...common} />;
-      // case "leavePolicy": return <LeavePolicyManagement {...common} />;
-      // case "leaveAllocation": return <LeaveAllocation {...common} />;
+      case "holidayPlan": return <HolidayPlanMaster {...common} />;
+      case "leaveType": return <LeaveTypeMaster {...common} />;
+      case "leavePeriod": return <LeavePeriodMaster {...common} />;
+      case "leavePolicy": return <LeavePolicyManagement {...common} />;
+      case "leaveAllocation": return <LeaveAllocation {...common} />;
+      case "allotedLeave": return <AllotedLeaveMaster {...common} />;
       // case "leaveRequest": return <LeaveRequestManagement {...common} />;
       // case "leaveApproval": return <LeaveApproval {...common} />;
       // case "leaveHistory": return <LeaveRequestHistory {...common} />;
@@ -308,7 +312,7 @@ const AdminDashboard = () => {
       // case "statutory": return <StatutoryReports {...common} />;
       // default: return renderDashboard();
     }
-  };
+  };  
 
   return (
     <div className="min-h-screen bg-slate-50 flex">

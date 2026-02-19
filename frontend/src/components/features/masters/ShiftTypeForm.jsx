@@ -176,7 +176,7 @@ export default function ShiftTypeForm({
     if (halfDayHours >= absentHours) {
       return toast.error("Half day hours must be less than absent hours threshold");
     }
-    if (form.autoMarkAbsentIfNoCheckIn && !form.requireCheckIn) {
+    if (form.autoMarkAbsentIfNoCheckIn && !form.requireCheckIn) { 
       return toast.error("Cannot auto-mark absent if check-in is not required");
     }
     if (!Array.isArray(form.weeklyOff) || form.weeklyOff.length === 0) {

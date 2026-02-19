@@ -2,6 +2,7 @@
 .env
 node_modules/
 **/node_modules/
+**/scripts/
 
 # Logs
 npm-debug.log*

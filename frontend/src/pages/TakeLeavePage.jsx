@@ -1,281 +1,268 @@
-// import React, { useState, useEffect} from "react";
-// import { FileText, User, Calendar, Plus } from "lucide-react";
-// import axios from "axios";
-// import dayjs from "dayjs";
-// import Swal from "sweetalert2";
-// import { toast } from "react-toastify";
-// import {jwtDecode} from "jwt-decode";
+import React, { useEffect, useMemo, useState } from 'react';
+import { Calendar, FileText, Plus, User } from 'lucide-react';
+import Swal from 'sweetalert2';
+import API from '../api';
 
-// let token = sessionStorage.getItem("token");
-// let decoded = token ? jwtDecode(token) : "";
-// let userNumber = decoded.userNumber;
+const initialForm = (empId) => ({
+  staffId: empId || '',
+  leaveTypeId: '',
+  reason: '',
+  startDate: '',
+  endDate: '',
+});
 
+const toNumber = (value) => Number.parseFloat(value || 0);
 
-// const TakeLeavePage = ({ empId, companyId, departmentId }) => {
-//   const [leaveTypes, setLeaveTypes] = useState([]);
-//   const [allocation, setAllocation] = useState(null);
-//   const [requestedDays, setRequestedDays] = useState(0);
-//   const [formData, setFormData] = useState({
-//     employeeNumber: empId || "",
-//     leaveTypeId: "",
-//     reason: "",
-//     fromDate: "",
-//     toDate: ""
-//   });
+const calculateRequestedDays = (startDate, endDate) => {
+  if (!startDate || !endDate) return 0;
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  if (end < start) return 0;
+  const ms = end.getTime() - start.getTime();
+  return Math.floor(ms / (24 * 60 * 60 * 1000)) + 1;
+};
 
-//   useEffect(() => {
-//     token = sessionStorage.getItem("token");
-//     decoded = token ? jwtDecode(token) : "";
-//     userNumber = decoded?.userNumber;
-//   }, []);
+const getRemainingBalance = (allocation) => {
+  if (!allocation) return 0;
 
-//   // Fetch leave types filtered by companyId
-//   useEffect(() => {
-//     const fetchLeaveTypes = async () => {
-//       try {
-//         const url = companyId
-//           ? `http://localhost:5000/api/leavetypes?companyId=${companyId}`
-//           : "http://localhost:5000/api/leavetypes";
-//         const res = await axios.get(url);
-//         setLeaveTypes(res.data || []);
-//       } catch (err) {
-//         console.error("❌ Error fetching leave types:", err.response?.data?.error || err.message);
-//         setLeaveTypes([]);
-//         Swal.fire({
-//           icon: "error",
-//           title: "Error",
-//           text: "Failed to fetch leave types. Please try again.",
-//         });
-//       }
-//     };
-//     fetchLeaveTypes();
-//   }, [companyId]);
+  return (
+    toNumber(allocation.carryForwardFromPrevious) +
+    toNumber(allocation.totalAccruedTillDate) -
+    toNumber(allocation.usedLeaves)
+  );
+};
 
-//   // Calculate leave period based on month
-//   const getLeavePeriod = (date) => {
-//     if (!date) return "";
-//     const year = dayjs(date).year();
-//     const month = dayjs(date).month() + 1; // 0-based
-//     return month >= 6 ? `${year}-${year + 1}` : `${year - 1}-${year}`;
-//   };
+export default function TakeLeavePage({ empId, companyId }) {
+  const [leaveTypes, setLeaveTypes] = useState([]);
+  const [allocation, setAllocation] = useState(null);
+  const [formData, setFormData] = useState(initialForm(empId));
+  const [loading, setLoading] = useState(false);
 
-//   // Fetch allocation whenever leaveType or dates change
-//   useEffect(() => {
-//     const fetchAllocation = async () => {
-//       if (!formData.leaveTypeId || !formData.fromDate) return;
-//       try {
-//         const period = getLeavePeriod(formData.fromDate);
-//         const res = await axios.get("http://localhost:5000/api/leaveAllocations", {
-//           params: {
-//             employeeNumber: empId,
-//             leaveTypeId: formData.leaveTypeId,
-//             leavePeriod: period
-//           }
-//         });
-//         console.log("Allocation data:", res.data);
-//         setAllocation(res.data[0] || null);
-//       } catch (err) {
-//         console.error("❌ Error fetching allocation:", err.response?.data?.error || err.message);
-//         setAllocation(null);
-//       }
-//     };
-//     fetchAllocation();
-//   }, [formData.leaveTypeId, formData.fromDate, formData.toDate, empId]);
+  useEffect(() => {
+    setFormData((prev) => ({ ...prev, staffId: empId || '' }));
+  }, [empId]);
 
-//   // Handle input changes
-//   const handleChange = (e) => {
-//     setFormData({ ...formData, [e.target.name]: e.target.value });
-//   };
+  useEffect(() => {
+    const loadLeaveTypes = async () => {
+      try {
+        const params = {
+          status: 'Active',
+          ...(companyId ? { companyId } : {}),
+        };
+        const res = await API.get('/leaveTypes', { params });
+        setLeaveTypes(res.data || []);
+      } catch (err) {
+        console.error('Error loading leave types:', err);
+        setLeaveTypes([]);
+      }
+    };
 
-//   // Calculate requested days
-//   const calculateDays = (fromDate, toDate) => {
-//     if (!fromDate || !toDate) return 0;
-//     const start = dayjs(fromDate);
-//     const end = dayjs(toDate);
-//     const diff = end.diff(start, "day") + 1;
-//     return diff > 0 ? diff : 0;
-//   };
+    loadLeaveTypes();
+  }, [companyId]);
 
-//   // Update requestedDays whenever from/to dates change
-//   useEffect(() => {
-//     setRequestedDays(calculateDays(formData.fromDate, formData.toDate));
-//   }, [formData.fromDate, formData.toDate]);
+  useEffect(() => {
+    const loadAllocation = async () => {
+      if (!formData.staffId || !formData.leaveTypeId) {
+        setAllocation(null);
+        return;
+      }
 
-//   // Handle form submit
-//   const handleSubmit = async (e) => {
-//     e.preventDefault();
-//     const { leaveTypeId, fromDate, toDate, reason } = formData;
+      try {
+        const params = {
+          staffId: formData.staffId,
+          leaveTypeId: formData.leaveTypeId,
+          ...(companyId ? { companyId } : {}),
+          status: 'Active',
+        };
 
-//     // Validate dates
-//     if (dayjs(toDate).isBefore(dayjs(fromDate))) {
-//       return Swal.fire({
-//         icon: "error",
-//         title: "Invalid Dates",
-//         text: "To Date cannot be earlier than From Date"
-//       });
-//     }
+        const res = await API.get('/leaveAllocations', { params });
+        setAllocation((res.data || [])[0] || null);
+      } catch (err) {
+        console.error('Error loading allocation:', err);
+        setAllocation(null);
+      }
+    };
 
-//     // Validate leave balance
-//     if (!allocation || requestedDays > allocation.balance) {
-//       return Swal.fire({
-//         icon: "warning",
-//         title: "Insufficient Balance",
-//         text: "Not enough leave balance available."
-//       });
-//     }
+    loadAllocation();
+  }, [companyId, formData.staffId, formData.leaveTypeId]);
 
-//     try {
-//       await axios.post("http://localhost:5000/api/leaves", {
-//         employeeNumber: empId,
-//         leaveTypeId,
-//         startDate: fromDate,
-//         endDate: toDate,
-//         reason,
-//         departmentId, // Added
-//         companyId,
-//         status: "Pending",
-//         createdBy: empId
-//       });
+  const requestedDays = useMemo(
+    () => calculateRequestedDays(formData.startDate, formData.endDate),
+    [formData.endDate, formData.startDate]
+  );
 
-//       Swal.fire({
-//         icon: "success",
-//         title: "Success",
-//         text: "Leave request submitted successfully!"
-//       });
-//       setFormData({ ...formData, leaveTypeId: "", reason: "", fromDate: "", toDate: "" });
-//       setRequestedDays(0);
-//       setAllocation(null);
-//     } catch (err) {
-//       console.error("❌ Error submitting leave request:", err.response?.data?.error || err.message);
-//       Swal.fire({
-//         icon: "error",
-//         title: "Error",
-//         text: "Failed to submit leave request. Try again."
-//       });
-//     }
-//   };
+  const remainingBalance = useMemo(() => getRemainingBalance(allocation), [allocation]);
 
-//   return (
-//     <div className="h-full bg-white p-6">
-//       <div className="max-w-2xl mx-auto">
-//         {/* Header */}
-//         <div className="flex items-center gap-3 mb-8">
-//           <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
-//             <FileText className="w-6 h-6 text-white" />
-//           </div>
-//           <div>
-//             <h1 className="text-3xl font-bold text-gray-900">Apply for Leave</h1>
-//             <p className="text-gray-600">Submit your leave request</p>
-//           </div>
-//         </div>
+  const handleChange = (e) => {
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
 
-//         {/* Leave Form */}
-//         <form onSubmit={handleSubmit} className="bg-white border border-gray-100 rounded-2xl p-8">
-//           <div className="space-y-6">
-//             {/* Employee Number */}
-//             <div>
-//               <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-//                 <User className="w-4 h-4 text-blue-600" /> Employee Number
-//               </label>
-//               <input
-//                 type="text"
-//                 value={formData.employeeNumber}
-//                 readOnly
-//                 className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-600"
-//               />
-//             </div>
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-//             {/* Leave Type */}
-//             <div>
-//               <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-//                 <FileText className="w-4 h-4 text-blue-600" /> Leave Type
-//               </label>
-//               <select
-//                 name="leaveTypeId"
-//                 value={formData.leaveTypeId}
-//                 onChange={handleChange}
-//                 required
-//                 className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-//               >
-//                 <option value="">-- Select Leave Type --</option>
-//                 {leaveTypes.map(type => (
-//                   <option key={type.leaveTypeId} value={type.leaveTypeId}>
-//                     {type.leaveTypeName}
-//                   </option>
-//                 ))}
-//               </select>
+    if (!formData.staffId || !formData.leaveTypeId || !formData.startDate || !formData.endDate || !formData.reason) {
+      Swal.fire('Missing fields', 'Please complete all required fields.', 'warning');
+      return;
+    }
 
-//               {/* Available Leaves */}
-//               {allocation && (
-//                 <p className={`mt-2 font-semibold ${requestedDays > allocation.balance ? 'text-red-600' : 'text-blue-700'}`}>
-//                   Available Leaves: {allocation.balance}
-//                   {requestedDays > allocation.balance && ' ⚠ Requested exceeds balance'}
-//                 </p>
-//               )}
-//             </div>
+    if (new Date(formData.endDate) < new Date(formData.startDate)) {
+      Swal.fire('Invalid dates', 'End date must be after start date.', 'warning');
+      return;
+    }
 
-//             {/* Reason */}
-//             <div>
-//               <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-//                 <FileText className="w-4 h-4 text-blue-600" /> Reason for Leave
-//               </label>
-//               <input
-//                 type="text"
-//                 name="reason"
-//                 value={formData.reason}
-//                 onChange={handleChange}
-//                 required
-//                 placeholder="Enter your reason for leave"
-//                 className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-//               />
-//             </div>
+    if (requestedDays <= 0) {
+      Swal.fire('Invalid duration', 'Requested days must be greater than zero.', 'warning');
+      return;
+    }
 
-//             {/* Dates */}
-//             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-//               <div>
-//                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-//                   <Calendar className="w-4 h-4 text-blue-600" /> From Date
-//                 </label>
-//                 <input
-//                   type="date"
-//                   name="fromDate"
-//                   value={formData.fromDate}
-//                   onChange={handleChange}
-//                   required
-//                   className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-//                 />
-//               </div>
-//               <div>
-//                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-//                   <Calendar className="w-4 h-4 text-blue-600" /> To Date
-//                 </label>
-//                 <input
-//                   type="date"
-//                   name="toDate"
-//                   value={formData.toDate}
-//                   onChange={handleChange}
-//                   required
-//                   className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-//                 />
-//               </div>
-//             </div>
+    if (!allocation) {
+      Swal.fire('No allocation', 'No active leave allocation found for selected leave type.', 'warning');
+      return;
+    }
 
-//             {/* Submit */}
-//             <button
-//               type="submit"
-//               className="w-full px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg flex items-center justify-center gap-2"
-//             >
-//               <Plus className="w-5 h-5" /> Submit Leave Request
-//             </button>
-//           </div>
-//         </form>
-//       </div>
-//     </div>
-//   );
-// };
+    if (requestedDays > remainingBalance) {
+      Swal.fire('Insufficient balance', 'Requested days exceed available leave balance.', 'warning');
+      return;
+    }
 
-// export default TakeLeavePage;
+    const payload = {
+      staffId: Number(formData.staffId),
+      leaveTypeId: Number(formData.leaveTypeId),
+      leaveAllocationId: allocation.leaveAllocationId,
+      companyId: Number(companyId || allocation.companyId),
+      startDate: formData.startDate,
+      endDate: formData.endDate,
+      totalDays: requestedDays,
+      leaveCategory: 'Full Day',
+      reason: formData.reason,
+      status: 'Pending',
+      currentApprovalLevel: 1,
+    };
 
-export default function TakeLeavePage() {
-    return <></>;
+    setLoading(true);
+    try {
+      await API.post('/leaveRequests', payload);
+      Swal.fire('Submitted', 'Leave request submitted successfully.', 'success');
+      setFormData(initialForm(empId));
+      setAllocation(null);
+    } catch (err) {
+      const msg = err.response?.data?.error || err.response?.data?.message || 'Failed to submit leave request';
+      Swal.fire('Error', String(msg), 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="h-full bg-white p-6">
+      <div className="max-w-2xl mx-auto">
+        <div className="flex items-center gap-3 mb-8">
+          <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
+            <FileText className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Apply for Leave</h1>
+            <p className="text-gray-600">Submit your leave request</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="bg-white border border-gray-100 rounded-2xl p-8 space-y-6">
+          <div>
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+              <User className="w-4 h-4 text-blue-600" /> Staff ID
+            </label>
+            <input
+              type="text"
+              name="staffId"
+              value={formData.staffId}
+              onChange={handleChange}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-600"
+              readOnly
+            />
+          </div>
+
+          <div>
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+              <FileText className="w-4 h-4 text-blue-600" /> Leave Type
+            </label>
+            <select
+              name="leaveTypeId"
+              value={formData.leaveTypeId}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            >
+              <option value="">Select leave type</option>
+              {leaveTypes.map((type) => (
+                <option key={type.leaveTypeId} value={type.leaveTypeId}>
+                  {type.name}
+                </option>
+              ))}
+            </select>
+
+            {allocation && (
+              <p className={`mt-2 text-sm font-semibold ${requestedDays > remainingBalance ? 'text-red-600' : 'text-blue-700'}`}>
+                Available balance: {remainingBalance.toFixed(2)}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+              <FileText className="w-4 h-4 text-blue-600" /> Reason
+            </label>
+            <textarea
+              name="reason"
+              value={formData.reason}
+              onChange={handleChange}
+              required
+              rows={3}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              placeholder="Enter reason for leave"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                <Calendar className="w-4 h-4 text-blue-600" /> Start Date
+              </label>
+              <input
+                type="date"
+                name="startDate"
+                value={formData.startDate}
+                onChange={handleChange}
+                required
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+            </div>
+
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                <Calendar className="w-4 h-4 text-blue-600" /> End Date
+              </label>
+              <input
+                type="date"
+                name="endDate"
+                value={formData.endDate}
+                onChange={handleChange}
+                required
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+            </div>
+          </div>
+
+          <p className="text-sm text-slate-600">Requested days: <span className="font-semibold">{requestedDays}</span></p>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full px-8 py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg flex items-center justify-center gap-2"
+          >
+            <Plus className="w-5 h-5" /> {loading ? 'Submitting...' : 'Submit Leave Request'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
 }

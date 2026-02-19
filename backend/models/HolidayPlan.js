@@ -23,20 +23,6 @@ export default (sequelize) => {
       allowNull: false,
     },
 
-    weeklyOff: {
-      type: DataTypes.TEXT,
-      allowNull: false,
-      defaultValue: JSON.stringify({ sunday: true, saturday: false }),
-      get() {
-        const raw = this.getDataValue('weeklyOff');
-        return raw ? JSON.parse(raw) : { sunday: true, saturday: false };
-      },
-      set(value) {
-        this.setDataValue('weeklyOff', JSON.stringify(value));
-      },
-      comment: 'JSON object defining weekly offs (e.g. { sunday: true, saturday: false })',
-    },
-
     status: {
       type: DataTypes.ENUM('Active', 'Inactive'),
       allowNull: false,

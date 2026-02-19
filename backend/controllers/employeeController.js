@@ -1,13 +1,29 @@
 import db from '../models/index.js';
 const { Employee } = db;
+
+const buildWhere = (query = {}) => {
+  const where = {};
+  if (query.staffId) where.staffId = query.staffId;
+  if (query.designationId) where.designationId = query.designationId;
+  if (query.employeeGradeId) where.employeeGradeId = query.employeeGradeId;
+  if (query.status) where.status = query.status;
+  return where;
+};
+
 // Get all employees
 export const getAllEmployees = async (req, res) => {
   try {
+    const companyFilter = req.query.companyId
+      ? { where: { companyId: req.query.companyId }, required: true }
+      : { required: false };
+
     const employees = await Employee.findAll({
+      where: buildWhere(req.query),
       include: [
-        { model: db.Department, as: 'department' },
-        { model: db.Designation, as: 'designation' },
-      ]
+        { model: db.Department, as: 'department', ...companyFilter },
+        { model: db.Designation, as: 'designation', required: false },
+      ],
+      order: [['staffId', 'DESC']],
     });
     res.json(employees);
   } catch (error) {
