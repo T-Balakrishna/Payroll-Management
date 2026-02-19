@@ -158,23 +158,25 @@ export const getAllBiometricPunches = async (req, res) => {
   }
 };
 
-// Get single biometric punch by ID
-export const getBiometricPunchById = async (req, res) => {
+// Get biometric punches by staff ID
+export const getBiometricPunchByStaffId = async (req, res) => {
   try {
-    const biometricPunch = await BiometricPunch.findByPk(req.params.id, {
+    const biometricPunches = await BiometricPunch.findAll({
+      where: { staffId: req.params.id },
       include: [
         { model: db.Employee,       as: 'employee' },
         { model: db.BiometricDevice, as: 'device' },
         { model: db.Company,        as: 'company' },
         { model: db.User,           as: 'creator' },
-      ]
+      ],
+      order: [["punchTimestamp", "DESC"]],
     });
 
-    if (!biometricPunch) {
-      return res.status(404).json({ message: 'Biometric punch record not found' });
+    if (!biometricPunches || biometricPunches.length === 0) {
+      return res.status(404).json({ message: 'No biometric punch records found for this staffId' });
     }
 
-    res.json(biometricPunch);
+    res.json(biometricPunches);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

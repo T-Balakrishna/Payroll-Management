@@ -5,7 +5,7 @@ import * as biometricPunchController from '../controllers/biometricPunchControll
 // Frontend should call: /api/biometricPunches   (camelCase plural)
 router.get("/fetch", biometricPunchController.fetchPunches);
 router.get('/', biometricPunchController.getAllBiometricPunches);
-router.get('/:id', biometricPunchController.getBiometricPunchById);
+router.get('/:id', biometricPunchController.getBiometricPunchByStaffId);
 router.post('/', biometricPunchController.createBiometricPunch);
 router.put('/:id', biometricPunchController.updateBiometricPunch);
 router.delete('/:id', biometricPunchController.deleteBiometricPunch);
