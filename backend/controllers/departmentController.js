@@ -1,5 +1,5 @@
-import { Op } from 'sequelize';
 import db from '../models/index.js';
+import { resolveCompanyContext } from '../utils/companyScope.js';
 
 const { Department } = db;
 const normalizeStatus = (status) => {
@@ -81,8 +81,17 @@ export const getDepartmentById = async (req, res) => {
  */
 export const createDepartment = async (req, res) => {
   try {
+    const companyContext = await resolveCompanyContext(req, {
+      requireCompanyId: true,
+      payloadCompanyId: req.body?.companyId,
+    });
+    if (!companyContext.ok) {
+      return res.status(companyContext.status).json({ error: companyContext.message });
+    }
+
     const payload = {
       ...req.body,
+      companyId: companyContext.effectiveCompanyId,
       status: normalizeStatus(req.body?.status),
     };
     const department = await Department.create(payload);
@@ -98,13 +107,32 @@ export const createDepartment = async (req, res) => {
  */
 export const updateDepartment = async (req, res) => {
   try {
+    const hasCompanyIdInPayload = Object.prototype.hasOwnProperty.call(req.body || {}, 'companyId');
+    const companyContext = await resolveCompanyContext(req, {
+      requireCompanyId: false,
+      payloadCompanyId: hasCompanyIdInPayload ? req.body.companyId : undefined,
+    });
+    if (!companyContext.ok) {
+      return res.status(companyContext.status).json({ error: companyContext.message });
+    }
+
     const payload = {
       ...req.body,
       ...(req.body?.status ? { status: normalizeStatus(req.body.status) } : {}),
     };
+    if (companyContext.actor && !companyContext.isSuperAdmin) {
+      delete payload.companyId;
+    } else if (hasCompanyIdInPayload && !companyContext.requestedCompanyId) {
+      return res.status(400).json({ error: 'companyId must be a positive integer when provided' });
+    }
 
     const [affectedCount] = await Department.update(payload, {
-      where: { departmentId: req.params.id }
+      where: {
+        departmentId: req.params.id,
+        ...(companyContext.actor && !companyContext.isSuperAdmin
+          ? { companyId: companyContext.effectiveCompanyId }
+          : {}),
+      }
     });
 
     if (affectedCount === 0) {

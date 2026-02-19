@@ -7,6 +7,15 @@ export default (sequelize) => {
     departmentId: { type: DataTypes.INTEGER, allowNull: true, references: { model:"departments", key: 'departmentId' } },
     batch: { type: DataTypes.INTEGER },
     semester: { type: DataTypes.STRING(255) },
+     companyId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'companies',
+        key: 'companyId',
+      },
+      onDelete: 'CASCADE',
+    },
     staffId: {
       type: DataTypes.INTEGER,
       allowNull: true,

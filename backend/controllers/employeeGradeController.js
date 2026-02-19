@@ -1,5 +1,20 @@
 import db from '../models/index.js';
+import { resolveCompanyContext } from '../utils/companyScope.js';
 const { EmployeeGrade, Company } = db;
+
+const formatSequelizeError = (error) => {
+  if (!error) return 'Operation failed';
+  if (error.name === 'SequelizeUniqueConstraintError') {
+    return 'Employee grade already exists in this company';
+  }
+  if (error.name === 'SequelizeValidationError') {
+    return error.errors?.map((e) => e.message).join(', ') || 'Validation error';
+  }
+  if (error.name === 'SequelizeForeignKeyConstraintError') {
+    return 'Invalid companyId or user reference';
+  }
+  return error.message || 'Operation failed';
+};
 // Get all employee grades
 export const getAllEmployeeGrades = async (req, res) => {
   try {
@@ -38,18 +53,52 @@ export const getEmployeeGradeById = async (req, res) => {
 // Create new employee grade
 export const createEmployeeGrade = async (req, res) => {
   try {
-    const employeeGrade = await EmployeeGrade.create(req.body);
+    const companyContext = await resolveCompanyContext(req, {
+      requireCompanyId: true,
+      payloadCompanyId: req.body?.companyId,
+    });
+    if (!companyContext.ok) {
+      return res.status(companyContext.status).json({ error: companyContext.message });
+    }
+
+    const payload = {
+      ...req.body,
+      companyId: companyContext.effectiveCompanyId,
+    };
+    const employeeGrade = await EmployeeGrade.create(payload);
     res.status(201).json(employeeGrade);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    const statusCode = error.name?.startsWith('Sequelize') ? 400 : 500;
+    res.status(statusCode).json({ error: formatSequelizeError(error) });
   }
 };
 
 // Update employee grade
 export const updateEmployeeGrade = async (req, res) => {
   try {
-    const [updated] = await EmployeeGrade.update(req.body, {
-      where: { employeeGradeId: req.params.id },
+    const hasCompanyIdInPayload = Object.prototype.hasOwnProperty.call(req.body || {}, 'companyId');
+    const companyContext = await resolveCompanyContext(req, {
+      requireCompanyId: false,
+      payloadCompanyId: hasCompanyIdInPayload ? req.body.companyId : undefined,
+    });
+    if (!companyContext.ok) {
+      return res.status(companyContext.status).json({ error: companyContext.message });
+    }
+
+    const payload = { ...req.body };
+    if (companyContext.actor && !companyContext.isSuperAdmin) {
+      delete payload.companyId;
+    } else if (hasCompanyIdInPayload && !companyContext.requestedCompanyId) {
+      return res.status(400).json({ error: 'companyId must be a positive integer when provided' });
+    }
+
+    const [updated] = await EmployeeGrade.update(payload, {
+      where: {
+        employeeGradeId: req.params.id,
+        ...(companyContext.actor && !companyContext.isSuperAdmin
+          ? { companyId: companyContext.effectiveCompanyId }
+          : {}),
+      },
     });
 
     if (!updated) {
@@ -59,7 +108,8 @@ export const updateEmployeeGrade = async (req, res) => {
     const employeeGrade = await EmployeeGrade.findByPk(req.params.id);
     res.json(employeeGrade);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    const statusCode = error.name?.startsWith('Sequelize') ? 400 : 500;
+    res.status(statusCode).json({ error: formatSequelizeError(error) });
   }
 };
 

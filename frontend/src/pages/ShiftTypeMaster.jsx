@@ -16,6 +16,18 @@ const toDisplayTime = (value) => {
   if (!raw) return "--";
   return raw.slice(0, 5);
 };
+const toDisplayWeeklyOff = (value) => {
+  let days = value;
+  if (typeof days === "string") {
+    try {
+      days = JSON.parse(days);
+    } catch {
+      days = [];
+    }
+  }
+  if (!Array.isArray(days) || days.length === 0) return "--";
+  return days.map((day) => String(day).slice(0, 1).toUpperCase() + String(day).slice(1)).join(", ");
+};
 
 export default function ShiftTypeMaster({ userRole, selectedCompanyId, selectedCompanyName }) {
   const { user } = useAuth();
@@ -69,7 +81,6 @@ export default function ShiftTypeMaster({ userRole, selectedCompanyId, selectedC
         if (!q) return true;
         return (
           s.name?.toLowerCase().includes(q) ||
-          s.status?.toLowerCase().includes(q) ||
           s.workingHoursCalculation?.toLowerCase().includes(q)
         );
       }),
@@ -144,8 +155,8 @@ export default function ShiftTypeMaster({ userRole, selectedCompanyId, selectedC
         columns={[
           "Name",
           "Shift Time",
+          "Weekly Off",
           "Working Hours Calculation",
-          "Status",
           ...(!selectedCompanyId ? ["Company"] : []),
           "Actions",
         ]}
@@ -154,8 +165,8 @@ export default function ShiftTypeMaster({ userRole, selectedCompanyId, selectedC
           <tr key={s.shiftTypeId} className="border-t hover:bg-gray-50">
             <td className="py-3 px-4">{s.name}</td>
             <td className="py-3 px-4">{`${toDisplayTime(s.startTime)} - ${toDisplayTime(s.endTime)}`}</td>
+            <td className="py-3 px-4">{toDisplayWeeklyOff(s.weeklyOff)}</td>
             <td className="py-3 px-4">{s.workingHoursCalculation}</td>
-            <td className="py-3 px-4">{s.status}</td>
             {!selectedCompanyId && <td className="py-3 px-4">{getCompanyAcronym(s.companyId)}</td>}
             <td className="py-3 px-4">
               <ActionButtons

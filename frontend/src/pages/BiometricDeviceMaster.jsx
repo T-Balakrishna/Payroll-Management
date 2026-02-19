@@ -62,8 +62,7 @@ export default function BiometricDeviceMaster({ userRole, selectedCompanyId, sel
         (d) =>
           d.name?.toLowerCase().includes(search.trim().toLowerCase()) ||
           d.deviceIp?.toLowerCase().includes(search.trim().toLowerCase()) ||
-          d.location?.toLowerCase().includes(search.trim().toLowerCase()) ||
-          d.status?.toLowerCase().includes(search.trim().toLowerCase())
+          d.location?.toLowerCase().includes(search.trim().toLowerCase())
       ),
     [devices, search]
   );
@@ -137,7 +136,6 @@ export default function BiometricDeviceMaster({ userRole, selectedCompanyId, sel
           "Name",
           "IP",
           "Location",
-          "Status",
           "Auto Sync",
           ...(!selectedCompanyId ? ["Company"] : []),
           "Actions",
@@ -148,7 +146,6 @@ export default function BiometricDeviceMaster({ userRole, selectedCompanyId, sel
             <td className="py-3 px-4">{d.name}</td>
             <td className="py-3 px-4">{d.deviceIp}</td>
             <td className="py-3 px-4">{d.location}</td>
-            <td className="py-3 px-4">{d.status}</td>
             <td className="py-3 px-4">{d.isAutoSyncEnabled ? "Enabled" : "Disabled"}</td>
             {!selectedCompanyId && <td className="py-3 px-4">{getCompanyAcronym(d.companyId)}</td>}
             <td className="py-3 px-4">

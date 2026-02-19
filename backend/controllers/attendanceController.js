@@ -47,6 +47,50 @@ const normalizeRecurringDays = (value) => {
   return [];
 };
 
+const WEEKLY_OFF_DAY_INDEX = {
+  sunday: 0,
+  monday: 1,
+  tuesday: 2,
+  wednesday: 3,
+  thursday: 4,
+  friday: 5,
+  saturday: 6,
+};
+
+const normalizeWeeklyOffDays = (value) => {
+  if (!value) return [];
+
+  let parsed = value;
+  if (typeof parsed === "string") {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch {
+      parsed = [];
+    }
+  }
+
+  if (Array.isArray(parsed)) {
+    return [...new Set(
+      parsed
+        .map((day) => String(day || "").trim().toLowerCase())
+        .filter((day) => Object.prototype.hasOwnProperty.call(WEEKLY_OFF_DAY_INDEX, day))
+    )];
+  }
+
+  if (typeof parsed === "object" && parsed) {
+    return Object.keys(WEEKLY_OFF_DAY_INDEX).filter((day) => Boolean(parsed[day]));
+  }
+
+  return [];
+};
+
+const isDateWeeklyOffByShift = (dateOnly, weeklyOffDays) => {
+  const dt = new Date(`${dateOnly}T00:00:00`);
+  if (Number.isNaN(dt.getTime())) return false;
+  const dayIndex = dt.getDay();
+  return weeklyOffDays.some((day) => WEEKLY_OFF_DAY_INDEX[day] === dayIndex);
+};
+
 const getMonthBounds = (dateOnly) => {
   const d = new Date(`${dateOnly}T00:00:00`);
   const start = new Date(d.getFullYear(), d.getMonth(), 1);
@@ -90,6 +134,7 @@ const ensureShiftTypeForSeed = async (companyId) => {
       earlyExitPeriod: 15,
       halfDayHours: 4,
       absentHours: 6,
+      weeklyOff: ["sunday"],
       companyId,
       status: "Active",
     });
@@ -195,8 +240,12 @@ const seedOneMonthPunchesForTest = async ({ month, companyId, staffId }) => {
     const dateOnly = toDateOnly(d);
     const dow = d.getDay();
     const day = d.getDate();
+    const weeklyOffDays = normalizeWeeklyOffDays(shiftType?.weeklyOff);
+    const weeklyOffIndexes = new Set(
+      weeklyOffDays.map((name) => WEEKLY_OFF_DAY_INDEX[name]).filter((i) => Number.isInteger(i))
+    );
 
-    if (dow === 0 || dateOnly === holidayDate) continue; // weekly off + holiday
+    if (weeklyOffIndexes.has(dow) || dateOnly === holidayDate) continue; // weekly off + holiday
     const pattern = day % 5;
     if (pattern === 0) continue; // absent day
 
@@ -581,8 +630,6 @@ export const processPunchesToAttendance = async (req, res) => {
         const punchKey = `${emp.staffId}::${dateOnly}`;
         const dayPunches = punchMap.get(punchKey) || [];
 
-        if (!includeAbsent && dayPunches.length === 0) continue;
-
         const selectedAssignment =
           empAssignments
             .filter((a) => isAssignmentApplicable(a, dateOnly))
@@ -603,7 +650,10 @@ export const processPunchesToAttendance = async (req, res) => {
 
         const holiday = holidayMap.get(dateOnly);
         const isHoliday = Boolean(holiday && holiday.type !== "Week Off");
-        const isWeekOff = Boolean(holiday?.type === "Week Off");
+        const shiftWeeklyOffDays = normalizeWeeklyOffDays(shiftType?.weeklyOff);
+        const isShiftWeeklyOff = isDateWeeklyOffByShift(dateOnly, shiftWeeklyOffDays);
+        const isWeekOff = Boolean(holiday?.type === "Week Off" || isShiftWeeklyOff);
+        if (!includeAbsent && dayPunches.length === 0 && !isHoliday && !isWeekOff) continue;
 
         const firstPunch = dayPunches[0] || null;
         const lastPunch = dayPunches.length > 0 ? dayPunches[dayPunches.length - 1] : null;

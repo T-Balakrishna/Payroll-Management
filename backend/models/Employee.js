@@ -17,6 +17,15 @@ export default (sequelize) => {
       unique: true,
       comment: 'Biometric ID / Enrollment Number from device',
     },
+     companyId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'companies',
+        key: 'companyId',
+      },
+      onDelete: 'CASCADE',
+    },
 
     staffNumber: {
       type: DataTypes.STRING,
@@ -256,5 +265,50 @@ export default (sequelize) => {
       }
     }
   });
- return Employee;
+
+  Employee.associate = (models) => {
+    Employee.belongsTo(models.User, {
+      foreignKey: 'staffNumber',
+      targetKey: 'userNumber',
+      as: 'user',
+    });
+
+    Employee.belongsTo(models.Department, {
+      foreignKey: 'departmentId',
+      as: 'department',
+    });
+
+    Employee.belongsTo(models.Designation, {
+      foreignKey: 'designationId',
+      as: 'designation',
+    });
+
+    Employee.belongsTo(models.EmployeeGrade, {
+      foreignKey: 'employeeGradeId',
+      as: 'employeeGrade',
+    });
+
+    Employee.belongsTo(models.ShiftType, {
+      foreignKey: 'shiftTypeId',
+      as: 'shiftType',
+    });
+
+    Employee.hasMany(models.ShiftAssignment, {
+      foreignKey: 'staffId',
+      sourceKey: 'staffId',
+      as: 'shiftAssignments',
+    });
+
+    Employee.belongsTo(models.User, {
+      foreignKey: 'createdBy',
+      as: 'creator',
+    });
+
+    Employee.belongsTo(models.User, {
+      foreignKey: 'updatedBy',
+      as: 'updater',
+    });
+  };
+
+  return Employee;
 };
