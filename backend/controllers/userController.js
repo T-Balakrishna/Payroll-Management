@@ -1,5 +1,6 @@
 import db from '../models/index.js';
-import bcrypt from 'bcryptjs';
+import { hashPassword } from '../utils/password.js';
+import { resolveCompanyContext } from '../utils/companyScope.js';
 const { User, Role, StudentDetails, Employee, Company, Department } = db;
 
 const normalizeRoleName = (value = '') => value.toLowerCase().replace(/[\s-]/g, '');
@@ -85,39 +86,71 @@ export const createUser = async (req, res) => {
       return res.status(400).json({ error: 'Invalid roleId' });
     }
 
-    const hashedPassword = await bcrypt.hash(req.body.password, 10);
+    const companyContext = await resolveCompanyContext(req, {
+      requireCompanyId: true,
+      payloadCompanyId: req.body?.companyId,
+    });
+    if (!companyContext.ok) {
+      await transaction.rollback();
+      return res.status(companyContext.status).json({ error: companyContext.message });
+    }
+    const effectiveCompanyId = companyContext.effectiveCompanyId;
+
+    const hashedPassword = await hashPassword(req.body.password);
     const userPayload = {
       ...req.body,
+      companyId: effectiveCompanyId,
       password: hashedPassword,
     };
 
     const user = await User.create(userPayload, { transaction });
     const normalizedRole = normalizeRoleName(role.roleName);
 
-    if (normalizedRole === 'student') {
-      await StudentDetails.create({
-        studentName: user.userName || user.userNumber,
-        registerNumber: user.userNumber,
-        departmentId: user.departmentId || null,
-        createdBy: user.createdBy || null,
-        updatedBy: user.updatedBy || null,
-      }, { transaction });
-    }
+    const { firstName, lastName } = splitNameParts(user.userName || user.userNumber);
+    const isStudentRole = normalizedRole === 'student';
+    const fallbackStatus = STAFF_ROLE_KEYS.has(normalizedRole) || isStudentRole ? 'Active' : 'Inactive';
 
-    if (STAFF_ROLE_KEYS.has(normalizedRole)) {
-      const { firstName, lastName } = splitNameParts(user.userName || user.userNumber);
-
-      await Employee.create({
+    const [employee] = await Employee.findOrCreate({
+      where: { staffNumber: user.userNumber },
+      defaults: {
         staffNumber: user.userNumber,
+        companyId: effectiveCompanyId,
         departmentId: user.departmentId || 1,
         firstName: firstName || user.userNumber,
         lastName: lastName || null,
         personalEmail: user.userMail,
         officialEmail: user.userMail,
         dateOfJoining: new Date(),
+        status: fallbackStatus,
+        employmentStatus: 'Active',
         createdBy: user.createdBy || null,
         updatedBy: user.updatedBy || null,
-      }, { transaction });
+      },
+      transaction,
+    });
+
+    if (isStudentRole) {
+      const [student] = await StudentDetails.findOrCreate({
+        where: { registerNumber: user.userNumber },
+        defaults: {
+          studentName: user.userName || user.userNumber,
+          registerNumber: user.userNumber,
+          departmentId: user.departmentId || null,
+          companyId: user.companyId || null,
+          staffId: employee?.staffId || null,
+          createdBy: user.createdBy || null,
+          updatedBy: user.updatedBy || null,
+        },
+        transaction,
+      });
+
+      if (student && !student.staffId && employee?.staffId) {
+        await student.update({ staffId: employee.staffId }, { transaction });
+      }
+    }
+
+    if (employee && !employee.companyId) {
+      await employee.update({ companyId: effectiveCompanyId }, { transaction });
     }
 
     await transaction.commit();
@@ -133,9 +166,24 @@ export const updateUser = async (req, res) => {
   try {
     const payload = { ...req.body };
 
+    const hasCompanyIdInPayload = Object.prototype.hasOwnProperty.call(payload, 'companyId');
+    const companyContext = await resolveCompanyContext(req, {
+      requireCompanyId: false,
+      payloadCompanyId: hasCompanyIdInPayload ? payload.companyId : undefined,
+    });
+    if (!companyContext.ok) {
+      return res.status(companyContext.status).json({ error: companyContext.message });
+    }
+
+    if (companyContext.actor && !companyContext.isSuperAdmin) {
+      payload.companyId = companyContext.effectiveCompanyId;
+    } else if (hasCompanyIdInPayload && !companyContext.requestedCompanyId) {
+      return res.status(400).json({ error: 'companyId must be a positive integer when provided' });
+    }
+
     if (typeof payload.password === 'string') {
       if (payload.password.trim()) {
-        payload.password = await bcrypt.hash(payload.password, 10);
+        payload.password = await hashPassword(payload.password);
       } else {
         delete payload.password;
       }

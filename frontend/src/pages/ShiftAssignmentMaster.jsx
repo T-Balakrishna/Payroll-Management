@@ -8,7 +8,11 @@ import { useAuth } from "../auth/AuthContext";
 const normalizeRole = (role) => String(role || "").replace(/\s+/g, "").toLowerCase();
 
 const getEmployeeCompanyId = (employee) =>
-  employee?.companyId ?? employee?.department?.companyId ?? employee?.Department?.companyId ?? null;
+  employee?.companyId ??
+  employee?.company?.companyId ??
+  employee?.department?.companyId ??
+  employee?.Department?.companyId ??
+  null;
 
 const getEmployeeDepartmentId = (employee) =>
   employee?.departmentId ?? employee?.department?.departmentId ?? employee?.Department?.departmentId ?? null;
@@ -18,6 +22,14 @@ const getEmployeeName = (employee) =>
 
 const getShiftName = (shiftTypeId, shiftTypes) =>
   shiftTypes.find((s) => String(s.shiftTypeId) === String(shiftTypeId))?.name || "--No Shift--";
+
+const getPersistedShiftTypeId = (staffId, existingAssignments, employees) => {
+  const fromAssignment = existingAssignments[String(staffId)]?.shiftTypeId;
+  if (fromAssignment) return Number(fromAssignment);
+
+  const employee = employees.find((e) => String(e.staffId) === String(staffId));
+  return employee?.shiftTypeId ? Number(employee.shiftTypeId) : "";
+};
 
 const getExperienceYears = (dateOfJoining) => {
   const raw = String(dateOfJoining || "").trim();
@@ -101,7 +113,13 @@ export default function ShiftAssignmentMaster({ userRole, selectedCompanyId, sel
     ]);
 
     if (deptResult.status === "fulfilled") setDepartments(deptResult.value.data || []);
-    if (employeeResult.status === "fulfilled") setEmployees(employeeResult.value.data || []);
+    if (employeeResult.status === "fulfilled") {
+      setEmployees(employeeResult.value.data || []);
+    } else {
+      console.error("Error fetching employees:", employeeResult.reason);
+      toast.error("Could not load employees");
+      setEmployees([]);
+    }
     if (shiftTypeResult.status === "fulfilled") {
       const data = shiftTypeResult.value.data || [];
       const filtered = selectedCompanyId
@@ -163,7 +181,11 @@ export default function ShiftAssignmentMaster({ userRole, selectedCompanyId, sel
 
   const availableEmployees = useMemo(() => {
     const byCompany = selectedCompanyId
-      ? employees.filter((emp) => String(getEmployeeCompanyId(emp)) === String(selectedCompanyId))
+      ? employees.filter((emp) => {
+          const employeeCompanyId = getEmployeeCompanyId(emp);
+          if (!employeeCompanyId) return true;
+          return String(employeeCompanyId) === String(selectedCompanyId);
+        })
       : employees;
 
     const activeOnly = byCompany.filter((emp) => {
@@ -171,9 +193,10 @@ export default function ShiftAssignmentMaster({ userRole, selectedCompanyId, sel
       return !statusValue || statusValue === "active";
     });
 
+    const selectedDeptSet = new Set(selectedDepts.map((id) => String(id)));
     const byDept =
-      selectedDepts.length > 0
-        ? activeOnly.filter((emp) => selectedDepts.includes(Number(getEmployeeDepartmentId(emp))))
+      selectedDeptSet.size > 0
+        ? activeOnly.filter((emp) => selectedDeptSet.has(String(getEmployeeDepartmentId(emp))))
         : activeOnly;
 
     return byDept;
@@ -240,7 +263,7 @@ export default function ShiftAssignmentMaster({ userRole, selectedCompanyId, sel
     setSelectedEmps((prev) => [...prev, staffId]);
     setAllocatedShifts((prev) => ({
       ...prev,
-      [staffId]: existingAssignments[String(staffId)]?.shiftTypeId || "",
+      [staffId]: getPersistedShiftTypeId(staffId, existingAssignments, employees),
     }));
   };
 
@@ -572,7 +595,11 @@ export default function ShiftAssignmentMaster({ userRole, selectedCompanyId, sel
                               setSelectedEmps(allIds);
                               const mapped = {};
                               allIds.forEach((staffId) => {
-                                mapped[staffId] = existingAssignments[String(staffId)]?.shiftTypeId || "";
+                                mapped[staffId] = getPersistedShiftTypeId(
+                                  staffId,
+                                  existingAssignments,
+                                  employees
+                                );
                               });
                               setAllocatedShifts(mapped);
                               return;
@@ -601,7 +628,9 @@ export default function ShiftAssignmentMaster({ userRole, selectedCompanyId, sel
                       const staffId = emp.staffId;
                       const isSelected = selectedEmps.includes(staffId);
                       const currentShiftId =
-                        allocatedShifts[staffId] || existingAssignments[String(staffId)]?.shiftTypeId || "";
+                        allocatedShifts[staffId] ||
+                        getPersistedShiftTypeId(staffId, existingAssignments, employees) ||
+                        "";
 
                       return (
                         <tr

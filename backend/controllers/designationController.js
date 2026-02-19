@@ -1,4 +1,5 @@
 import db from '../models/index.js';
+import { resolveCompanyContext } from '../utils/companyScope.js';
 const { Designation } = db;
 const normalizeStatus = (status) => {
   const value = String(status || '').trim().toLowerCase();
@@ -67,8 +68,17 @@ export const getDesignationById = async (req, res) => {
 // Create new designation
 export const createDesignation = async (req, res) => {
   try {
+    const companyContext = await resolveCompanyContext(req, {
+      requireCompanyId: true,
+      payloadCompanyId: req.body?.companyId,
+    });
+    if (!companyContext.ok) {
+      return res.status(companyContext.status).json({ error: companyContext.message });
+    }
+
     const payload = {
       ...req.body,
+      companyId: companyContext.effectiveCompanyId,
       status: normalizeStatus(req.body?.status),
     };
     const designation = await Designation.create(payload);
@@ -82,13 +92,32 @@ export const createDesignation = async (req, res) => {
 // Update designation
 export const updateDesignation = async (req, res) => {
   try {
+    const hasCompanyIdInPayload = Object.prototype.hasOwnProperty.call(req.body || {}, 'companyId');
+    const companyContext = await resolveCompanyContext(req, {
+      requireCompanyId: false,
+      payloadCompanyId: hasCompanyIdInPayload ? req.body.companyId : undefined,
+    });
+    if (!companyContext.ok) {
+      return res.status(companyContext.status).json({ error: companyContext.message });
+    }
+
     const payload = {
       ...req.body,
       ...(req.body?.status ? { status: normalizeStatus(req.body.status) } : {}),
     };
+    if (companyContext.actor && !companyContext.isSuperAdmin) {
+      delete payload.companyId;
+    } else if (hasCompanyIdInPayload && !companyContext.requestedCompanyId) {
+      return res.status(400).json({ error: 'companyId must be a positive integer when provided' });
+    }
 
     const [updated] = await Designation.update(payload, {
-      where: { designationId: req.params.id }
+      where: {
+        designationId: req.params.id,
+        ...(companyContext.actor && !companyContext.isSuperAdmin
+          ? { companyId: companyContext.effectiveCompanyId }
+          : {}),
+      }
     });
 
     if (!updated) {

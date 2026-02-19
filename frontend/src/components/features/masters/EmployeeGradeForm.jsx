@@ -76,11 +76,14 @@ export default function EmployeeGradeForm({
     const payload = {
       employeeGradeName: employeeGradeName.trim(),
       employeeGradeAcr: employeeGradeAcr.trim().toUpperCase(),
-      status: editData?.status || "Active",
       companyId: companyId || selectedCompanyId || 1,
       createdBy: editData?.createdBy || currentUserId,
       updatedBy: currentUserId,
     };
+
+    if (editData?.employeeGradeId && editData?.status) {
+      payload.status = editData.status;
+    }
 
     onSave(payload, editData?.employeeGradeId);
   };

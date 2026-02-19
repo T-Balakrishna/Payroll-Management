@@ -37,6 +37,42 @@ const parseMonthArg = (arg) => {
 };
 
 const atTime = (dateOnly, hhmmss) => new Date(`${dateOnly}T${hhmmss}`);
+const WEEKLY_OFF_DAY_INDEX = {
+  sunday: 0,
+  monday: 1,
+  tuesday: 2,
+  wednesday: 3,
+  thursday: 4,
+  friday: 5,
+  saturday: 6,
+};
+
+const normalizeWeeklyOffDays = (value) => {
+  if (!value) return [];
+
+  let parsed = value;
+  if (typeof parsed === "string") {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch {
+      parsed = [];
+    }
+  }
+
+  if (Array.isArray(parsed)) {
+    return [...new Set(
+      parsed
+        .map((day) => String(day || "").trim().toLowerCase())
+        .filter((day) => Object.prototype.hasOwnProperty.call(WEEKLY_OFF_DAY_INDEX, day))
+    )];
+  }
+
+  if (typeof parsed === "object" && parsed) {
+    return Object.keys(WEEKLY_OFF_DAY_INDEX).filter((day) => Boolean(parsed[day]));
+  }
+
+  return [];
+};
 
 async function ensureShiftType(companyId) {
   let shift = await ShiftType.findOne({
@@ -52,6 +88,7 @@ async function ensureShiftType(companyId) {
       earlyExitPeriod: 15,
       halfDayHours: 4,
       absentHours: 6,
+      weeklyOff: ["sunday"],
       companyId,
       status: "Active",
     });
@@ -192,6 +229,10 @@ async function main() {
   const holidayDate = toDateOnly(new Date(month.year, month.month - 1, 15));
 
   let inserted = 0;
+  const weeklyOffDays = normalizeWeeklyOffDays(shiftType?.weeklyOff);
+  const weeklyOffIndexes = new Set(
+    weeklyOffDays.map((name) => WEEKLY_OFF_DAY_INDEX[name]).filter((i) => Number.isInteger(i))
+  );
   for (
     let d = new Date(monthStartDate);
     d <= monthEndDate;
@@ -200,8 +241,8 @@ async function main() {
     const dateOnly = toDateOnly(d);
     const dow = d.getDay(); // 0=Sun
 
-    // Sunday weekly off and configured holiday => no punches
-    if (dow === 0 || dateOnly === holidayDate) continue;
+    // Shift weekly off and configured holiday => no punches
+    if (weeklyOffIndexes.has(dow) || dateOnly === holidayDate) continue;
 
     const day = d.getDate();
     const pattern = day % 5;

@@ -72,8 +72,7 @@ export default function DepartmentMaster({ userRole, selectedCompanyId, selected
   const filteredData = departments.filter(
     (d) =>
       d.departmentName?.toLowerCase().includes(search.trim().toLowerCase()) ||
-      d.departmentAcr?.toLowerCase().includes(search.trim().toLowerCase()) ||
-      d.status?.toLowerCase().includes(search.trim().toLowerCase())
+      d.departmentAcr?.toLowerCase().includes(search.trim().toLowerCase())
   );
 
   const handleSave = async (payload, departmentId) => {
@@ -325,13 +324,12 @@ export default function DepartmentMaster({ userRole, selectedCompanyId, selected
       />
 
       <MasterTable
-        columns={["Name", "Acronym", "Status", ...(!selectedCompanyId ? ["Company"] : []), "Actions"]}
+        columns={["Name", "Acronym", ...(!selectedCompanyId ? ["Company"] : []), "Actions"]}
       >
         {filteredData.map((d) => (
           <tr key={d.departmentId} className="border-t hover:bg-gray-50">
             <td className="py-3 px-4">{d.departmentName}</td>
             <td className="py-3 px-4">{d.departmentAcr}</td>
-            <td className="py-3 px-4">{d.status}</td>
             {!selectedCompanyId && <td className="py-3 px-4">{getCompanyAcronym(d.companyId)}</td>}
             <td className="py-3 px-4">
               <ActionButtons

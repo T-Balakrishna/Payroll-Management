@@ -1,10 +1,10 @@
 import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
 import { OAuth2Client } from "google-auth-library";
 import db from '../models/index.js';
 import { sendMail } from "../services/mailService.js";
 import crypto from "crypto";
 import { Op } from "sequelize";
+import { hashPassword, verifyPassword } from "../utils/password.js";
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClient = googleClientId ? new OAuth2Client(googleClientId) : null;
 
@@ -65,10 +65,9 @@ export const login = async (req, res) => {
       return res.status(403).json({ msg: "User is inactive" });
     }
 
-    const passwordOk = await bcrypt.compare(password, user.password);
-    console.log(password,user.password);
+    const passwordOk = await verifyPassword(password, user.password);
     if (!passwordOk) {
-      return res.status(401).json({ msg: "Invalid credentials" });
+      return res.status(501).json({ msg: "Invalid credentials" });
     }
 
     const roleName = user.role?.roleName || "User";
@@ -323,8 +322,7 @@ export const resetPassword = async (req, res) => {
     const user = resetToken.user;
 
     // Hash new password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await hashPassword(password);
 
     // Update user password
     await user.update({ password: hashedPassword });

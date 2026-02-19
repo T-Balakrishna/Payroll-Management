@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { toast } from "react-toastify";
 import Input from "../../ui/Input";
 import Button from "../../ui/Button";
-import Select from "../../ui/Select";
 import { useAuth } from "../../../auth/AuthContext";
 
 export default function RoleForm({ editData, onSave, onCancel }) {
@@ -10,8 +9,6 @@ export default function RoleForm({ editData, onSave, onCancel }) {
   const currentUserId = user?.userId ?? user?.id ?? "system";
 
   const [roleName, setRoleName] = useState(editData?.roleName || "");
-  const [status, setStatus] = useState(editData?.status || "Active");
-
   const handleSubmit = (e) => {
     e.preventDefault();
 
@@ -19,10 +16,13 @@ export default function RoleForm({ editData, onSave, onCancel }) {
 
     const payload = {
       roleName: roleName.trim(),
-      status: status || "Active",
       createdBy: editData?.createdBy || currentUserId,
       updatedBy: currentUserId,
     };
+
+    if (editData?.roleId && editData?.status) {
+      payload.status = editData.status;
+    }
 
     onSave(payload, editData?.roleId);
   };

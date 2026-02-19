@@ -25,7 +25,18 @@ const DEFAULT_FORM = {
   enableEarlyExit: true,
   earlyExitPeriod: 15,
   markAutoAttendanceOnHolidays: false,
+  weeklyOff: ["sunday"],
 };
+
+const WEEKLY_OFF_DAY_OPTIONS = [
+  { key: "sunday", label: "Sunday" },
+  { key: "monday", label: "Monday" },
+  { key: "tuesday", label: "Tuesday" },
+  { key: "wednesday", label: "Wednesday" },
+  { key: "thursday", label: "Thursday" },
+  { key: "friday", label: "Friday" },
+  { key: "saturday", label: "Saturday" },
+];
 
 const normalizeRole = (role) => String(role || "").replace(/\s+/g, "").toLowerCase();
 const toTimeInputValue = (value, fallback) => {
@@ -48,6 +59,18 @@ const toPositiveDecimal = (value, fallback = 0) => {
   const parsed = Number.parseFloat(String(value));
   if (!Number.isFinite(parsed) || parsed < 0) return fallback;
   return parsed;
+};
+const normalizeWeeklyOff = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return [...new Set(value.map((day) => String(day || "").trim().toLowerCase()))];
+  }
+  if (typeof value === "object") {
+    return WEEKLY_OFF_DAY_OPTIONS
+      .map((day) => day.key)
+      .filter((key) => Boolean(value[key]));
+  }
+  return [];
 };
 
 export default function ShiftTypeForm({
@@ -74,10 +97,14 @@ export default function ShiftTypeForm({
         ...DEFAULT_FORM,
         ...editData,
       };
+      const normalizedWeeklyOff = normalizeWeeklyOff(base.weeklyOff);
       setForm({
         ...base,
         startTime: toTimeInputValue(base.startTime, DEFAULT_FORM.startTime),
         endTime: toTimeInputValue(base.endTime, DEFAULT_FORM.endTime),
+        weeklyOff: normalizedWeeklyOff.length > 0
+          ? normalizedWeeklyOff
+          : [...DEFAULT_FORM.weeklyOff],
       });
       setCompanyId(editData?.companyId || (!isSuperAdmin ? selectedCompanyId : ""));
     }, 0);
@@ -125,6 +152,16 @@ export default function ShiftTypeForm({
     const value = e?.target?.type === "checkbox" ? e.target.checked : e.target.value;
     setForm((prev) => ({ ...prev, [key]: value }));
   };
+  const toggleWeeklyOff = (day) => (e) => {
+    const checked = Boolean(e?.target?.checked);
+    setForm((prev) => {
+      const current = Array.isArray(prev.weeklyOff) ? prev.weeklyOff : [];
+      if (checked) {
+        return { ...prev, weeklyOff: [...new Set([...current, day])] };
+      }
+      return { ...prev, weeklyOff: current.filter((item) => item !== day) };
+    });
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -141,6 +178,9 @@ export default function ShiftTypeForm({
     }
     if (form.autoMarkAbsentIfNoCheckIn && !form.requireCheckIn) {
       return toast.error("Cannot auto-mark absent if check-in is not required");
+    }
+    if (!Array.isArray(form.weeklyOff) || form.weeklyOff.length === 0) {
+      return toast.error("Select at least one weekly off day");
     }
 
     const payload = {
@@ -162,6 +202,7 @@ export default function ShiftTypeForm({
       enableEarlyExit: Boolean(form.enableEarlyExit),
       earlyExitPeriod: toPositiveInteger(form.earlyExitPeriod, 0),
       markAutoAttendanceOnHolidays: Boolean(form.markAutoAttendanceOnHolidays),
+      weeklyOff: normalizeWeeklyOff(form.weeklyOff),
       companyId: effectiveCompanyId,
       createdBy: editData?.createdBy || currentUserId,
       updatedBy: currentUserId,
@@ -253,6 +294,21 @@ export default function ShiftTypeForm({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="md:col-span-2">
+          <p className="text-sm font-medium text-gray-700 mb-2">Weekly Off</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {WEEKLY_OFF_DAY_OPTIONS.map((day) => (
+              <label key={day.key} className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={Array.isArray(form.weeklyOff) && form.weeklyOff.includes(day.key)}
+                  onChange={toggleWeeklyOff(day.key)}
+                />
+                {day.label}
+              </label>
+            ))}
+          </div>
+        </div>
         <label className="flex items-center gap-2 text-sm text-gray-700">
           <input type="checkbox" checked={form.enableAutoAttendance} onChange={setField("enableAutoAttendance")} />
           Enable Auto Attendance

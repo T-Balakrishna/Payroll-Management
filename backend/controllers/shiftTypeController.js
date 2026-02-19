@@ -1,5 +1,42 @@
 import db from '../models/index.js';
 const { ShiftType } = db;
+
+const WEEKLY_OFF_DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+const normalizeWeeklyOff = (value) => {
+  if (value == null) return ['sunday'];
+
+  let parsed = value;
+  if (typeof parsed === 'string') {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch {
+      parsed = [];
+    }
+  }
+
+  if (Array.isArray(parsed)) {
+    return [...new Set(parsed
+      .map((day) => String(day || '').trim().toLowerCase())
+      .filter((day) => WEEKLY_OFF_DAYS.includes(day)))];
+  }
+
+  if (typeof parsed === 'object' && parsed) {
+    return WEEKLY_OFF_DAYS.filter((day) => Boolean(parsed[day]));
+  }
+
+  return [];
+};
+
+const withNormalizedWeeklyOff = (body = {}) => {
+  if (!Object.prototype.hasOwnProperty.call(body, 'weeklyOff')) {
+    return body;
+  }
+  return {
+    ...body,
+    weeklyOff: normalizeWeeklyOff(body.weeklyOff),
+  };
+};
 // Get all shift types
 // In real usage: almost always filtered by companyId
 export const getAllShiftTypes = async (req, res) => {
@@ -41,7 +78,7 @@ export const getShiftTypeById = async (req, res) => {
 // Create new shift type
 export const createShiftType = async (req, res) => {
   try {
-    const shiftType = await ShiftType.create(req.body);
+    const shiftType = await ShiftType.create(withNormalizedWeeklyOff(req.body));
     res.status(201).json(shiftType);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -51,7 +88,7 @@ export const createShiftType = async (req, res) => {
 // Update shift type
 export const updateShiftType = async (req, res) => {
   try {
-    const [updated] = await ShiftType.update(req.body, {
+    const [updated] = await ShiftType.update(withNormalizedWeeklyOff(req.body), {
       where: { shiftTypeId: req.params.id }
     });
 

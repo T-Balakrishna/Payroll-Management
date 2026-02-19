@@ -26,7 +26,6 @@ export default function BiometricPunchMaster({ userRole, selectedCompanyId }) {
     employeeGradeId: "",
     roleType: "",
     biometricDeviceId: "",
-    status: "",
     punchType: "",
     isManual: "",
     isLate: "",
@@ -138,7 +137,6 @@ export default function BiometricPunchMaster({ userRole, selectedCompanyId }) {
       employeeGradeId: "",
       roleType: "",
       biometricDeviceId: "",
-      status: "",
       punchType: "",
       isManual: "",
       isLate: "",
@@ -199,20 +197,6 @@ export default function BiometricPunchMaster({ userRole, selectedCompanyId }) {
             onChange={(e) => setFilters((p) => ({ ...p, biometricDeviceId: e.target.value }))}
             options={devices.map((d) => ({ value: d.deviceId, label: d.name }))}
             placeholder="All Devices"
-            allowPlaceholderSelection
-          />
-
-          <Select
-            label="Status"
-            value={filters.status}
-            onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))}
-            options={[
-              { value: "Valid", label: "Valid" },
-              { value: "Invalid", label: "Invalid" },
-              { value: "Duplicate", label: "Duplicate" },
-              { value: "Pending", label: "Pending" },
-            ]}
-            placeholder="All Status"
             allowPlaceholderSelection
           />
 
@@ -301,7 +285,6 @@ export default function BiometricPunchMaster({ userRole, selectedCompanyId }) {
           "Device",
           "Punch Time",
           "Type",
-          "Status",
           "Late",
           "Manual",
         ]}
@@ -332,7 +315,6 @@ export default function BiometricPunchMaster({ userRole, selectedCompanyId }) {
                 {p.punchTimestamp ? new Date(p.punchTimestamp).toLocaleString() : "-"}
               </td>
               <td className="py-3 px-4">{p.punchType || "-"}</td>
-              <td className="py-3 px-4">{p.status || "-"}</td>
               <td className="py-3 px-4">{p.isLate ? "Yes" : "No"}</td>
               <td className="py-3 px-4">{p.isManual ? "Yes" : "No"}</td>
             </tr>

@@ -80,8 +80,7 @@ export default function DesignationMaster({
   const filteredData = designations.filter(
     (d) =>
       d.designationName?.toLowerCase().includes(search.trim().toLowerCase()) ||
-      d.designationAcr?.toLowerCase().includes(search.trim().toLowerCase()) ||
-      d.status?.toLowerCase().includes(search.trim().toLowerCase())
+      d.designationAcr?.toLowerCase().includes(search.trim().toLowerCase())
   );
 
   const handleSave = async (payload, designationId) => {
@@ -335,13 +334,12 @@ export default function DesignationMaster({
       />
 
       <MasterTable
-        columns={["Name", "Acronym", "Status", ...(!selectedCompanyId ? ["Company"] : []), "Actions"]}
+        columns={["Name", "Acronym", ...(!selectedCompanyId ? ["Company"] : []), "Actions"]}
       >
         {filteredData.map((d) => (
           <tr key={d.designationId} className="border-t hover:bg-gray-50">
             <td className="py-3 px-4">{d.designationName}</td>
             <td className="py-3 px-4">{d.designationAcr}</td>
-            <td className="py-3 px-4">{d.status}</td>
             {!selectedCompanyId && <td className="py-3 px-4">{getCompanyAcronym(d.companyId)}</td>}
             <td className="py-3 px-4">
               <ActionButtons

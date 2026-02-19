@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Shield } from "lucide-react";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
@@ -23,6 +23,7 @@ export default function RoleMaster({ selectedCompanyId: incomingSelectedCompanyI
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editData, setEditData] = useState(null);
+  const fileInputRef = useRef(null);
 
   const canAccess = isAdmin || isSuperAdmin;
   const effectiveSelectedCompanyId =
@@ -76,8 +77,7 @@ export default function RoleMaster({ selectedCompanyId: incomingSelectedCompanyI
     () =>
       roles.filter(
         (r) =>
-          r.roleName?.toLowerCase().includes(search.trim().toLowerCase()) ||
-          r.status?.toLowerCase().includes(search.trim().toLowerCase())
+          r.roleName?.toLowerCase().includes(search.trim().toLowerCase())
       ),
     [roles, search]
   );
@@ -140,6 +140,109 @@ export default function RoleMaster({ selectedCompanyId: incomingSelectedCompanyI
     });
   };
 
+  const parseCsvLine = (line) => {
+    const values = [];
+    let current = "";
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i += 1) {
+      const char = line[i];
+      if (char === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          current += '"';
+          i += 1;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (char === "," && !inQuotes) {
+        values.push(current.trim());
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+    values.push(current.trim());
+    return values.map((v) => v.replace(/^"(.*)"$/, "$1").trim());
+  };
+
+  const parseCsvText = (text) => {
+    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    if (lines.length < 2) return [];
+
+    const headers = parseCsvLine(lines[0]);
+    return lines.slice(1).map((line) => {
+      const values = parseCsvLine(line);
+      return headers.reduce((acc, key, idx) => {
+        acc[key] = values[idx] ?? "";
+        return acc;
+      }, {});
+    });
+  };
+
+  const handleBulkUpload = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    if (!requireCompanyScope()) return;
+
+    try {
+      const text = await file.text();
+      const rows = parseCsvText(text);
+      if (rows.length === 0) {
+        toast.error("CSV file is empty or invalid");
+        return;
+      }
+
+      const payloads = rows
+        .map((row) => ({
+          roleName: String(row.roleName || "").trim(),
+          createdBy: currentUserId,
+          updatedBy: currentUserId,
+        }))
+        .filter((p) => p.roleName);
+
+      if (payloads.length === 0) {
+        toast.error("CSV must contain roleName column");
+        return;
+      }
+
+      const results = await Promise.allSettled(payloads.map((payload) => API.post("/roles", payload)));
+      const successCount = results.filter((r) => r.status === "fulfilled").length;
+      const failCount = results.length - successCount;
+
+      if (successCount > 0) fetchRoles();
+      if (failCount === 0) {
+        Swal.fire("Uploaded!", `${successCount} roles uploaded successfully`, "success");
+      } else {
+        Swal.fire("Completed with errors", `${successCount} uploaded, ${failCount} failed`, "warning");
+      }
+    } catch (err) {
+      console.error("Bulk upload failed:", err);
+      toast.error("Bulk upload failed");
+    }
+  };
+
+  const downloadSampleTemplate = () => {
+    const headers = ["roleName"];
+    const sampleRows = [
+      ["Admin"],
+      ["Department Admin"],
+      ["Employee"],
+    ];
+
+    const csv = [headers.join(","), ...sampleRows.map((row) => row.join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "role_bulk_upload_template.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   if (!canAccess) {
     return (
       <div className="h-full flex items-center justify-center px-6">
@@ -162,6 +265,31 @@ export default function RoleMaster({ selectedCompanyId: incomingSelectedCompanyI
         }}
         placeholder="Search role..."
         buttonText="Add Role"
+        actions={
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={handleBulkUpload}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow-sm whitespace-nowrap"
+            >
+              Upload CSV
+            </button>
+            <button
+              type="button"
+              onClick={downloadSampleTemplate}
+              className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg shadow-sm whitespace-nowrap"
+            >
+              Download Sample
+            </button>
+          </>
+        }
       />
 
       {!hasCompanyScope ? (
@@ -169,12 +297,11 @@ export default function RoleMaster({ selectedCompanyId: incomingSelectedCompanyI
           Select a company before accessing Role Master actions.
         </div>
       ) : (
-        <MasterTable columns={["ID", "Role Name", "Status", "Actions"]}>
+        <MasterTable columns={["ID", "Role Name", "Actions"]}>
           {filteredData.map((r) => (
             <tr key={r.roleId} className="border-t hover:bg-gray-50">
               <td className="py-3 px-4">{r.roleId}</td>
               <td className="py-3 px-4">{r.roleName}</td>
-              <td className="py-3 px-4">{r.status}</td>
               <td className="py-3 px-4">
                 <ActionButtons
                   onEdit={() => {
@@ -189,7 +316,7 @@ export default function RoleMaster({ selectedCompanyId: incomingSelectedCompanyI
 
           {filteredData.length === 0 && (
             <tr>
-              <td colSpan={4} className="text-center py-4 text-gray-500">
+              <td colSpan={3} className="text-center py-4 text-gray-500">
                 No roles found
               </td>
             </tr>

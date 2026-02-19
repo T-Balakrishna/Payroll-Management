@@ -1,5 +1,36 @@
 import { DataTypes } from 'sequelize';
 export default (sequelize) => {
+  const WEEKLY_OFF_DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const DEFAULT_WEEKLY_OFF = ['sunday'];
+
+  const normalizeWeeklyOffValue = (value) => {
+    if (value == null) return [...DEFAULT_WEEKLY_OFF];
+
+    let parsed = value;
+    if (typeof parsed === 'string') {
+      try {
+        parsed = JSON.parse(parsed);
+      } catch {
+        parsed = [];
+      }
+    }
+
+    if (Array.isArray(parsed)) {
+      const unique = new Set(
+        parsed
+          .map((day) => String(day || '').trim().toLowerCase())
+          .filter((day) => WEEKLY_OFF_DAYS.includes(day))
+      );
+      return [...unique];
+    }
+
+    if (typeof parsed === 'object' && parsed) {
+      return WEEKLY_OFF_DAYS.filter((day) => Boolean(parsed[day]));
+    }
+
+    return [];
+  };
+
   const ShiftType = sequelize.define('ShiftType', {
     shiftTypeId: {
       type: DataTypes.INTEGER,
@@ -145,6 +176,32 @@ export default (sequelize) => {
       allowNull: false,
       defaultValue: false,
       comment: 'Auto-mark attendance on holidays',
+    },
+    weeklyOff: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+      defaultValue: JSON.stringify(DEFAULT_WEEKLY_OFF),
+      get() {
+        const raw = this.getDataValue('weeklyOff');
+        return normalizeWeeklyOffValue(raw);
+      },
+      set(value) {
+        const normalized = normalizeWeeklyOffValue(value);
+        this.setDataValue('weeklyOff', JSON.stringify(normalized));
+      },
+      validate: {
+        isValidWeeklyOff(value) {
+          const normalized = normalizeWeeklyOffValue(value);
+          if (normalized.length === 0) {
+            throw new Error('Select at least one weekly off day.');
+          }
+          const hasInvalid = normalized.some((day) => !WEEKLY_OFF_DAYS.includes(day));
+          if (hasInvalid) {
+            throw new Error('Weekly off contains invalid day values.');
+          }
+        },
+      },
+      comment: 'JSON array of weekly off day names (e.g. ["sunday", "saturday"])',
     },
 
     status: {
