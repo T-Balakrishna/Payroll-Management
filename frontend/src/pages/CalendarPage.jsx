@@ -1,6 +1,6 @@
 // pages/CalendarPage.jsx
 import React, { useState, useEffect } from "react";
-import { Calendar, Sun, CheckCircle, XCircle, AlertCircle, Loader2 } from "lucide-react";
+import { Calendar, Sun, CalendarCheck, CheckCircle, XCircle, AlertCircle, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import API from "../api"; // your axios instance with withCredentials: true
 
 const CalendarPage = () => {
@@ -18,12 +18,14 @@ const CalendarPage = () => {
 
   const statusConfig = {
     Present:    { color: "#3B82F6", bg: "#EFF6FF", icon: <CheckCircle className="w-4 h-4" /> },
-    Holiday:    { color: "#10B981", bg: "#ECFDF5", icon: <Sun className="w-4 h-4" /> },
-    Leave:      { color: "#8B5CF6", bg: "#F3E8FF", icon: <CheckCircle className="w-4 h-4" /> },
-    Absent:     { color: "#EF4444", bg: "#FEF2F2", icon: <XCircle className="w-4 h-4" /> },
-    "Half-Day": { color: "#F59E0B", bg: "#FFF7ED", icon: <AlertCircle className="w-4 h-4" /> },
-    Permission: { color: "#8B5CF6", bg: "#F3E8FF", icon: <CheckCircle className="w-4 h-4" /> },
-    "Week Off": { color: "#6B7280", bg: "#F3F4F6", icon: <Sun className="w-4 h-4" /> },
+    "Week Off": { color: "#10B981", bg: "#ECFDF5", icon: <Sun className="w-4 h-4" /> },
+    Holiday:    { color: "#10B981", bg: "#ECFDF5", icon: <CalendarCheck className="w-4 h-4" /> },
+    Permission: { color: "#8B5CF6", bg: "#F3E8FF", icon: <AlertCircle className="w-4 h-4" /> },
+    Leave:      { color: "#F97316", bg: "#FFF7ED", icon: <CheckCircle className="w-4 h-4" /> },
+    Absent:     { color: "#DC2626", bg: "#FEF2F2", icon: <XCircle className="w-4 h-4" /> },
+    "Half-Day": { color: "#EAB308", bg: "#FEFCE8", icon: <CheckCircle className="w-4 h-4" /> },
+    Late:       { color: "#3B82F6", bg: "#EFF6FF", icon: <AlertCircle className="w-4 h-4" /> },
+    "Early Exit": { color: "#EAB308", bg: "#FEFCE8", icon: <AlertCircle className="w-4 h-4" /> },
   };
 
   useEffect(() => {
@@ -100,6 +102,16 @@ const CalendarPage = () => {
     "July", "August", "September", "October", "November", "December"
   ];
 
+  const yearOptions = Array.from({ length: 101 }, (_, i) => year - 50 + i);
+
+  const goToPreviousMonth = () => {
+    setSelectedDate(new Date(year, month - 2, 1));
+  };
+
+  const goToNextMonth = () => {
+    setSelectedDate(new Date(year, month, 1));
+  };
+
   return (
     <div className="h-full bg-white p-6">
       <div className="max-w-4xl mx-auto h-full flex flex-col">
@@ -115,16 +127,59 @@ const CalendarPage = () => {
             </div>
           </div>
 
-          <input
-            type="month"
-            value={`${year}-${String(month).padStart(2, "0")}`}
-            onChange={(e) => {
-              const [yr, mn] = e.target.value.split("-");
-              setSelectedDate(new Date(yr, parseInt(mn) - 1));
-            }}
-            className="px-4 py-2 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            disabled={loading}
-          />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={goToPreviousMonth}
+              disabled={loading}
+              className="w-10 h-10 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              aria-label="Previous month"
+            >
+              <ChevronLeft className="w-5 h-5 text-gray-700" />
+            </button>
+
+            <select
+              value={month - 1}
+              onChange={(e) => {
+                const nextMonthIndex = Number(e.target.value);
+                setSelectedDate(new Date(year, nextMonthIndex, 1));
+              }}
+              className="px-3 py-2 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white"
+              disabled={loading}
+            >
+              {monthNames.map((name, idx) => (
+                <option key={name} value={idx}>
+                  {name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={year}
+              onChange={(e) => {
+                const nextYear = Number(e.target.value);
+                setSelectedDate(new Date(nextYear, month - 1, 1));
+              }}
+              className="px-3 py-2 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white"
+              disabled={loading}
+            >
+              {yearOptions.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+
+            <button
+              type="button"
+              onClick={goToNextMonth}
+              disabled={loading}
+              className="w-10 h-10 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              aria-label="Next month"
+            >
+              <ChevronRight className="w-5 h-5 text-gray-700" />
+            </button>
+          </div>
         </div>
 
         {/* Loading / Error */}
@@ -148,7 +203,12 @@ const CalendarPage = () => {
             <div className="flex flex-wrap gap-4 mb-6">
               {Object.entries(statusConfig).map(([status, config]) => (
                 <div key={status} className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded" style={{ backgroundColor: config.color }} />
+                  <div
+                    className="w-6 h-6 rounded-md flex items-center justify-center text-white"
+                    style={{ backgroundColor: config.color }}
+                  >
+                    {config.icon}
+                  </div>
                   <span className="text-sm font-medium text-gray-700">{status}</span>
                 </div>
               ))}

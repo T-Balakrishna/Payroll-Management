@@ -14,7 +14,6 @@ import {
   CheckCircle,
 } from "lucide-react";
 import Button from "../components/ui/Button";           // from ui/Button.jsx
-import Modal from "../components/ui/Modal";             // from ui/Modal.jsx
 import EmployeeProfilePage from "./EmployeeProfilePage";
 import CalendarPage from "./CalendarPage";
 import TakeLeavePage from "./TakeLeavePage";
@@ -348,15 +347,59 @@ export default function EmployeeDashboard() {
     );
   };
 
-  const handleLogout = async () => {
+  const handleLogout =async () => {
     try {
       await API.post("/auth/logout");
-      toast.success("Logged out successfully");
-      window.location.href = "/login";
     } catch (err) {
       console.error("Logout error:", err);
-      toast.error("Logout failed. Please try again.");
+    } finally {
+      window.location.href = "/login";
     }
+  }
+
+  const renderInlineModal = () => {
+    if (!modalContent) return null;
+
+    let content = null;
+    let widthClass = "max-w-5xl";
+
+    if (modalContent === "profile") {
+      widthClass = "max-w-4xl";
+      content = <EmployeeProfilePage />;
+    }
+
+    if (modalContent === "calendar") {
+      widthClass = "max-w-6xl";
+      content = <CalendarPage />;
+    }
+
+    if (modalContent === "takeleave") {
+      widthClass = "max-w-4xl";
+      content = (
+        <TakeLeavePage
+          empId={resolvedStaffId}
+          companyId={companyId}
+          departmentId={departmentId}
+        />
+      );
+    }
+
+    return (
+      <div className="fixed inset-0 z-50 bg-black/45 backdrop-blur-sm p-4 sm:p-6">
+        <div className="w-full h-full flex items-center justify-center">
+          <div className={`relative w-full ${widthClass} max-h-[92vh] bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden`}>
+            <button
+              onClick={closeModal}
+              className="absolute top-4 right-4 z-10 w-9 h-9 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center transition-colors"
+              aria-label="Close modal"
+            >
+              X
+            </button>
+            <div className="h-full overflow-y-auto p-6">{content}</div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -440,22 +483,7 @@ export default function EmployeeDashboard() {
         {renderTable()}
       </div>
 
-      {/* Modal - using your ui/Modal */}
-      {modalContent && (
-        <Modal isOpen={!!modalContent} onClose={closeModal}>
-          <div className="h-full overflow-y-auto p-6">
-            {modalContent === "profile" && <EmployeeProfilePage />}
-            {modalContent === "calendar" && <CalendarPage />}
-            {modalContent === "takeleave" && (
-              <TakeLeavePage
-                empId={resolvedStaffId}
-                companyId={companyId}
-                departmentId={departmentId}
-              />
-            )}
-          </div>
-        </Modal>
-      )}
+      {renderInlineModal()}
     </div>
   );
 }
