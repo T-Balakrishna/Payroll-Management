@@ -22,6 +22,13 @@ export const getAllEmployees = async (req, res) => {
       include: [
         { model: db.Department, as: 'department', ...companyFilter },
         { model: db.Designation, as: 'designation', required: false },
+        {
+          model: db.User,
+          as: 'user',
+          required: false,
+          attributes: ['userNumber', 'roleId'],
+          include: [{ model: db.Role, as: 'role', attributes: ['roleId', 'roleName'], required: false }],
+        },
       ],
       order: [['staffId', 'DESC']],
     });

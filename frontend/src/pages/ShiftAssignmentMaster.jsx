@@ -6,6 +6,10 @@ import API from "../api";
 import { useAuth } from "../auth/AuthContext";
 
 const normalizeRole = (role) => String(role || "").replace(/\s+/g, "").toLowerCase();
+const normalizeLookupKey = (value) => String(value || "").trim().toLowerCase();
+const HIDDEN_ROLE_KEYS = new Set(["admin", "superadmin"]);
+const getEmployeeUserNumber = (emp) =>
+  normalizeLookupKey(emp?.staffNumber || emp?.user?.userNumber || emp?.userNumber || "");
 
 const getEmployeeCompanyId = (employee) =>
   employee?.companyId ??
@@ -63,6 +67,7 @@ export default function ShiftAssignmentMaster({ userRole, selectedCompanyId, sel
   const [shiftTypes, setShiftTypes] = useState([]);
   const [grades, setGrades] = useState([]);
   const [designations, setDesignations] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [users, setUsers] = useState([]);
   const [assignments, setAssignments] = useState([]);
 
@@ -95,7 +100,7 @@ export default function ShiftAssignmentMaster({ userRole, selectedCompanyId, sel
   }, [selectedCompanyId]);
 
   const fetchLookups = useCallback(async () => {
-    const [deptResult, employeeResult, shiftTypeResult, gradeResult, designationResult, userResult] = await Promise.allSettled([
+    const [deptResult, employeeResult, shiftTypeResult, gradeResult, designationResult, roleResult, userResult] = await Promise.allSettled([
       API.get("/departments", {
         params: selectedCompanyId ? { companyId: selectedCompanyId } : {},
       }),
@@ -109,6 +114,7 @@ export default function ShiftAssignmentMaster({ userRole, selectedCompanyId, sel
       API.get("/designations", {
         params: selectedCompanyId ? { companyId: selectedCompanyId } : {},
       }),
+      API.get("/roles"),
       API.get("/users"),
     ]);
 
@@ -132,6 +138,9 @@ export default function ShiftAssignmentMaster({ userRole, selectedCompanyId, sel
     }
     if (designationResult.status === "fulfilled") {
       setDesignations(designationResult.value.data || []);
+    }
+    if (roleResult.status === "fulfilled") {
+      setRoles(roleResult.value.data || []);
     }
     if (userResult.status === "fulfilled") {
       setUsers(userResult.value.data || []);
@@ -202,16 +211,39 @@ export default function ShiftAssignmentMaster({ userRole, selectedCompanyId, sel
     return byDept;
   }, [employees, selectedCompanyId, selectedDepts]);
 
+  const roleNameById = useMemo(
+    () => new Map((roles || []).map((r) => [String(r.roleId || ""), String(r.roleName || "")])),
+    [roles]
+  );
+
   const roleMap = useMemo(() => {
-    return new Map(
-      users.map((u) => [String(u.userNumber || ""), String(u.role?.roleName || "")])
-    );
-  }, [users]);
+    const entries = [];
+    users.forEach((u) => {
+      const roleName = String(u.role?.roleName || roleNameById.get(String(u.roleId || "")) || "").trim();
+      if (!roleName) return;
+      if (HIDDEN_ROLE_KEYS.has(normalizeRole(roleName))) return;
+      const key = normalizeLookupKey(u.userNumber);
+      if (!key) return;
+      entries.push([key, roleName]);
+    });
+    return new Map(entries);
+  }, [users, roleNameById]);
+
+  const getEmployeeRoleName = useCallback(
+    (emp) => {
+      const directRole = String(emp?.user?.role?.roleName || roleNameById.get(String(emp?.user?.roleId || "")) || "").trim();
+      if (directRole && !HIDDEN_ROLE_KEYS.has(normalizeRole(directRole))) return directRole;
+      const fromMap = roleMap.get(getEmployeeUserNumber(emp)) || "";
+      if (fromMap && !HIDDEN_ROLE_KEYS.has(normalizeRole(fromMap))) return fromMap;
+      return "";
+    },
+    [roleMap, roleNameById]
+  );
 
   const filteredEmployees = useMemo(() => {
     const q = search.trim().toLowerCase();
     return availableEmployees.filter((emp) => {
-      const roleName = roleMap.get(String(emp.staffNumber || "")) || "";
+      const roleName = getEmployeeRoleName(emp);
       const experienceYears = getExperienceYears(emp.dateOfJoining);
       const gradeOk = !gradeFilter || String(emp.employeeGradeId || "") === String(gradeFilter);
       const designationOk =
@@ -224,16 +256,24 @@ export default function ShiftAssignmentMaster({ userRole, selectedCompanyId, sel
       const number = String(emp.staffNumber || emp.staffId || "").toLowerCase();
       return name.includes(q) || number.includes(q);
     });
-  }, [availableEmployees, designationFilter, experienceFilter, gradeFilter, roleFilter, roleMap, search]);
+  }, [availableEmployees, designationFilter, experienceFilter, getEmployeeRoleName, gradeFilter, roleFilter, search]);
 
   const roleOptions = useMemo(() => {
+    const fromRoles = (roles || [])
+      .filter((r) => String(r.status || "").toLowerCase() !== "inactive")
+      .map((r) => String(r.roleName || "").trim())
+      .filter((name) => name && !HIDDEN_ROLE_KEYS.has(normalizeRole(name)));
+    if (fromRoles.length > 0) {
+      return [...new Set(fromRoles)].sort((a, b) => a.localeCompare(b));
+    }
+
     const values = new Set();
     availableEmployees.forEach((emp) => {
-      const roleName = roleMap.get(String(emp.staffNumber || ""));
+      const roleName = getEmployeeRoleName(emp);
       if (roleName) values.add(roleName);
     });
     return [...values].sort((a, b) => a.localeCompare(b));
-  }, [availableEmployees, roleMap]);
+  }, [availableEmployees, getEmployeeRoleName, roles]);
 
   const sortedEmployees = useMemo(() => {
     return [...filteredEmployees].sort((a, b) => {

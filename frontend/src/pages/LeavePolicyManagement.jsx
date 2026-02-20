@@ -99,7 +99,7 @@ export default function LeavePolicyManagement({ userRole, selectedCompanyId }) {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return policies.filter((row) =>
-      [row.name, row.leaveType?.name, row.status, row.accrualFrequency]
+      [row.name, row.leaveType?.name, row.accrualFrequency]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q))
     );
@@ -228,7 +228,6 @@ export default function LeavePolicyManagement({ userRole, selectedCompanyId }) {
           'Accrual',
           'Carry Forward',
           'Encashment',
-          'Status',
           'Actions',
         ]}
       >
@@ -239,7 +238,6 @@ export default function LeavePolicyManagement({ userRole, selectedCompanyId }) {
             <td className="py-3 px-4">{row.accrualFrequency}</td>
             <td className="py-3 px-4">{row.maxCarryForward}</td>
             <td className="py-3 px-4">{row.allowEncashment ? 'Yes' : 'No'}</td>
-            <td className="py-3 px-4">{row.status}</td>
             <td className="py-3 px-4">
               <ActionButtons onEdit={() => openEdit(row)} onDelete={() => handleDelete(row.leavePolicyId)} />
             </td>

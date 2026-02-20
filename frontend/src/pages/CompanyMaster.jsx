@@ -357,10 +357,9 @@ export default function CompanyMaster() {
         }
       />
 
-      <MasterTable columns={["ID", "Name", "Acronym", "Actions"]}>
+      <MasterTable columns={["Name", "Acronym", "Actions"]}>
         {filteredData.map((c) => (
           <tr key={c.companyId} className="border-t hover:bg-gray-50">
-            <td className="py-3 px-4">{c.companyId}</td>
             <td className="py-3 px-4">{c.companyName}</td>
             <td className="py-3 px-4">{c.companyAcr}</td>
             <td className="py-3 px-4">
@@ -377,7 +376,7 @@ export default function CompanyMaster() {
 
         {filteredData.length === 0 && (
           <tr>
-            <td colSpan={4} className="text-center py-4 text-gray-500">
+            <td colSpan={3} className="text-center py-4 text-gray-500">
               No companies found
             </td>
           </tr>

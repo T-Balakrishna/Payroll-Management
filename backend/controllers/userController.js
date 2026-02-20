@@ -97,60 +97,62 @@ export const createUser = async (req, res) => {
     const effectiveCompanyId = companyContext.effectiveCompanyId;
 
     const hashedPassword = await hashPassword(req.body.password);
+    const normalizedRole = normalizeRoleName(role.roleName);
+    const isStaffRole = STAFF_ROLE_KEYS.has(normalizedRole);
+    const isStudentRole = normalizedRole === 'student';
+    const departmentId =
+      req.body?.departmentId !== undefined && req.body?.departmentId !== ''
+        ? req.body.departmentId
+        : null;
+
+    if (isStaffRole && !departmentId) {
+      await transaction.rollback();
+      return res.status(400).json({ error: 'Department is required for staff roles' });
+    }
+
     const userPayload = {
       ...req.body,
       companyId: effectiveCompanyId,
+      departmentId,
       password: hashedPassword,
     };
 
     const user = await User.create(userPayload, { transaction });
-    const normalizedRole = normalizeRoleName(role.roleName);
 
     const { firstName, lastName } = splitNameParts(user.userName || user.userNumber);
-    const isStudentRole = normalizedRole === 'student';
-    const fallbackStatus = STAFF_ROLE_KEYS.has(normalizedRole) || isStudentRole ? 'Active' : 'Inactive';
-
-    const [employee] = await Employee.findOrCreate({
-      where: { staffNumber: user.userNumber },
-      defaults: {
-        staffNumber: user.userNumber,
-        companyId: effectiveCompanyId,
-        departmentId: user.departmentId || 1,
-        firstName: firstName || user.userNumber,
-        lastName: lastName || null,
-        personalEmail: user.userMail,
-        officialEmail: user.userMail,
-        dateOfJoining: new Date(),
-        status: fallbackStatus,
-        employmentStatus: 'Active',
-        createdBy: user.createdBy || null,
-        updatedBy: user.updatedBy || null,
-      },
-      transaction,
-    });
-
-    if (isStudentRole) {
-      const [student] = await StudentDetails.findOrCreate({
-        where: { registerNumber: user.userNumber },
+    if (isStaffRole) {
+      await Employee.findOrCreate({
+        where: { staffNumber: user.userNumber },
         defaults: {
-          studentName: user.userName || user.userNumber,
-          registerNumber: user.userNumber,
-          departmentId: user.departmentId || null,
-          companyId: user.companyId || null,
-          staffId: employee?.staffId || null,
+          staffNumber: user.userNumber,
+          companyId: effectiveCompanyId,
+          departmentId: user.departmentId,
+          firstName: firstName || user.userNumber,
+          lastName: lastName || null,
+          personalEmail: user.userMail,
+          officialEmail: user.userMail,
+          dateOfJoining: new Date(),
+          status: 'Active',
+          employmentStatus: 'Active',
           createdBy: user.createdBy || null,
           updatedBy: user.updatedBy || null,
         },
         transaction,
       });
-
-      if (student && !student.staffId && employee?.staffId) {
-        await student.update({ staffId: employee.staffId }, { transaction });
-      }
-    }
-
-    if (employee && !employee.companyId) {
-      await employee.update({ companyId: effectiveCompanyId }, { transaction });
+    } else if (isStudentRole) {
+      await StudentDetails.findOrCreate({
+        where: { registerNumber: user.userNumber },
+        defaults: {
+          studentName: user.userName || user.userNumber,
+          registerNumber: user.userNumber,
+          departmentId: user.departmentId || null,
+          companyId: effectiveCompanyId,
+          staffId: null,
+          createdBy: user.createdBy || null,
+          updatedBy: user.updatedBy || null,
+        },
+        transaction,
+      });
     }
 
     await transaction.commit();

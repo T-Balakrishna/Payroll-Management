@@ -83,7 +83,7 @@ export default function LeavePeriodMaster({ userRole, selectedCompanyId }) {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return periods.filter((row) =>
-      [row.name, row.startDate, row.endDate, row.status]
+      [row.name, row.startDate, row.endDate]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q))
     );
@@ -212,7 +212,6 @@ export default function LeavePeriodMaster({ userRole, selectedCompanyId }) {
           'Start Date',
           'End Date',
           ...(isSuperAdmin ? ['Company'] : []),
-          'Status',
           'Actions',
         ]}
         loading={loading}
@@ -225,7 +224,6 @@ export default function LeavePeriodMaster({ userRole, selectedCompanyId }) {
             {isSuperAdmin ? (
               <td className="py-3 px-4">{row.company?.companyName || companyNameById.get(String(row.companyId)) || '-'}</td>
             ) : null}
-            <td className="py-3 px-4">{row.status}</td>
             <td className="py-3 px-4">
               <ActionButtons onEdit={() => openEdit(row)} onDelete={() => handleDelete(row.leavePeriodId)} />
             </td>

@@ -9,6 +9,8 @@ import MasterHeader from "../components/common/MasterHeader";
 import MasterTable from "../components/common/MasterTable";
 import ActionButtons from "../components/common/ActionButton";
 
+const normalizeRole = (value) => String(value || "").trim().toLowerCase().replace(/[\s-]/g, "");
+
 function UserForm({
   formData,
   setFormData,
@@ -21,8 +23,10 @@ function UserForm({
   isEdit,
   currentUserCompanyId,
 }) {
-  const isSuperAdmin = String(userRole || "").trim().toLowerCase() === "super admin";
+  const isSuperAdmin = normalizeRole(userRole) === "superadmin";
   const isCompanyFixed = !isSuperAdmin && Boolean(currentUserCompanyId);
+  const selectedRole = roles.find((role) => String(role.roleId) === String(formData.roleId || ""));
+  const isSuperAdminSelected = normalizeRole(selectedRole?.roleName) === "superadmin";
 
   const visibleRoles = roles.filter(
     (role) => role.status === "Active" && (!isSuperAdmin ? role.roleName !== "Super Admin" : true)
@@ -41,16 +45,33 @@ function UserForm({
 
   useEffect(() => {
     if (!formData.companyId) return;
+    if (isSuperAdminSelected) return;
     const stillValid = visibleDepartments.some(
       (d) => String(d.departmentId) === String(formData.departmentId || "")
     );
     if (!stillValid) {
       setFormData((prev) => ({ ...prev, departmentId: "" }));
     }
-  }, [formData.companyId, formData.departmentId, setFormData, visibleDepartments]);
+  }, [formData.companyId, formData.departmentId, isSuperAdminSelected, setFormData, visibleDepartments]);
+
+  useEffect(() => {
+    if (!isSuperAdminSelected) return;
+    if (!formData.departmentId) return;
+    setFormData((prev) => ({ ...prev, departmentId: "" }));
+  }, [formData.departmentId, isSuperAdminSelected, setFormData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    if (name === "roleId") {
+      const nextRole = roles.find((role) => String(role.roleId) === String(value || ""));
+      const nextIsSuperAdmin = normalizeRole(nextRole?.roleName) === "superadmin";
+      setFormData((prev) => ({
+        ...prev,
+        roleId: value,
+        departmentId: nextIsSuperAdmin ? "" : prev.departmentId,
+      }));
+      return;
+    }
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -146,6 +167,7 @@ function UserForm({
         </select>
       </div>
 
+      {!isSuperAdminSelected && (
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
         <select
@@ -163,6 +185,7 @@ function UserForm({
           ))}
         </select>
       </div>
+      )}
 
       <div className="flex justify-end gap-2 pt-2">
         <button
@@ -275,21 +298,29 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
   const handleSave = async (e) => {
     e.preventDefault();
 
-    if (!formData.departmentId) {
+    const selectedRole = roles.find((role) => String(role.roleId) === String(formData.roleId || ""));
+    const isSuperAdminSelected = normalizeRole(selectedRole?.roleName) === "superadmin";
+
+    if (!isSuperAdminSelected && !formData.departmentId) {
       toast.error("Please select a department");
       return;
     }
 
     const payload = {
-      ...formData,
+      userName: formData.userName,
+      userNumber: formData.userNumber,
+      userMail: formData.userMail,
+      roleId: formData.roleId,
+      password: formData.password,
       createdBy: currentUserId,
       updatedBy: currentUserId,
       companyId: !isSuperAdmin
         ? currentUserCompanyId || formData.companyId
         : formData.companyId || selectedCompanyId || "",
-      departmentId: formData.departmentId,
+      departmentId: isSuperAdminSelected ? null : formData.departmentId,
       status: "Active",
     };
+    if (!String(payload.password || "").trim()) delete payload.password;
 
     try {
       if (isEdit) {
@@ -382,6 +413,9 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
       const roleIdByName = new Map(
         roles.map((r) => [String(r.roleName || "").trim().toLowerCase(), String(r.roleId)])
       );
+      const roleKeyById = new Map(
+        roles.map((r) => [String(r.roleId), normalizeRole(r.roleName)])
+      );
       const companyIdByName = new Map(
         companies.map((c) => [String(c.companyName || "").trim().toLowerCase(), String(c.companyId)])
       );
@@ -408,7 +442,11 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
             String(row.roleId || "").trim() ||
             roleIdByName.get(String(row.roleName || "").trim().toLowerCase()) ||
             "";
-          const departmentId = resolveDepartmentId(row, companyId, departmentIdByName, departmentIdByAcr);
+          const roleKey = roleKeyById.get(String(roleId)) || "";
+          const isSuperAdminRole = roleKey === "superadmin";
+          const departmentId = isSuperAdminRole
+            ? null
+            : resolveDepartmentId(row, companyId, departmentIdByName, departmentIdByAcr);
 
           return {
             userNumber: String(row.userNumber || "").trim(),
@@ -421,6 +459,7 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
             status: "Active",
             createdBy: currentUserId,
             updatedBy: currentUserId,
+            _requiresDepartment: !isSuperAdminRole,
           };
         })
         .filter(
@@ -430,7 +469,7 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
             p.password &&
             String(p.roleId || "").trim() &&
             String(p.companyId || "").trim() &&
-            String(p.departmentId || "").trim()
+            (!p._requiresDepartment || String(p.departmentId || "").trim())
         );
 
       if (payloads.length === 0) {
@@ -438,7 +477,13 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
         return;
       }
 
-      const results = await Promise.allSettled(payloads.map((payload) => API.post("/users", payload)));
+      const results = await Promise.allSettled(
+        payloads.map((payload) => {
+          const cleanPayload = { ...payload };
+          delete cleanPayload._requiresDepartment;
+          return API.post("/users", cleanPayload);
+        })
+      );
       const successCount = results.filter((r) => r.status === "fulfilled").length;
       const failCount = results.length - successCount;
 

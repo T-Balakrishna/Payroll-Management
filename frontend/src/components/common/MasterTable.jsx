@@ -1,8 +1,8 @@
 export default function MasterTable({ columns, children, loading = false, emptyMessage = "No records found" }) {
   return (
-    <div className="border border-gray-200 rounded-lg shadow-sm overflow-hidden flex-1 flex flex-col" style={{ maxHeight: "380px" }}>
+    <div className="overflow-y-auto border border-gray-200 rounded-lg shadow-sm flex-1" style={{ maxHeight: "320px" }}>
       <div className="overflow-auto flex-1">
-        <table className="w-full text-sm text-left">
+        <table className="w-full text-left text-sm">
           <thead className="sticky top-0 z-10 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
             <tr>
               {columns.map((col, i) => (

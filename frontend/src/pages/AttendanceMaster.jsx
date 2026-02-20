@@ -190,7 +190,6 @@ export default function AttendanceMaster({ userRole, selectedCompanyId }) {
           "Date",
           "Staff No",
           "Staff Name",
-          "Status",
           "First Check-In",
           "Last Check-Out",
           "Working Hrs",
@@ -213,7 +212,6 @@ export default function AttendanceMaster({ userRole, selectedCompanyId }) {
               <td className="py-3 px-4">{row.attendanceDate || "-"}</td>
               <td className="py-3 px-4">{row.employee?.staffNumber || "-"}</td>
               <td className="py-3 px-4">{fullName || "-"}</td>
-              <td className="py-3 px-4">{row.attendanceStatus || "-"}</td>
               <td className="py-3 px-4">{formatDateTime(row.firstCheckIn)}</td>
               <td className="py-3 px-4">{formatDateTime(row.lastCheckOut)}</td>
               <td className="py-3 px-4">{row.workingHours ?? "-"}</td>

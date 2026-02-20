@@ -91,7 +91,7 @@ export default function LeaveTypeMaster({ userRole, selectedCompanyId }) {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return types.filter((row) =>
-      [row.name, row.leaveTypeName, row.description, row.status]
+      [row.name, row.leaveTypeName, row.description]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q))
     );
@@ -232,7 +232,6 @@ export default function LeaveTypeMaster({ userRole, selectedCompanyId }) {
           'Carry Forward',
           'Optional',
           'Max Consecutive',
-          'Status',
           'Actions',
         ]}
       >
@@ -244,7 +243,6 @@ export default function LeaveTypeMaster({ userRole, selectedCompanyId }) {
             <td className="py-3 px-4">{(row.isCarryForward ?? row.isCarryForwardEnabled) ? 'Yes' : 'No'}</td>
             <td className="py-3 px-4">{row.isOptionalLeave ? 'Yes' : 'No'}</td>
             <td className="py-3 px-4">{row.maxConsecutiveLeaves}</td>
-            <td className="py-3 px-4">{row.status}</td>
             <td className="py-3 px-4">
               <ActionButtons onEdit={() => openEdit(row)} onDelete={() => handleDelete(row.leaveTypeId)} />
             </td>

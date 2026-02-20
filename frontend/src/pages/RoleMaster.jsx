@@ -297,10 +297,9 @@ export default function RoleMaster({ selectedCompanyId: incomingSelectedCompanyI
           Select a company before accessing Role Master actions.
         </div>
       ) : (
-        <MasterTable columns={["ID", "Role Name", "Actions"]}>
+        <MasterTable columns={["Role Name", "Actions"]}>
           {filteredData.map((r) => (
             <tr key={r.roleId} className="border-t hover:bg-gray-50">
-              <td className="py-3 px-4">{r.roleId}</td>
               <td className="py-3 px-4">{r.roleName}</td>
               <td className="py-3 px-4">
                 <ActionButtons
@@ -316,7 +315,7 @@ export default function RoleMaster({ selectedCompanyId: incomingSelectedCompanyI
 
           {filteredData.length === 0 && (
             <tr>
-              <td colSpan={3} className="text-center py-4 text-gray-500">
+              <td colSpan={2} className="text-center py-4 text-gray-500">
                 No roles found
               </td>
             </tr>
