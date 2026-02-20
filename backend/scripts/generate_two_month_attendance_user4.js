@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import { Op } from "sequelize";
 import db from "../models/index.js";
+import { hashPassword } from "../utils/password.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,8 +28,7 @@ const {
   Attendance,
 } = db;
 
-const DEFAULT_PASSWORD =
-  "$2b$10$EeTJeYSeXlTDxqKAD4KRHe7APGxgNSGbLblzHhzUnfEKA984rXmoG";
+const DEFAULT_PASSWORD_PLAIN = process.env.SEED_USER_PASSWORD || "123";
 
 const REQUIRED_STATUSES = [
   "Present",
@@ -68,6 +68,28 @@ const diffHours = (a, b) => {
   return Math.max(0, (b.getTime() - a.getTime()) / (1000 * 60 * 60));
 };
 
+const isNeedReprepareError = (error) =>
+  error?.original?.code === "ER_NEED_REPREPARE" ||
+  error?.parent?.code === "ER_NEED_REPREPARE" ||
+  error?.code === "ER_NEED_REPREPARE";
+
+async function withReprepareRetry(task, label = "db-op", retries = 3) {
+  let lastError;
+  for (let attempt = 1; attempt <= retries; attempt += 1) {
+    try {
+      return await task();
+    } catch (error) {
+      lastError = error;
+      if (!isNeedReprepareError(error) || attempt === retries) {
+        throw error;
+      }
+      console.warn(`[retry:${label}] ER_NEED_REPREPARE (attempt ${attempt}/${retries})`);
+      await new Promise((resolve) => setTimeout(resolve, 100 * attempt));
+    }
+  }
+  throw lastError;
+}
+
 async function findOrCreateParanoid(model, where, defaults, updateOnFind = {}) {
   const row = await model.findOne({ where, paranoid: false });
   if (row) {
@@ -75,7 +97,7 @@ async function findOrCreateParanoid(model, where, defaults, updateOnFind = {}) {
       await row.restore();
     }
     if (Object.keys(updateOnFind).length > 0) {
-      await row.update(updateOnFind);
+      await withReprepareRetry(() => row.update(updateOnFind), `${model.name}.update`);
     }
     return row;
   }
@@ -178,18 +200,29 @@ async function seedMasters() {
     }
   );
 
-  const superAdminRole = await findOrCreateParanoid(
-    Role,
-    { roleName: "Super Admin" },
-    { roleName: "Super Admin", status: "Active" },
-    { status: "Active" }
-  );
-  const staffRole = await findOrCreateParanoid(
-    Role,
-    { roleName: "Staff" },
-    { roleName: "Staff", status: "Active" },
-    { status: "Active" }
-  );
+  let superAdminRole = await Role.findOne({
+    where: { roleName: { [Op.in]: ["super admin", "Super Admin"] } },
+    paranoid: false,
+  });
+  if (!superAdminRole) {
+    superAdminRole = await Role.create({ roleName: "super admin", status: "Active" });
+  } else {
+    if (superAdminRole.deletedAt) {
+      await superAdminRole.restore();
+    }
+  }
+
+  let staffRole = await Role.findOne({
+    where: { roleName: { [Op.in]: ["staff", "Staff"] } },
+    paranoid: false,
+  });
+  if (!staffRole) {
+    staffRole = await Role.create({ roleName: "staff", status: "Active" });
+  } else {
+    if (staffRole.deletedAt) {
+      await staffRole.restore();
+    }
+  }
 
   const departmentsToSeed = [
     { departmentName: "cse", departmentAcr: "CSE" },
@@ -275,7 +308,7 @@ async function seedMasters() {
     if (shiftType.deletedAt) {
       await shiftType.restore();
     }
-    await shiftType.update({ status: "Active" });
+    await withReprepareRetry(() => shiftType.update({ status: "Active" }), "ShiftType.update");
   }
 
   let device = await BiometricDevice.findOne({
@@ -295,12 +328,12 @@ async function seedMasters() {
     if (device.deletedAt) {
       await device.restore();
     }
-    await device.update({
+    await withReprepareRetry(() => device.update({
       name: "NEC Main Gate Device",
       location: "Main Gate",
       companyId: company.companyId,
       status: "Active",
-    });
+    }), "BiometricDevice.update");
   }
 
   return {
@@ -317,6 +350,8 @@ async function seedMasters() {
 }
 
 async function seedUsersAndEmployees({ company, roles, departments, designations, shiftType }) {
+  const seededPasswordHash = await hashPassword(DEFAULT_PASSWORD_PLAIN);
+
   const userSeedData = [
     {
       userNumber: "2312078",
@@ -385,23 +420,23 @@ async function seedUsersAndEmployees({ company, roles, departments, designations
         roleId: u.roleId,
         companyId: company.companyId,
         departmentId: u.departmentId,
-        password: DEFAULT_PASSWORD,
+        password: seededPasswordHash,
         status: "Active",
       });
     } else {
       if (user.deletedAt) {
         await user.restore();
       }
-      await user.update({
+      await withReprepareRetry(() => user.update({
         userNumber: u.userNumber,
         userName: u.userName,
         userMail: u.userMail,
         roleId: u.roleId,
         companyId: company.companyId,
         departmentId: u.departmentId,
-        password: DEFAULT_PASSWORD,
+        password: seededPasswordHash,
         status: "Active",
-      });
+      }), "User.update");
     }
     users[u.userMail] = user;
   }
@@ -411,10 +446,10 @@ async function seedUsersAndEmployees({ company, roles, departments, designations
     users["2312078@nec.edu.in"] ||
     Object.values(users)[0];
 
-  await company.update({
+  await withReprepareRetry(() => company.update({
     createdBy: adminUser.userId,
     updatedBy: adminUser.userId,
-  });
+  }), "Company.update");
 
   for (const u of userSeedData) {
     const user = users[u.userMail];
@@ -426,6 +461,7 @@ async function seedUsersAndEmployees({ company, roles, departments, designations
     const employeePayload = {
       staffNumber: user.userNumber,
       biometricNumber: `BIO${user.userNumber}`,
+      companyId: company.companyId,
       firstName: u.employee.firstName,
       lastName: u.employee.lastName,
       personalEmail: user.userMail,
@@ -447,16 +483,9 @@ async function seedUsersAndEmployees({ company, roles, departments, designations
       if (employee.deletedAt) {
         await employee.restore();
       }
-      await employee.update(employeePayload);
+      await withReprepareRetry(() => employee.update(employeePayload), "Employee.update");
     }
     employees[u.userMail] = employee;
-  }
-
-  for (const user of Object.values(users)) {
-    await user.update({
-      createdBy: adminUser.userId,
-      updatedBy: adminUser.userId,
-    });
   }
 
   return { users, employees, adminUser };
@@ -491,13 +520,13 @@ async function ensureHolidayData({
     if (holidayPlan.deletedAt) {
       await holidayPlan.restore();
     }
-    await holidayPlan.update({
+    await withReprepareRetry(() => holidayPlan.update({
       startDate,
       endDate,
       weeklyOff: { sunday: true, saturday: false },
       status: "Active",
       updatedBy: createdBy,
-    });
+    }), "HolidayPlan.update");
   }
 
   const holidaysInRange = HOLIDAYS_IN_TN.filter(
@@ -531,13 +560,13 @@ async function ensureHolidayData({
       if (existing.deletedAt) {
         await existing.restore();
       }
-      await existing.update({
+      await withReprepareRetry(() => existing.update({
         description: h.description,
         type: h.type,
         companyId,
         status: "Active",
         updatedBy: createdBy,
-      });
+      }), "Holiday.update");
     }
   }
 
@@ -565,13 +594,13 @@ async function ensureHolidayData({
       if (existing.deletedAt) {
         await existing.restore();
       }
-      await existing.update({
+      await withReprepareRetry(() => existing.update({
         description: existing.type === "Holiday" ? existing.description : "Sunday Week Off",
         type: existing.type === "Holiday" ? "Holiday" : "Week Off",
         companyId,
         status: "Active",
         updatedBy: createdBy,
-      });
+      }), "Holiday.update");
     }
   }
 
@@ -819,7 +848,7 @@ async function main() {
     if (shiftAssignment.deletedAt) {
       await shiftAssignment.restore();
     }
-    await shiftAssignment.update({
+    await withReprepareRetry(() => shiftAssignment.update({
       shiftTypeId: shiftType.shiftTypeId,
       startDate,
       endDate,
@@ -829,7 +858,7 @@ async function main() {
       status: "Active",
       companyId: company.companyId,
       updatedBy: adminUser.userId,
-    });
+    }), "ShiftAssignment.update");
   }
 
   const { holidayPlan, holidayRows } = await ensureHolidayData({
@@ -853,6 +882,7 @@ async function main() {
   });
 
   console.log("Initial master + user + attendance seed completed.");
+  console.log(`Seed login password: ${DEFAULT_PASSWORD_PLAIN}`);
   console.log(
     JSON.stringify(
       {

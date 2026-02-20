@@ -9,6 +9,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 import db from './models/index.js';
 import mountRoutes from './routes/mountRoutes.js';
+import { startAttendanceScheduler } from './services/processAttendance.js';
 const app = express();
 const PORT = process.env.PORT || 5000;
 const shouldSync = process.env.DB_SYNC === "true";
@@ -56,6 +57,11 @@ db.sequelize.authenticate()
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
       console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+      if (String(process.env.ATTENDANCE_CRON_ENABLED || "true").toLowerCase() === "true") {
+        startAttendanceScheduler();
+      } else {
+        console.log("Attendance cron disabled (ATTENDANCE_CRON_ENABLED != true).");
+      }
     });
   })
   .catch(err => {

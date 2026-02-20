@@ -67,7 +67,7 @@ export const login = async (req, res) => {
 
     const passwordOk = await verifyPassword(password, user.password);
     if (!passwordOk) {
-      return res.status(501).json({ msg: "Invalid credentials" });
+      return res.status(401).json({ msg: "Invalid credentials" });
     }
 
     const roleName = user.role?.roleName || "User";
