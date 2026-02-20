@@ -13,7 +13,7 @@ export default function LoginPage() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
 
-  const adminRoles = ["Admin", "Super Admin", "Department Admin"];
+  const adminRoles = ["admin", "super admin", "department admin"];
 
   // ── Typing animation phrases ──
   const phrases = [
@@ -62,8 +62,9 @@ export default function LoginPage() {
   // Check if already logged in
   useEffect(() => {
     if (!loading && user?.role) {
+      const userRole = String(user.role).toLowerCase();
       navigate(
-        adminRoles.includes(user.role)
+        adminRoles.includes(userRole)
           ? "/adminDashboard"
           : "/employeeDashboard",
         { replace: true }
@@ -80,13 +81,13 @@ export default function LoginPage() {
     try {
       const { data } = await API.post("/auth/login", { identifier, password });
       
-      const user = await refresh();
-      const role = data.user?.role;
+      const refreshedUser = await refresh();
+      const role = data?.role || refreshedUser?.role;
 
       if (!role) throw new Error("No role returned");
 
       navigate(
-        adminRoles.includes(role)
+        adminRoles.includes(String(role).toLowerCase())
           ? "/adminDashboard"
           : "/employeeDashboard",
         { replace: true }
@@ -114,7 +115,7 @@ export default function LoginPage() {
       if (!role) throw new Error("No role returned");
 
       navigate(
-        adminRoles.includes(role)
+        adminRoles.includes(String(role).toLowerCase())
           ? "/adminDashboard"
           : "/employeeDashboard",
         { replace: true }
