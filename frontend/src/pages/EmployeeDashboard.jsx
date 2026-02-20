@@ -1,24 +1,16 @@
 // pages/DashboardPage.jsx
 import React, { useState, useEffect } from "react";
 import {
-  User,
-  Calendar,
-  LogOut,
-  Clock,
-  FileText,
-  UserCheck,
-  Plus,
-  XCircle,
-  Loader2,
-  AlertCircle,
-  CheckCircle,
+  User, Calendar, LogOut, Clock, FileText, UserCheck,
+  Plus, XCircle, Loader2, AlertCircle, CheckCircle, Activity, TrendingUp,
 } from "lucide-react";
-import Button from "../components/ui/Button";           // from ui/Button.jsx
+import Button from "../components/ui/Button";
 import EmployeeProfilePage from "./EmployeeProfilePage";
 import CalendarPage from "./CalendarPage";
 import TakeLeavePage from "./TakeLeavePage";
 import API from "../api";
 import { toast } from "react-toastify";
+import Swal from "sweetalert2";
 import { useAuth } from "../auth/AuthContext";
 
 export default function EmployeeDashboard() {
@@ -26,7 +18,7 @@ export default function EmployeeDashboard() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [modalContent, setModalContent] = useState(null); // null | "profile" | "calendar" | "takeleave"
+  const [modalContent, setModalContent] = useState(null);
   const [tableType, setTableType] = useState("biometric");
 
   const [userName, setUserName] = useState("New User");
@@ -44,43 +36,31 @@ export default function EmployeeDashboard() {
 
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
+    return new Date(dateString).toLocaleDateString("en-GB", {
+      day: "2-digit", month: "2-digit", year: "numeric",
     });
   };
 
-  // Fetch employee details
   useEffect(() => {
     const fetchEmployeeData = async () => {
       if (!user?.id) return;
-
       setIsLoading(true);
       try {
         const res = await API.get(`/users/${user.id}`);
         const employee = res.data;
-
         const fullName =
           `${employee.firstName || ""} ${employee.lastName || ""}`.trim() ||
-          employee.employeeName ||
-          "New User";
-
+          employee.employeeName || "New User";
         setUserName(fullName);
-
         if (employee.photo) {
           const photoPath = employee.photo.startsWith("/uploads/")
-            ? employee.photo
-            : `/uploads/${employee.photo}`;
+            ? employee.photo : `/uploads/${employee.photo}`;
           setPhotoUrl(`http://localhost:5000${photoPath}`);
         } else {
           setPhotoUrl(null);
         }
-
         setCompanyId(employee.companyId || null);
         setDepartmentId(employee.departmentId || null);
-
         const directStaffId =
           employee.staffId || employee.employeeId || user?.staffId || user?.employeeId;
         if (directStaffId) {
@@ -94,6 +74,7 @@ export default function EmployeeDashboard() {
         } else {
           setResolvedStaffId(null);
         }
+        toast.success(`Welcome back, ${fullName}! 🎉`);
       } catch (err) {
         console.error("Error fetching employee data:", err);
         toast.error("Failed to load user information");
@@ -104,7 +85,6 @@ export default function EmployeeDashboard() {
         setIsLoading(false);
       }
     };
-
     fetchEmployeeData();
   }, [user?.id]);
 
@@ -114,27 +94,18 @@ export default function EmployeeDashboard() {
     }
   }, [user?.staffId, user?.employeeId]);
 
-  // Fetch biometric punches
   useEffect(() => {
     if (!resolvedStaffId) return;
-
     const fetchPunches = async () => {
       setIsLoading(true);
       try {
-        const staffId = resolvedStaffId;
-        const res = await API.get(`/biometricPunches`, { params: { staffId } });
-
+        const res = await API.get(`/biometricPunches`, { params: { staffId: resolvedStaffId } });
         const punchesData = res.data.map((row) => ({
           ...row,
           punchTimestamp: row.punchTimestamp || new Date().toISOString(),
           location: row.location || "Unknown Location",
         }));
-
-        setPunches(
-          punchesData.sort(
-            (a, b) => new Date(b.punchTimestamp) - new Date(a.punchTimestamp)
-          )
-        );
+        setPunches(punchesData.sort((a, b) => new Date(b.punchTimestamp) - new Date(a.punchTimestamp)));
       } catch (err) {
         console.error("Error fetching punches:", err);
         toast.error("Failed to load Punch history");
@@ -143,29 +114,22 @@ export default function EmployeeDashboard() {
         setIsLoading(false);
       }
     };
-
     fetchPunches();
   }, [resolvedStaffId]);
 
-  // Fetch leaves
   useEffect(() => {
     if (!resolvedStaffId) return;
-
     const fetchLeaves = async () => {
       setIsLoading(true);
       try {
-        const res = await API.get(`/leaves/employee/${resolvedStaffId}`);
-
+        const res = await API.get("/leaveRequests", { params: { staffId: resolvedStaffId } });
         const leaveData = res.data.map((l) => ({
           from_date: l.startDate ? formatDate(l.startDate) : "N/A",
           to_date: l.endDate ? formatDate(l.endDate) : "N/A",
           description: l.reason || "N/A",
           status: l.status || "Pending",
         }));
-
-        setLeaves(
-          leaveData.sort((a, b) => new Date(b.from_date) - new Date(a.from_date))
-        );
+        setLeaves(leaveData.sort((a, b) => new Date(b.from_date) - new Date(a.from_date)));
       } catch (err) {
         console.error("Error fetching leaves:", err);
         toast.error("Failed to load leave history");
@@ -174,106 +138,100 @@ export default function EmployeeDashboard() {
         setIsLoading(false);
       }
     };
-
     fetchLeaves();
   }, [resolvedStaffId]);
 
-  const getStatusIcon = (status) => {
-    switch (status?.toLowerCase()) {
-      case "approved":
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case "rejected":
-        return <XCircle className="w-4 h-4 text-red-600" />;
-      default:
-        return <AlertCircle className="w-4 h-4 text-yellow-600" />;
+  const getStatusBadge = (status) => {
+    const lower = status?.toLowerCase();
+    if (lower === "approved")
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <CheckCircle className="w-3 h-3" /> Approved
+        </span>
+      );
+    if (lower === "rejected")
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+          <XCircle className="w-3 h-3" /> Rejected
+        </span>
+      );
+    return (
+      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+        <AlertCircle className="w-3 h-3" /> {status || "Pending"}
+      </span>
+    );
+  };
+
+  const handleLogout = async () => {
+    const result = await Swal.fire({
+      title: "Sign Out",
+      text: "Are you sure you want to sign out?",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Yes, sign out",
+      cancelButtonText: "Stay",
+      background: "#0f172a",
+      color: "#f1f5f9",
+      confirmButtonColor: "#f43f5e",
+      cancelButtonColor: "#1e293b",
+    });
+    if (!result.isConfirmed) return;
+    try {
+      await API.post("/auth/logout");
+    } catch (err) {
+      console.error("Logout error:", err);
+    } finally {
+      window.location.href = "/login";
     }
   };
 
   const renderTable = () => {
-    if (isLoading) {
+    if (isLoading)
       return (
-        <div className="bg-white rounded-2xl border border-gray-100 p-6 text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-600 mb-2" />
-          <p className="text-gray-600">Loading your data...</p>
+        <div className="flex flex-col items-center justify-center py-16 gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+          <p className="text-slate-400 text-sm">Loading your data...</p>
         </div>
       );
-    }
 
-    if (error) {
+    if (error)
       return (
-        <div className="bg-white rounded-2xl border border-gray-100 p-6 text-center">
-          <AlertCircle className="w-8 h-8 text-red-600 mx-auto mb-2" />
-          <p className="text-red-600">{error}</p>
+        <div className="flex flex-col items-center justify-center py-16 gap-3">
+          <AlertCircle className="w-8 h-8 text-rose-400" />
+          <p className="text-rose-400 text-sm">{error}</p>
         </div>
       );
-    }
 
     if (tableType === "leave") {
       return (
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div className="bg-gray-50 px-6 py-4 border-b border-gray-100">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-blue-600" /> Leave History
-            </h3>
+        <div className="rounded-2xl border border-white/10 overflow-hidden bg-white/[0.02]">
+          <div className="flex items-center gap-3 px-6 py-5 border-b border-white/10 bg-violet-500/5">
+            <FileText className="w-5 h-5 text-violet-400" />
+            <h3 className="text-base font-bold text-slate-100">Leave History</h3>
           </div>
           <div className="overflow-x-auto max-h-96 overflow-y-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="text-left py-4 px-6 font-semibold text-gray-700">
-                    From Date
-                  </th>
-                  <th className="text-left py-4 px-6 font-semibold text-gray-700">
-                    To Date
-                  </th>
-                  <th className="text-left py-4 px-6 font-semibold text-gray-700">
-                    Reason
-                  </th>
-                  <th className="text-left py-4 px-6 font-semibold text-gray-700">
-                    Status
-                  </th>
+                <tr className="border-b border-white/10 bg-white/[0.02]">
+                  <th className="text-left py-3.5 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest">From Date</th>
+                  <th className="text-left py-3.5 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest">To Date</th>
+                  <th className="text-left py-3.5 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest">Reason</th>
+                  <th className="text-left py-3.5 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {leaves.length > 0 ? (
                   leaves.map((row, idx) => (
-                    <tr
-                      key={idx}
-                      className="hover:bg-gray-50 transition-colors duration-150"
-                    >
-                      <td className="py-4 px-6 border-b border-gray-100">
-                        {row.from_date}
-                      </td>
-                      <td className="py-4 px-6 border-b border-gray-100">
-                        {row.to_date}
-                      </td>
-                      <td className="py-4 px-6 border-b border-gray-100">
-                        {row.description}
-                      </td>
-                      <td className="py-4 px-6 border-b border-gray-100 flex items-center gap-2">
-                        {getStatusIcon(row.status)}
-                        <span
-                          className={`font-medium ${
-                            row.status?.toLowerCase() === "approved"
-                              ? "text-green-700"
-                              : row.status?.toLowerCase() === "rejected"
-                              ? "text-red-700"
-                              : "text-yellow-700"
-                          }`}
-                        >
-                          {row.status}
-                        </span>
-                      </td>
+                    <tr key={idx} className="border-b border-white/5 hover:bg-white/[0.03] transition-colors duration-150">
+                      <td className="py-4 px-6 text-sm text-slate-300">{row.from_date}</td>
+                      <td className="py-4 px-6 text-sm text-slate-300">{row.to_date}</td>
+                      <td className="py-4 px-6 text-sm text-slate-400 max-w-xs truncate">{row.description}</td>
+                      <td className="py-4 px-6">{getStatusBadge(row.status)}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td
-                      colSpan="4"
-                      className="text-center py-6 text-gray-500"
-                    >
-                      No leave records found
-                    </td>
+                    <td colSpan="4" className="text-center py-12 text-slate-500 text-sm">No leave records found</td>
                   </tr>
                 )}
               </tbody>
@@ -283,61 +241,46 @@ export default function EmployeeDashboard() {
       );
     }
 
-    // Biometric punches table
     return (
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-        <div className="bg-gray-50 px-6 py-4 border-b border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-blue-600" /> Punch History
-          </h3>
+      <div className="rounded-2xl border border-white/10 overflow-hidden bg-white/[0.02]">
+        <div className="flex items-center gap-3 px-6 py-5 border-b border-white/10 bg-cyan-500/5">
+          <Clock className="w-5 h-5 text-cyan-400" />
+          <h3 className="text-base font-bold text-slate-100">Punch History</h3>
         </div>
         <div className="overflow-x-auto max-h-96 overflow-y-auto">
           <table className="w-full">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="text-left py-4 px-6 font-semibold text-gray-700">
-                  Date
-                </th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-700">
-                  Time
-                </th>
-                <th className="text-left py-4 px-6 font-semibold text-gray-700">
-                  Location
-                </th>
+              <tr className="border-b border-white/10 bg-white/[0.02]">
+                <th className="text-left py-3.5 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest">Date</th>
+                <th className="text-left py-3.5 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest">Time</th>
+                <th className="text-left py-3.5 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest">Location</th>
               </tr>
             </thead>
             <tbody>
               {punches.length > 0 ? (
                 punches.map((row, idx) => {
                   const dateObj = new Date(row.punchTimestamp);
-                  const time = dateObj.toLocaleTimeString("en-US", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  });
+                  const time = dateObj.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
                   const date = formatDate(row.punchTimestamp);
-
                   return (
-                    <tr
-                      key={idx}
-                      className="hover:bg-gray-50 transition-colors duration-150"
-                    >
-                      <td className="py-4 px-6 border-b border-gray-100">
-                        {date}
+                    <tr key={idx} className="border-b border-white/5 hover:bg-white/[0.03] transition-colors duration-150">
+                      <td className="py-4 px-6 text-sm text-slate-300">{date}</td>
+                      <td className="py-4 px-6">
+                        <span className="inline-flex items-center gap-1.5 text-sm text-slate-300">
+                          <Clock className="w-3.5 h-3.5 text-cyan-500/70" />{time}
+                        </span>
                       </td>
-                      <td className="py-4 px-6 border-b border-gray-100">
-                        {time}
-                      </td>
-                      <td className="py-4 px-6 border-b border-gray-100">
-                        {row.location || "Unknown Location"}
+                      <td className="py-4 px-6">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs font-medium">
+                          {row.location || "Unknown Location"}
+                        </span>
                       </td>
                     </tr>
                   );
                 })
               ) : (
                 <tr>
-                  <td colSpan="3" className="text-center py-6 text-gray-500">
-                    No Punch records found
-                  </td>
+                  <td colSpan="3" className="text-center py-12 text-slate-500 text-sm">No punch records found</td>
                 </tr>
               )}
             </tbody>
@@ -347,34 +290,15 @@ export default function EmployeeDashboard() {
     );
   };
 
-  const handleLogout =async () => {
-    try {
-      await API.post("/auth/logout");
-    } catch (err) {
-      console.error("Logout error:", err);
-    } finally {
-      window.location.href = "/login";
-    }
-  }
-
   const renderInlineModal = () => {
     if (!modalContent) return null;
-
     let content = null;
-    let widthClass = "max-w-5xl";
+    let maxW = "max-w-5xl";
 
-    if (modalContent === "profile") {
-      widthClass = "max-w-4xl";
-      content = <EmployeeProfilePage />;
-    }
-
-    if (modalContent === "calendar") {
-      widthClass = "max-w-6xl";
-      content = <CalendarPage />;
-    }
-
+    if (modalContent === "profile") { maxW = "max-w-4xl"; content = <EmployeeProfilePage />; }
+    if (modalContent === "calendar") { maxW = "max-w-6xl"; content = <CalendarPage />; }
     if (modalContent === "takeleave") {
-      widthClass = "max-w-4xl";
+      maxW = "max-w-6xl";
       content = (
         <TakeLeavePage
           empId={resolvedStaffId}
@@ -383,103 +307,153 @@ export default function EmployeeDashboard() {
         />
       );
     }
+    const scrollable = modalContent === "takeleave" || modalContent === "profile";
 
     return (
-      <div className="fixed inset-0 z-50 bg-black/45 backdrop-blur-sm p-4 sm:p-6">
-        <div className="w-full h-full flex items-center justify-center">
-          <div className={`relative w-full ${widthClass} max-h-[92vh] bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden`}>
+      <div
+        className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm overflow-y-auto p-4 sm:p-8 flex items-start justify-center"
+        onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
+      >
+        <div className={`relative w-full ${maxW} my-auto`}>
+          <div className="relative bg-gradient-to-b from-slate-900 to-slate-950 border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
             <button
               onClick={closeModal}
-              className="absolute top-4 right-4 z-10 w-9 h-9 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center transition-colors"
-              aria-label="Close modal"
+              className="absolute top-4 right-4 z-10 w-9 h-9 rounded-xl bg-white/5 hover:bg-rose-500/20 border border-white/10 hover:border-rose-500/30 text-slate-400 hover:text-rose-400 flex items-center justify-center transition-all text-sm font-bold"
             >
-              X
+              ✕
             </button>
-            <div className="h-full overflow-y-auto p-6">{content}</div>
+            <div className={`${scrollable ? "max-h-[88vh]" : ""} overflow-y-auto pt-14`}>
+              {content}
+            </div>
           </div>
         </div>
       </div>
     );
   };
 
+  const approvedLeaves = leaves.filter((l) => l.status?.toLowerCase() === "approved").length;
+  const pendingLeaves = leaves.filter((l) => l.status?.toLowerCase() === "pending").length;
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Custom Header (no MasterHeader) */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+
+      {/* Header */}
+      <div className="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-xl border-b border-white/10 shadow-lg shadow-black/20">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+
           <button
             onClick={openCalendarModal}
-            className="w-12 h-12 bg-gray-100 hover:bg-gray-200 rounded-xl flex items-center justify-center transition-colors duration-150"
+            className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-cyan-500/10 border border-white/10 hover:border-cyan-500/30 text-slate-400 hover:text-cyan-400 transition-all"
           >
-            <Calendar className="w-6 h-6 text-gray-600" />
+            <Calendar className="w-5 h-5" />
+            <span className="text-sm font-semibold">Calendar</span>
           </button>
 
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900">
-              Welcome back, {userName}
+            <h1 className="text-xl font-bold text-slate-100">
+              Welcome back,{" "}
+              <span className="bg-gradient-to-r from-cyan-400 to-sky-400 bg-clip-text text-transparent">
+                {userName}
+              </span>
             </h1>
-            <p className="text-gray-600">Have a great day!</p>
+            <p className="text-xs text-slate-500 mt-0.5">Have a productive day.</p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <button
               onClick={openProfileModal}
-              className="w-12 h-12 bg-gray-100 hover:bg-gray-200 rounded-xl flex items-center justify-center overflow-hidden relative transition-colors duration-150"
+              className="w-11 h-11 rounded-xl bg-white/5 hover:bg-cyan-500/10 border border-white/10 hover:border-cyan-500/30 flex items-center justify-center overflow-hidden transition-all"
             >
               {photoUrl ? (
                 <img
                   src={photoUrl}
                   alt="Profile"
                   className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.currentTarget.src = "/placeholder-image.jpg";
-                  }}
+                  onError={(e) => { e.currentTarget.src = "/placeholder-image.jpg"; }}
                 />
               ) : (
-                <User className="w-6 h-6 text-gray-600" />
+                <User className="w-5 h-5 text-slate-400" />
               )}
             </button>
-
-            <Button
+            <button
               onClick={handleLogout}
-              variant="danger"
-              size="icon"
-              className="w-12 h-12"
+              className="w-11 h-11 rounded-xl bg-white/5 hover:bg-rose-500/10 border border-white/10 hover:border-rose-500/30 flex items-center justify-center text-slate-400 hover:text-rose-400 transition-all"
             >
-              <LogOut className="w-6 h-6" />
-            </Button>
+              <LogOut className="w-5 h-5" />
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="flex flex-wrap justify-center gap-4 mb-8">
-          <Button
-            onClick={openTakeLeaveModal}
-            variant="primary"
-            icon={<Plus className="w-5 h-5" />}
-          >
-            Apply Leave
-          </Button>
+      {/* Main */}
+      <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
 
-          <Button
-            onClick={() => setTableType("biometric")}
-            variant={tableType === "biometric" ? "primary" : "secondary"}
-            icon={<UserCheck className="w-5 h-5" />}
-          >
-            Punch History
-          </Button>
+        {/* Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="flex items-center gap-4 p-5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-cyan-500/25 hover:bg-cyan-500/[0.04] transition-all duration-200">
+            <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center shrink-0">
+              <Activity className="w-5 h-5 text-cyan-400" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Total Punches</p>
+              <p className="text-3xl font-bold text-slate-100 mt-0.5">{punches.length}</p>
+            </div>
+          </div>
 
-          <Button
-            onClick={() => setTableType("leave")}
-            variant={tableType === "leave" ? "primary" : "secondary"}
-            icon={<FileText className="w-5 h-5" />}
-          >
-            Leave History
-          </Button>
+          <div className="flex items-center gap-4 p-5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-emerald-500/25 hover:bg-emerald-500/[0.04] transition-all duration-200">
+            <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+              <CheckCircle className="w-5 h-5 text-emerald-400" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Approved Leaves</p>
+              <p className="text-3xl font-bold text-slate-100 mt-0.5">{approvedLeaves}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 p-5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-amber-500/25 hover:bg-amber-500/[0.04] transition-all duration-200">
+            <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+              <TrendingUp className="w-5 h-5 text-amber-400" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Pending Requests</p>
+              <p className="text-3xl font-bold text-slate-100 mt-0.5">{pendingLeaves}</p>
+            </div>
+          </div>
         </div>
 
+        {/* CTA Buttons */}
+        <div className="flex flex-wrap justify-center gap-3">
+          <button
+            onClick={openTakeLeaveModal}
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-sky-500 hover:from-cyan-400 hover:to-sky-400 text-slate-900 font-bold text-sm shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/35 transition-all hover:-translate-y-0.5"
+          >
+            <Plus className="w-4 h-4" /> Apply Leave
+          </button>
+
+          <button
+            onClick={() => setTableType("biometric")}
+            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm border transition-all hover:-translate-y-0.5 ${
+              tableType === "biometric"
+                ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-400"
+                : "bg-white/[0.04] border-white/10 text-slate-400 hover:bg-white/[0.07] hover:text-slate-200"
+            }`}
+          >
+            <UserCheck className="w-4 h-4" /> Punch History
+          </button>
+
+          <button
+            onClick={() => setTableType("leave")}
+            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm border transition-all hover:-translate-y-0.5 ${
+              tableType === "leave"
+                ? "bg-violet-500/10 border-violet-500/30 text-violet-400"
+                : "bg-white/[0.04] border-white/10 text-slate-400 hover:bg-white/[0.07] hover:text-slate-200"
+            }`}
+          >
+            <FileText className="w-4 h-4" /> Leave History
+          </button>
+        </div>
+
+        {/* Table */}
         {renderTable()}
       </div>
 

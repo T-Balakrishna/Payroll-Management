@@ -28,7 +28,7 @@ const {
   Attendance,
 } = db;
 
-const DEFAULT_PASSWORD_PLAIN = process.env.SEED_USER_PASSWORD || "123";
+const DEFAULT_PASSWORD_PLAIN = "123";
 
 const REQUIRED_STATUSES = [
   "Present",

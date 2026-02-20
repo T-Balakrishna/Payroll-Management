@@ -4,12 +4,31 @@ const { LeaveRequestHistory } = db;
 // In real usage: almost always filtered by leaveRequestId (admin/debug only)
 export const getAllLeaveRequestHistories = async (req, res) => {
   try {
-    const histories = await LeaveRequestHistory.findAll({
+    const where = {};
+    if (req.query.companyId) where.companyId = req.query.companyId;
+    if (req.query.actionBy) where.actionBy = req.query.actionBy;
+    if (req.query.leaveRequestId) where.leaveRequestId = req.query.leaveRequestId;
+
+    const requestInclude = {
+      model: db.LeaveRequest,
+      as: 'request',
       include: [
-        { model: db.LeaveRequest, as: 'request' },
+        {
+          model: db.Employee,
+          as: 'employee',
+          ...(req.query.departmentId
+            ? { where: { departmentId: req.query.departmentId }, required: true }
+            : { required: false }),
+        },
+        { model: db.LeaveType, as: 'leaveType', required: false },
+      ],
+    };
+
+    const histories = await LeaveRequestHistory.findAll({
+      where,
+      include: [
+        requestInclude,
         { model: db.Employee, as: 'actor' },
-        { model: db.Company, as: 'company' },
-        
       ],
       order: [['actionDate', 'DESC']]
     });

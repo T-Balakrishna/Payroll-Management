@@ -99,6 +99,11 @@ export default function LoginPage() {
     }
   };
 
+  const handleLoginSubmit = async (e) => {
+    e.preventDefault();
+    await handleLogin();
+  };
+
   const handleGoogleSuccess = async (credentialResponse) => {
     if (!credentialResponse?.credential) {
       return toast.error("Google login failed");
@@ -155,7 +160,7 @@ export default function LoginPage() {
             </div>
 
             {/* Form */}
-            <div className="space-y-6">
+            <form className="space-y-6" onSubmit={handleLoginSubmit}>
               <input
                 type="text"
                 value={identifier}
@@ -173,12 +178,12 @@ export default function LoginPage() {
               />
 
               <button
-                onClick={handleLogin}
+                type="submit"
                 className="w-full py-4 bg-black text-white rounded-2xl font-semibold text-lg hover:bg-gray-900 transition duration-200 shadow-md"
               >
                 Continue
               </button>
-            </div>
+            </form>
 
             <div className="relative my-8">
               <div className="absolute inset-0 flex items-center">
