@@ -45,30 +45,6 @@ export default (sequelize) => {
       comment: 'Date part extracted for easier querying/indexing',
     },
 
-    punchType: {
-      type: DataTypes.ENUM('IN', 'OUT', 'Unknown'),
-      allowNull: false,
-      defaultValue: 'Unknown',
-      comment: 'IN/OUT - usually calculated based on time/rules',
-    },
-
-    // Calculated / derived flags
-    isLate: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: false,
-    },
-
-    isEarlyOut: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: false,
-    },
-
-    isManual: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: false,
-      comment: 'Manually added/edited by admin',
-    },
-
     status: {
       type: DataTypes.ENUM('Valid', 'Invalid', 'Duplicate', 'Pending'),
       allowNull: false,

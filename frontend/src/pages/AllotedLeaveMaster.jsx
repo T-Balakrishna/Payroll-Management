@@ -15,6 +15,13 @@ const getErrorMessage = (err, fallback) =>
   err?.response?.data?.message ||
   err?.message ||
   fallback;
+const toDateOnly = (value) => {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+};
+const isInRange = (dateOnly, startDate, endDate) =>
+  Boolean(dateOnly && startDate && endDate && dateOnly >= startDate && dateOnly <= endDate);
 
 const defaultFilters = {
   designationId: '',
@@ -55,6 +62,19 @@ export default function AllotedLeaveMaster({ userRole, selectedCompanyId }) {
       ),
     [leavePeriods]
   );
+  const activeLeavePeriod = useMemo(() => {
+    if (!effectiveCompanyId) return null;
+    const today = toDateOnly(new Date());
+    const candidates = (leavePeriods || []).filter(
+      (p) => String(p.companyId || '') === String(effectiveCompanyId) && (!p.status || p.status === 'Active')
+    );
+    if (!candidates.length) return null;
+    const match = candidates.find((p) => isInRange(today, p.startDate, p.endDate));
+    if (match) return match;
+    const sorted = [...candidates].sort((a, b) => String(b.startDate || '').localeCompare(String(a.startDate || '')));
+    return sorted[0] || null;
+  }, [leavePeriods, effectiveCompanyId]);
+  const hasActiveLeavePeriod = Boolean(activeLeavePeriod?.startDate && activeLeavePeriod?.endDate);
 
   const loadDesignations = async () => {
     try {
@@ -148,6 +168,14 @@ export default function AllotedLeaveMaster({ userRole, selectedCompanyId }) {
       const designationId = String(emp.designationId || '');
       const gradeId = String(emp.employeeGradeId || '');
 
+      if (!hasActiveLeavePeriod) return false;
+      if (
+        String(row.effectiveFrom || '') !== String(activeLeavePeriod.startDate) ||
+        String(row.effectiveTo || '') !== String(activeLeavePeriod.endDate)
+      ) {
+        return false;
+      }
+
       if (filters.designationId && designationId !== String(filters.designationId)) return false;
       if (filters.employeeGradeId && gradeId !== String(filters.employeeGradeId)) return false;
 
@@ -166,7 +194,7 @@ export default function AllotedLeaveMaster({ userRole, selectedCompanyId }) {
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q));
     });
-  }, [allocations, filters.designationId, filters.employeeGradeId, search, designationMap, gradeMap]);
+  }, [allocations, filters.designationId, filters.employeeGradeId, search, designationMap, gradeMap, activeLeavePeriod, hasActiveLeavePeriod]);
 
   return (
     <div className="h-full flex flex-col px-6">
@@ -278,7 +306,9 @@ export default function AllotedLeaveMaster({ userRole, selectedCompanyId }) {
       {!loading && filteredAllocations.length === 0 ? (
         <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
           <ListChecks className="inline-block w-4 h-4 mr-2" />
-          No allocated leave records found for the current filters.
+          {hasActiveLeavePeriod
+            ? `No allocated leave records found for the current active leave period${activeLeavePeriod?.name ? ` (${activeLeavePeriod.name})` : ''}.`
+            : 'No active leave period found for the selected company.'}
         </div>
       ) : null}
     </div>

@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import API from "../api";
 import { toast } from "react-toastify";
 import { useAuth } from "../auth/AuthContext";
+import { getDashboardRouteForRole } from "../auth/roleRouting";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -12,8 +13,6 @@ export default function LoginPage() {
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-
-  const adminRoles = ["admin", "super admin", "department admin"];
 
   // ── Typing animation phrases ──
   const phrases = [
@@ -62,13 +61,10 @@ export default function LoginPage() {
   // Check if already logged in
   useEffect(() => {
     if (!loading && user?.role) {
-      const userRole = String(user.role).toLowerCase();
-      navigate(
-        adminRoles.includes(userRole)
-          ? "/adminDashboard"
-          : "/employeeDashboard",
-        { replace: true }
-      );
+      const route = getDashboardRouteForRole(user.role);
+      if (route) {
+        navigate(route, { replace: true });
+      }
     }
   }, [user, loading, navigate]);
 
@@ -85,18 +81,20 @@ export default function LoginPage() {
       const role = data?.role || refreshedUser?.role;
 
       if (!role) throw new Error("No role returned");
+      const route = getDashboardRouteForRole(role);
+      if (!route) throw new Error("Your role does not have portal access");
 
-      navigate(
-        adminRoles.includes(String(role).toLowerCase())
-          ? "/adminDashboard"
-          : "/employeeDashboard",
-        { replace: true }
-      );
+      navigate(route, { replace: true });
 
       toast.success("Login successful");
     } catch (err) {
       toast.error(err.response?.data?.msg || "Login failed");
     }
+  };
+
+  const handleLoginSubmit = async (e) => {
+    e.preventDefault();
+    await handleLogin();
   };
 
   const handleGoogleSuccess = async (credentialResponse) => {
@@ -113,13 +111,10 @@ export default function LoginPage() {
       const role = user?.role;
 
       if (!role) throw new Error("No role returned");
+      const route = getDashboardRouteForRole(role);
+      if (!route) throw new Error("Your role does not have portal access");
 
-      navigate(
-        adminRoles.includes(String(role).toLowerCase())
-          ? "/adminDashboard"
-          : "/employeeDashboard",
-        { replace: true }
-      );
+      navigate(route, { replace: true });
 
       toast.success("Login successful");
     } catch (err) {
@@ -155,7 +150,7 @@ export default function LoginPage() {
             </div>
 
             {/* Form */}
-            <div className="space-y-6">
+            <form className="space-y-6" onSubmit={handleLoginSubmit}>
               <input
                 type="text"
                 value={identifier}
@@ -173,12 +168,12 @@ export default function LoginPage() {
               />
 
               <button
-                onClick={handleLogin}
+                type="submit"
                 className="w-full py-4 bg-black text-white rounded-2xl font-semibold text-lg hover:bg-gray-900 transition duration-200 shadow-md"
               >
                 Continue
               </button>
-            </div>
+            </form>
 
             <div className="relative my-8">
               <div className="absolute inset-0 flex items-center">

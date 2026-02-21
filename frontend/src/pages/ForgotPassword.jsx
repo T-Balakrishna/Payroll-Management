@@ -26,6 +26,11 @@ export default function ForgotPassword() {
     }
   };
 
+  const onSubmit = async (e) => {
+    e.preventDefault();
+    await handleSubmit();
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-purple-100 to-gray-100 relative">
       {loading && <LoadingScreen />}
@@ -38,7 +43,7 @@ export default function ForgotPassword() {
           Forgot Password
         </h2>
 
-        <div className="space-y-5">
+        <form className="space-y-5" onSubmit={onSubmit}>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Email
@@ -54,7 +59,7 @@ export default function ForgotPassword() {
           </div>
 
           <button
-            onClick={handleSubmit}
+            type="submit"
             disabled={loading}
             className={`w-full p-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition ${
               loading ? "opacity-70 cursor-not-allowed" : ""
@@ -62,10 +67,11 @@ export default function ForgotPassword() {
           >
             {loading ? "Sending..." : "Send Reset Link"}
           </button>
-        </div>
+        </form>
 
         <p className="mt-6 text-center text-sm">
           <button
+            type="button"
             onClick={() => navigate("/login")}
             className="text-blue-600 hover:underline"
             disabled={loading}

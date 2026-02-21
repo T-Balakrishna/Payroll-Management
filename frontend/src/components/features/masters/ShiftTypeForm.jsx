@@ -18,6 +18,7 @@ const DEFAULT_FORM = {
   allowMultipleCheckIns: false,
   autoMarkAbsentIfNoCheckIn: false,
   workingHoursCalculation: "first_to_last",
+  minimumHours: 6,
   halfDayHours: 4,
   absentHours: 6,
   enableLateEntry: true,
@@ -173,8 +174,12 @@ export default function ShiftTypeForm({
 
     const halfDayHours = toPositiveDecimal(form.halfDayHours, 0);
     const absentHours = toPositiveDecimal(form.absentHours, 0);
+    const minimumHours = toPositiveDecimal(form.minimumHours, 0);
     if (halfDayHours >= absentHours) {
       return toast.error("Half day hours must be less than absent hours threshold");
+    }
+    if (minimumHours < halfDayHours) {
+      return toast.error("Minimum hours must be greater than or equal to half day hours");
     }
     if (form.autoMarkAbsentIfNoCheckIn && !form.requireCheckIn) { 
       return toast.error("Cannot auto-mark absent if check-in is not required");
@@ -195,6 +200,7 @@ export default function ShiftTypeForm({
       allowMultipleCheckIns: Boolean(form.allowMultipleCheckIns),
       autoMarkAbsentIfNoCheckIn: Boolean(form.autoMarkAbsentIfNoCheckIn),
       workingHoursCalculation: form.workingHoursCalculation || "first_to_last",
+      minimumHours,
       halfDayHours,
       absentHours,
       enableLateEntry: Boolean(form.enableLateEntry),
@@ -256,6 +262,14 @@ export default function ShiftTypeForm({
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Input
+          label="Minimum Hours (Present)"
+          type="number"
+          min={0}
+          step="0.25"
+          value={form.minimumHours}
+          onChange={setField("minimumHours")}
+        />
         <Input
           label="Half Day Hours"
           type="number"

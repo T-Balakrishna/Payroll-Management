@@ -118,6 +118,16 @@ export default (sequelize) => {
       comment: 'Method to calculate working hours',
     },
 
+    minimumHours: {
+      type: DataTypes.DECIMAL(4, 2),
+      allowNull: false,
+      defaultValue: 6.00,
+      comment: 'Minimum working hours required to mark present',
+      validate: {
+        min: { args: [0], msg: 'Minimum hours must be greater than or equal to 0.' },
+      },
+    },
+
     halfDayHours: {
       type: DataTypes.DECIMAL(4, 2),
       allowNull: false,
@@ -261,6 +271,11 @@ export default (sequelize) => {
       validateHalfDayThreshold() {
         if (this.halfDayHours >= this.absentHours) {
           throw new Error('Half day hours must be less than absent hours threshold.');
+        }
+      },
+      validateMinimumHours() {
+        if (this.minimumHours < this.halfDayHours) {
+          throw new Error('Minimum hours must be greater than or equal to half day hours.');
         }
       },
       validateCheckInRequirements() {

@@ -36,6 +36,15 @@ function UserForm({
     if (!formData.companyId) return [];
     return departments.filter((d) => String(d.companyId) === String(formData.companyId));
   }, [departments, formData.companyId]);
+  const selectedRoleName = useMemo(() => {
+    const selectedRole = roles.find((r) => String(r.roleId) === String(formData.roleId || ""));
+    return String(selectedRole?.roleName || "").trim().toLowerCase();
+  }, [roles, formData.roleId]);
+  const shouldShowDepartment = useMemo(
+    () =>
+      ["teaching staff", "non-teaching staff", "student"].includes(selectedRoleName),
+    [selectedRoleName]
+  );
 
   useEffect(() => {
     if (isCompanyFixed && !isEdit) {
@@ -218,7 +227,6 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
   const [isLoading, setIsLoading] = useState(false);
   const [refreshFlag, setRefreshFlag] = useState(false);
   const [formData, setFormData] = useState({
-    userId: "",
     userName: "",
     userNumber: "",
     userMail: "",
@@ -282,7 +290,6 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
 
   const openAddUserForm = () => {
     setFormData({
-      userId: "",
       userName: "",
       userNumber: "",
       userMail: "",
@@ -306,6 +313,7 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
       return;
     }
 
+    const { userId: _userId, ...formWithoutUserId } = formData;
     const payload = {
       userName: formData.userName,
       userNumber: formData.userNumber,
@@ -455,7 +463,7 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
             password: String(row.password || "").trim(),
             roleId,
             companyId,
-            departmentId,
+            departmentId: requiresDepartment ? departmentId : null,
             status: "Active",
             createdBy: currentUserId,
             updatedBy: currentUserId,
@@ -471,6 +479,10 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
             String(p.companyId || "").trim() &&
             (!p._requiresDepartment || String(p.departmentId || "").trim())
         );
+
+      payloads.forEach((p) => {
+        delete p.requiresDepartment;
+      });
 
       if (payloads.length === 0) {
         toast.error("CSV must include valid company/department/role mappings");

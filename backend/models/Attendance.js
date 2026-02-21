@@ -111,19 +111,10 @@ export default (sequelize) => {
 
     // Status & flags
     attendanceStatus: {
-      type: DataTypes.ENUM(
-        'Present',
-        'Absent',
-        'Half-Day',
-        'Late',
-        'Early Exit',
-        'Leave',
-        'Holiday',
-        'Week Off',
-        'Permission'
-      ),
+      type: DataTypes.STRING(100),
       allowNull: false,
       defaultValue: 'Present',
+      comment: 'Free-text status (e.g., "Present", "Permission", "Leave - Sick Leave")',
     },
 
     isLate: {

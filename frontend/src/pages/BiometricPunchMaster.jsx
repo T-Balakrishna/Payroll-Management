@@ -8,6 +8,12 @@ import Input from "../components/ui/Input";
 import Button from "../components/ui/Button";
 
 const normalizeRole = (role) => String(role || "").replace(/\s+/g, "").toLowerCase();
+const formatPunchTime = (value) => {
+  if (!value) return "-";
+  const str = String(value).trim();
+  if (!str) return "-";
+  return str.replace("T", " ").replace("Z", "");
+};
 
 export default function BiometricPunchMaster({ userRole, selectedCompanyId }) {
   const { user } = useAuth();
@@ -26,9 +32,6 @@ export default function BiometricPunchMaster({ userRole, selectedCompanyId }) {
     employeeGradeId: "",
     roleType: "",
     biometricDeviceId: "",
-    punchType: "",
-    isManual: "",
-    isLate: "",
     dateFrom: "",
     dateTo: "",
     q: "",
@@ -137,9 +140,6 @@ export default function BiometricPunchMaster({ userRole, selectedCompanyId }) {
       employeeGradeId: "",
       roleType: "",
       biometricDeviceId: "",
-      punchType: "",
-      isManual: "",
-      isLate: "",
       dateFrom: "",
       dateTo: "",
       q: "",
@@ -200,43 +200,6 @@ export default function BiometricPunchMaster({ userRole, selectedCompanyId }) {
             allowPlaceholderSelection
           />
 
-          <Select
-            label="Punch Type"
-            value={filters.punchType}
-            onChange={(e) => setFilters((p) => ({ ...p, punchType: e.target.value }))}
-            options={[
-              { value: "IN", label: "IN" },
-              { value: "OUT", label: "OUT" },
-              { value: "Unknown", label: "Unknown" },
-            ]}
-            placeholder="All Types"
-            allowPlaceholderSelection
-          />
-
-          <Select
-            label="Manual/Auto"
-            value={filters.isManual}
-            onChange={(e) => setFilters((p) => ({ ...p, isManual: e.target.value }))}
-            options={[
-              { value: "true", label: "Manual" },
-              { value: "false", label: "Auto" },
-            ]}
-            placeholder="All"
-            allowPlaceholderSelection
-          />
-
-          <Select
-            label="Late/On Time"
-            value={filters.isLate}
-            onChange={(e) => setFilters((p) => ({ ...p, isLate: e.target.value }))}
-            options={[
-              { value: "true", label: "Late" },
-              { value: "false", label: "On Time" },
-            ]}
-            placeholder="All"
-            allowPlaceholderSelection
-          />
-
           <Input
             label="Date From"
             type="date"
@@ -284,9 +247,6 @@ export default function BiometricPunchMaster({ userRole, selectedCompanyId }) {
           "Role Type",
           "Device",
           "Punch Time",
-          "Type",
-          "Late",
-          "Manual",
         ]}
         loading={loading}
       >
@@ -312,11 +272,8 @@ export default function BiometricPunchMaster({ userRole, selectedCompanyId }) {
               <td className="py-3 px-4">{p.roleType || "-"}</td>
               <td className="py-3 px-4">{p.device?.name || "-"}</td>
               <td className="py-3 px-4">
-                {p.punchTimestamp ? new Date(p.punchTimestamp).toLocaleString() : "-"}
+                {formatPunchTime(p.punchTimestamp)}
               </td>
-              <td className="py-3 px-4">{p.punchType || "-"}</td>
-              <td className="py-3 px-4">{p.isLate ? "Yes" : "No"}</td>
-              <td className="py-3 px-4">{p.isManual ? "Yes" : "No"}</td>
             </tr>
           );
         })}
