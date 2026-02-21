@@ -38,6 +38,7 @@ import {
   Shield,
   Fingerprint,
   Briefcase,
+  HandCoins,
 } from 'lucide-react';
 
 import AddUser from './AddUser.jsx';
@@ -57,6 +58,7 @@ import HolidayPlanMaster from './HolidayPlanMaster.jsx';
 import LeaveAllocation from './LeaveAllocation.jsx';
 import LeavePeriodMaster from './LeavePeriodMaster.jsx';
 import AllotedLeaveMaster from './AllotedLeaveMaster.jsx';
+import SalaryComponentMaster from './SalaryComponentMaster.jsx';
 
 ChartJS.register(
   CategoryScale,
@@ -192,6 +194,7 @@ const AdminDashboard = () => {
       { id: 'department', label: t('Department Master'), icon: Building2, color: 'text-indigo-500', category: 'Organization' },
       { id: 'designation', label: t('Designation Master'), icon: Award, color: 'text-pink-500', category: 'Organization' },
       { id: 'employeeGrade', label: t('Employee Grade Master'), icon: List, color: 'text-amber-500', category: 'Organization' },
+      { id: 'salaryComponent', label: t('Salary Component Master'), icon: HandCoins, color: 'text-emerald-500', category: 'Organization' },
 
       { id: 'attendance', label: t('Attendance Master'), icon: Activity, color: 'text-emerald-600', category: 'Attendance' },
       { id: 'shiftType', label: t('Shift Type Master'), icon: Clock, color: 'text-cyan-500', category: 'Attendance' },
@@ -236,6 +239,7 @@ const AdminDashboard = () => {
     department: t('departmentMaster') || 'Department Master',
     designation: t('designationMaster') || 'Designation Master',
     employeeGrade: t('employeeGradeMaster') || 'Employee Grade Master',
+    salaryComponent: t('Salary Component Master') || 'Salary Component Master',
     attendance: t('attendanceMaster') || 'Attendance Master',
     shiftType: t('Shift Type Master') || 'Shift Type Master',
     shiftAssignment: t('Shift Assignment Master') || 'Shift Assignment Master',
@@ -440,6 +444,8 @@ const AdminDashboard = () => {
         return <DesignationMaster {...common} />;
       case 'employeeGrade':
         return <EmployeeGradeMaster {...common} />;
+      case 'salaryComponent':
+        return <SalaryComponentMaster {...common} />;
       case 'attendance':
         return <AttendanceMaster {...common} />;
       case 'shiftType':

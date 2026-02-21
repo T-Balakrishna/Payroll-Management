@@ -1,141 +1,225 @@
 import { DataTypes } from 'sequelize';
+
 export default (sequelize) => {
-  const SalaryComponent = sequelize.define('SalaryComponent', {
-    salaryComponentId: {
-      type: DataTypes.INTEGER,
-      autoIncrement: true,
-      primaryKey: true,
-    },
-
-    name: {
-      type: DataTypes.STRING(100),
-      allowNull: false,
-      comment: 'Name of the salary component (e.g. "Basic Pay", "House Rent Allowance", "Professional Tax")',
-    },
-
-    code: {
-      type: DataTypes.STRING(20),
-      allowNull: false,
-      comment: 'Unique short code for this component (e.g. "BASIC", "HRA", "PF", "PT")',
-    },
-
-    type: {
-      type: DataTypes.ENUM('Earning', 'Deduction'),
-      allowNull: false,
-      comment: 'Whether this is an earning or deduction component',
-    },
-
-    calculationType: {
-      type: DataTypes.ENUM('Fixed', 'Percentage', 'Formula'),
-      allowNull: false,
-      defaultValue: 'Fixed',
-      comment: 'How the amount is calculated',
-    },
-
-    percentage: {
-      type: DataTypes.DECIMAL(5, 2),
-      allowNull: true,
-      comment: 'Percentage value when calculationType is Percentage (e.g. 12 for 12%)',
-    },
-
-    formula: {
-      type: DataTypes.TEXT,
-      allowNull: true,
-      comment: 'Mathematical expression when calculationType is Formula (e.g. "BASIC * 0.12" or "(BASIC + DA) * 0.10")',
-    },
-
-    affectsGrossSalary: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
-      defaultValue: true,
-      comment: 'Whether this component contributes to gross salary',
-    },
-
-    affectsNetSalary: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
-      defaultValue: true,
-      comment: 'Whether this component affects take-home/net salary',
-    },
-
-    isTaxable: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
-      defaultValue: true,
-      comment: 'Whether this component is subject to income tax',
-    },
-
-    isStatutory: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
-      defaultValue: false,
-      comment: 'Whether this is a mandatory/statutory component (e.g. PF, ESI, PT)',
-    },
-
-    displayOrder: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      defaultValue: 0,
-      comment: 'Order in which this component appears in payslip',
-    },
-
-    status: {
-      type: DataTypes.ENUM('Active', 'Inactive'),
-      allowNull: false,
-      defaultValue: 'Active',
-    },
-
-    companyId: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'companies',
-        key: 'companyId',
+  const SalaryComponent = sequelize.define(
+    'SalaryComponent',
+    {
+      salaryComponentId: {
+        type: DataTypes.INTEGER,
+        autoIncrement: true,
+        primaryKey: true,
       },
-      onDelete: 'CASCADE',
+
+      name: {
+        type: DataTypes.STRING(100),
+        allowNull: false,
+        comment: 'Name of the salary component (e.g. "Basic Pay", "House Rent Allowance", "Professional Tax")',
+      },
+
+      description: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        comment: 'Optional description shown in salary setup screens',
+      },
+
+      code: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        comment: 'Unique short code for this component (e.g. "BASIC", "HRA", "PF", "PT")',
+      },
+
+      type: {
+        type: DataTypes.ENUM('Earning', 'Deduction'),
+        allowNull: false,
+        comment: 'Whether this is an earning or deduction component',
+      },
+
+      calculationType: {
+        type: DataTypes.ENUM('Fixed', 'Percentage', 'Formula'),
+        allowNull: false,
+        defaultValue: 'Fixed',
+        comment: 'How the amount is calculated',
+      },
+
+      defaultAmount: {
+        type: DataTypes.DECIMAL(12, 2),
+        allowNull: true,
+        comment: 'Default amount when calculationType is Fixed',
+      },
+
+      percentage: {
+        type: DataTypes.DECIMAL(5, 2),
+        allowNull: true,
+        comment: 'Percentage value when calculationType is Percentage (e.g. 12 for 12%)',
+      },
+
+      percentageBase: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+        comment: 'Base component code when calculationType is Percentage (e.g. BASIC, GROSS)',
+      },
+
+      formula: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        comment: 'Mathematical expression when calculationType is Formula (e.g. "BASIC * 0.12" or "(BASIC + DA) * 0.10")',
+      },
+
+      affectsGrossSalary: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+        comment: 'Whether this component contributes to gross salary',
+      },
+
+      affectsNetSalary: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+        comment: 'Whether this component affects take-home/net salary',
+      },
+
+      isTaxable: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+        comment: 'Whether this component is subject to income tax',
+      },
+
+      isStatutory: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        comment: 'Whether this is a mandatory/statutory component (e.g. PF, ESI, PT)',
+      },
+
+      displayOrder: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+        comment: 'Order in which this component appears in payslip',
+      },
+
+      status: {
+        type: DataTypes.ENUM('Active', 'Inactive'),
+        allowNull: false,
+        defaultValue: 'Active',
+      },
+
+      companyId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+          model: 'companies',
+          key: 'companyId',
+        },
+        onDelete: 'CASCADE',
+      },
+
+      createdBy: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+          model: 'users',
+          key: 'userId',
+        },
+        onDelete: 'SET NULL',
+        comment: 'User who created this salary component',
+      },
+
+      updatedBy: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+          model: 'users',
+          key: 'userId',
+        },
+        onDelete: 'SET NULL',
+        comment: 'User who last updated this salary component',
+      },
     },
+    {
+      tableName: 'salary_components',
+      timestamps: true,
+      paranoid: true,
+      indexes: [
+        {
+          unique: true,
+          fields: ['code', 'companyId'],
+          name: 'unique_code_per_company',
+        },
+        {
+          unique: true,
+          fields: ['name', 'companyId'],
+          name: 'unique_name_per_company',
+        },
+        {
+          fields: ['companyId', 'status'],
+          name: 'idx_company_status',
+        },
+      ],
+      validate: {
+        validateCalculationConfig() {
+          const hasText = (value) => String(value || '').trim().length > 0;
+          const toNumber = (value) => Number.parseFloat(String(value));
 
-    createdBy: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      references: {
-        model: 'users',
-        key: 'userId',
-      },
-      onDelete: 'SET NULL',
-      comment: 'User who created this salary component',
-    },
+          if (this.calculationType === 'Fixed') {
+            if (
+              this.defaultAmount === null ||
+              this.defaultAmount === undefined ||
+              this.defaultAmount === ''
+            ) {
+              throw new Error('defaultAmount is required when calculationType is Fixed');
+            }
+            const amount = toNumber(this.defaultAmount);
+            if (!Number.isFinite(amount) || amount < 0) {
+              throw new Error('defaultAmount must be a valid non-negative number');
+            }
+          }
 
-    updatedBy: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      references: {
-        model: 'users',
-        key: 'userId',
-      },
-      onDelete: 'SET NULL',
-      comment: 'User who last updated this salary component',
-    },
+          if (this.calculationType === 'Percentage') {
+            const percent = toNumber(this.percentage);
+            if (!Number.isFinite(percent) || percent <= 0 || percent > 100) {
+              throw new Error('percentage must be between 0 and 100 when calculationType is Percentage');
+            }
+            if (!hasText(this.percentageBase)) {
+              throw new Error('percentageBase is required when calculationType is Percentage');
+            }
+          }
 
-  }, {
-    tableName: 'salary_components',  // ← exact model name as table name
-    timestamps: true,
-    paranoid: true,
+          if (this.calculationType === 'Formula' && !hasText(this.formula)) {
+            throw new Error('formula is required when calculationType is Formula');
+          }
+        },
+      },
+    }
+  );
 
-    indexes: [
-      {
-        unique: true,
-        fields: ['code', 'companyId'],
-        name: 'unique_code_per_company',
-      },
-      {
-        fields: ['companyId', 'status'],
-        name: 'idx_company_status',
-      },
-    ],
+  const normalizeNullableText = (value) => {
+    if (value === null || value === undefined) return null;
+    const normalized = String(value).trim();
+    return normalized.length > 0 ? normalized : null;
+  };
+
+  SalaryComponent.addHook('beforeValidate', (instance) => {
+    instance.name = String(instance.name || '').trim();
+    instance.code = String(instance.code || '').trim().toUpperCase();
+    instance.description = normalizeNullableText(instance.description);
+    instance.formula = normalizeNullableText(instance.formula);
+    instance.percentageBase = normalizeNullableText(instance.percentageBase)?.toUpperCase() || null;
+
+    if (instance.calculationType !== 'Fixed') {
+      instance.defaultAmount = null;
+    }
+    if (instance.calculationType !== 'Percentage') {
+      instance.percentage = null;
+      instance.percentageBase = null;
+    }
+    if (instance.calculationType !== 'Formula') {
+      instance.formula = null;
+    }
   });
 
-  // Associations
   SalaryComponent.associate = (models) => {
     SalaryComponent.belongsTo(models.Company, {
       foreignKey: 'companyId',
@@ -162,13 +246,6 @@ export default (sequelize) => {
       as: 'employeeSalaryComponents',
     });
   };
-
-  // Optional development sync
-  // if (process.env.NODE_ENV === 'development') {
-  //   SalaryComponent.sync({ alter: true })
-  //     .then(() => console.log('SalaryComponent table synced successfully'))
-  //     .catch(err => console.error('Error syncing SalaryComponent table:', err));
-  // }
 
   return SalaryComponent;
 };
