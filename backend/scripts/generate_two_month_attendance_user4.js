@@ -19,13 +19,17 @@ const {
   Designation,
   User,
   Employee,
+  EmployeeGrade,
   ShiftType,
   ShiftAssignment,
   BiometricDevice,
   HolidayPlan,
   Holiday,
   BiometricPunch,
-  Attendance,
+  LeaveType,
+  LeavePolicy,
+  LeavePeriod,
+  LeaveAllocation,
 } = db;
 
 const DEFAULT_PASSWORD_PLAIN = "123";
@@ -104,15 +108,46 @@ async function findOrCreateParanoid(model, where, defaults, updateOnFind = {}) {
   return model.create({ ...defaults });
 }
 
-function getPast60DayRange() {
-  const end = new Date();
-  end.setHours(0, 0, 0, 0);
+async function upsertRow(model, where, payload) {
+  const row = await model.findOne({ where, paranoid: false });
+  if (row) {
+    if (row.deletedAt) {
+      await row.restore();
+    }
+    await row.update(payload);
+    return row;
+  }
+  return model.create({ ...payload });
+}
 
-  const start = new Date(end);
-  start.setDate(start.getDate() - 59);
+const buildRes = () => {
+  const res = {};
+  res.statusCode = 200;
+  res.status = (code) => {
+    res.statusCode = code;
+    return res;
+  };
+  res.json = (payload) => {
+    res.body = payload;
+    return res;
+  };
+  return res;
+};
+
+async function runController(controller, req) {
+  const res = buildRes();
+  await controller(req, res);
+  if (res.statusCode >= 400) {
+    const message = res.body?.error || res.body?.message || "Controller failed";
+    throw new Error(message);
+  }
+  return res.body;
+}
+
+function getPast60DayRange() {
   return {
-    startDate: toDateOnly(start),
-    endDate: toDateOnly(end),
+    startDate: "2026-01-01",
+    endDate: "2026-02-28",
   };
 }
 
@@ -135,6 +170,29 @@ function baseStatusByIndex(idx) {
   if (idx % 11 === 0) return "Permission";
   return "Present";
 }
+
+const LEAVE_PERIODS = [
+  {
+    key: "previous",
+    name: "FY 2024-25",
+    startDate: "2024-04-01",
+    endDate: "2025-03-31",
+    status: "Inactive",
+  },
+  {
+    key: "current",
+    name: "FY 2025-26",
+    startDate: "2025-04-01",
+    endDate: "2026-03-31",
+    status: "Active",
+  },
+];
+
+const SENIOR_DESIGNATION_NAMES = new Set([
+  "System Administrator",
+  "HR Executive",
+  "Professor",
+]);
 
 function ensureAllRequiredStatuses(statusByDate, workingDays, holidayDates, weekOffDates) {
   const counts = {};
@@ -255,8 +313,11 @@ async function seedMasters() {
 
   const designationsToSeed = [
     { designationName: "System Administrator", designationAcr: "SYSADM" },
-    { designationName: "Office Staff", designationAcr: "OSTAFF" },
     { designationName: "HR Executive", designationAcr: "HREX" },
+    { designationName: "Professor", designationAcr: "PROF" },
+    { designationName: "Assistant Professor", designationAcr: "ASSTPROF" },
+    { designationName: "Office Staff", designationAcr: "OSTAFF" },
+    { designationName: "Lab Assistant", designationAcr: "LABASST" },
   ];
 
   const designations = {};
@@ -340,11 +401,15 @@ async function seedMasters() {
     company,
     roles: {
       superAdminRole,
-      staffRole,
+      adminRole,
+      teachingRole,
+      nonTeachingRole,
+      studentRole,
     },
     departments,
     designations,
-    shiftType,
+    grades,
+    shiftTypes,
     device,
   };
 }
@@ -354,52 +419,94 @@ async function seedUsersAndEmployees({ company, roles, departments, designations
 
   const userSeedData = [
     {
-      userNumber: "2312078",
-      userName: "Super Admin 1",
-      userMail: "2312078@nec.edu.in",
+      userNumber: "9000001",
+      userName: "Super Admin",
+      userMail: "superadmin@nec.edu.in",
       roleId: roles.superAdminRole.roleId,
       departmentId: departments.admin.departmentId,
-      employee: {
-        firstName: "Super",
-        lastName: "AdminOne",
-        designationId: designations["System Administrator"].designationId,
-      },
+      roleKey: "superAdmin",
+      shiftKey: "nonTeaching",
     },
     {
-      userNumber: "2312080",
-      userName: "Super Admin 2",
-      userMail: "2312080@nec.edu.in",
-      roleId: roles.superAdminRole.roleId,
-      departmentId: departments.admin.departmentId,
-      employee: {
-        firstName: "Super",
-        lastName: "AdminTwo",
-        designationId: designations["System Administrator"].designationId,
-      },
+      userNumber: "9000002",
+      userName: "Prof Arjun",
+      userMail: "arjun@nec.edu.in",
+      roleId: roles.teachingRole.roleId,
+      departmentId: departments.cse.departmentId,
+      roleKey: "teaching",
+      shiftKey: "teaching",
     },
     {
-      userNumber: "9999999",
-      userName: "S Praveenkumar",
-      userMail: "s.praveenkumar.offl@gmail.com",
-      roleId: roles.superAdminRole.roleId,
-      departmentId: departments.admin.departmentId,
-      employee: {
-        firstName: "Praveenkumar",
-        lastName: "S",
-        designationId: designations["HR Executive"].designationId,
-      },
+      userNumber: "9000003",
+      userName: "Prof Meera",
+      userMail: "meera@nec.edu.in",
+      roleId: roles.teachingRole.roleId,
+      departmentId: departments.ece.departmentId,
+      roleKey: "teaching",
+      shiftKey: "teaching",
     },
     {
-      userNumber: "2312077",
-      userName: "Staff User",
-      userMail: "2312077@nec.edu.in",
-      roleId: roles.staffRole.roleId,
+      userNumber: "9000004",
+      userName: "Asst Prof Ravi",
+      userMail: "ravi@nec.edu.in",
+      roleId: roles.teachingRole.roleId,
       departmentId: departments.it.departmentId,
-      employee: {
-        firstName: "Staff",
-        lastName: "NEC",
-        designationId: designations["Office Staff"].designationId,
-      },
+      roleKey: "teaching",
+      shiftKey: "teaching",
+    },
+    {
+      userNumber: "9000005",
+      userName: "Asst Prof Nisha",
+      userMail: "nisha@nec.edu.in",
+      roleId: roles.teachingRole.roleId,
+      departmentId: departments.mech.departmentId,
+      roleKey: "teaching",
+      shiftKey: "teaching",
+    },
+    {
+      userNumber: "9000006",
+      userName: "Staff Karthik",
+      userMail: "karthik@nec.edu.in",
+      roleId: roles.nonTeachingRole.roleId,
+      departmentId: departments.admin.departmentId,
+      roleKey: "nonTeaching",
+      shiftKey: "nonTeaching",
+    },
+    {
+      userNumber: "9000007",
+      userName: "Staff Priya",
+      userMail: "priya@nec.edu.in",
+      roleId: roles.nonTeachingRole.roleId,
+      departmentId: departments.civil.departmentId,
+      roleKey: "nonTeaching",
+      shiftKey: "nonTeaching",
+    },
+    {
+      userNumber: "9000008",
+      userName: "Lab Raj",
+      userMail: "raj@nec.edu.in",
+      roleId: roles.nonTeachingRole.roleId,
+      departmentId: departments.eee.departmentId,
+      roleKey: "nonTeaching",
+      shiftKey: "night",
+    },
+    {
+      userNumber: "9000009",
+      userName: "Clerk Siva",
+      userMail: "siva@nec.edu.in",
+      roleId: roles.nonTeachingRole.roleId,
+      departmentId: departments.admin.departmentId,
+      roleKey: "nonTeaching",
+      shiftKey: "nonTeaching",
+    },
+    {
+      userNumber: "9000010",
+      userName: "Staff Deepa",
+      userMail: "deepa@nec.edu.in",
+      roleId: roles.nonTeachingRole.roleId,
+      departmentId: departments.it.departmentId,
+      roleKey: "nonTeaching",
+      shiftKey: "nonTeaching",
     },
   ];
 
@@ -451,9 +558,13 @@ async function seedUsersAndEmployees({ company, roles, departments, designations
     updatedBy: adminUser.userId,
   }), "Company.update");
 
-  for (const u of userSeedData) {
-    const user = users[u.userMail];
-    let employee = await Employee.findOne({
+  for (const seed of userSeedData) {
+    const user = await User.findOne({
+      where: { userMail: seed.userMail },
+      paranoid: false,
+    });
+    if (!user) continue;
+    const employee = await Employee.findOne({
       where: { staffNumber: user.userNumber },
       paranoid: false,
     });
@@ -619,47 +730,129 @@ async function ensureHolidayData({
   };
 }
 
-async function seedAttendanceAndPunchesForStaff({
-  staffEmployee,
-  staffUser,
+async function assignEmployeeProfiles({
+  employees,
+  userSeedData,
+  designations,
+  grades,
+  shiftTypes,
   company,
-  shiftType,
-  shiftAssignment,
-  device,
-  holidayRows,
+  adminUser,
+}) {
+  const employeeByMail = {};
+  for (const seed of userSeedData) {
+    const employee = employees[seed.userMail];
+    if (employee) {
+      employeeByMail[seed.userMail] = employee;
+    }
+  }
+
+  for (const seed of userSeedData) {
+    const employee = employeeByMail[seed.userMail];
+    if (!employee) continue;
+
+    const isTeaching = seed.roleKey === "teaching";
+    const designationName =
+      seed.designationName ||
+      (seed.roleKey === "superAdmin"
+        ? "System Administrator"
+        : (isTeaching
+          ? (seed.userName.startsWith("Prof") ? "Professor" : "Assistant Professor")
+          : (seed.userName.startsWith("Lab") ? "Lab Assistant" : "Office Staff")));
+    const designation = designations[designationName];
+
+    const gradeName =
+      seed.gradeName ||
+      (designationName === "Professor" || designationName === "System Administrator"
+        ? "Grade A - Senior"
+        : designationName === "Assistant Professor"
+          ? "Grade B - Mid"
+          : "Grade C - Junior");
+    const grade = grades[gradeName];
+    const shiftType =
+      shiftTypes[seed.shiftKey] ||
+      (isTeaching ? shiftTypes.teaching : shiftTypes.nonTeaching);
+
+    await employee.update({
+      biometricNumber: employee.biometricNumber || `BIO${employee.staffNumber}`,
+      companyId: company.companyId,
+      designationId: designation?.designationId || employee.designationId,
+      employeeGradeId: grade?.employeeGradeId || employee.employeeGradeId,
+      shiftTypeId: shiftType?.shiftTypeId || employee.shiftTypeId,
+      employmentStatus: "Active",
+      status: "Active",
+      updatedBy: adminUser.userId,
+    });
+  }
+}
+
+async function seedShiftAssignments({
+  employees,
+  userSeedData,
+  shiftTypes,
+  company,
+  adminUser,
   startDate,
   endDate,
-  adminUserId,
 }) {
-  const holidayMap = new Map(holidayRows.map((h) => [h.holidayDate, h]));
-  const holidayDates = new Set(
-    holidayRows.filter((h) => h.type === "Holiday").map((h) => h.holidayDate)
-  );
-  const weekOffDates = new Set(
-    holidayRows.filter((h) => h.type === "Week Off").map((h) => h.holidayDate)
-  );
+  for (const seed of userSeedData) {
+    const employee = employees[seed.userMail];
+    if (!employee) continue;
 
-  await BiometricPunch.destroy({
-    where: {
-      staffId: staffEmployee.staffId,
-      punchDate: { [Op.between]: [startDate, endDate] },
-    },
-    force: true,
-  });
+    const shiftType =
+      shiftTypes[seed.shiftKey] ||
+      (seed.roleKey === "teaching" ? shiftTypes.teaching : shiftTypes.nonTeaching);
+    const shiftTypeId = shiftType?.shiftTypeId || employee.shiftTypeId;
+    if (!shiftTypeId) continue;
 
-  await Attendance.destroy({
-    where: {
-      staffId: staffEmployee.staffId,
-      attendanceDate: { [Op.between]: [startDate, endDate] },
-    },
-    force: true,
-  });
+    let shiftAssignment = await ShiftAssignment.findOne({
+      where: { staffId: employee.staffId },
+      paranoid: false,
+    });
+    if (!shiftAssignment) {
+      shiftAssignment = await ShiftAssignment.create({
+        staffId: employee.staffId,
+        shiftTypeId,
+        startDate,
+        endDate,
+        isRecurring: true,
+        recurringPattern: "weekly",
+        recurringDays: [1, 2, 3, 4, 5, 6],
+        status: "Active",
+        notes: "Seeded shift assignment",
+        companyId: company.companyId,
+        createdBy: adminUser.userId,
+        updatedBy: adminUser.userId,
+      });
+    } else {
+      if (shiftAssignment.deletedAt) {
+        await shiftAssignment.restore();
+      }
+      await shiftAssignment.update({
+        shiftTypeId,
+        startDate,
+        endDate,
+        recurringPattern: "weekly",
+        recurringDays: [1, 2, 3, 4, 5, 6],
+        isRecurring: true,
+        status: "Active",
+        companyId: company.companyId,
+        updatedBy: adminUser.userId,
+      });
+    }
+  }
+}
 
-  const allDates = getEveryDate(startDate, endDate);
+const shiftTime = (hhmmss, deltaMinutes) => {
+  const base = new Date(`1970-01-01T${hhmmss}`);
+  base.setMinutes(base.getMinutes() + deltaMinutes);
+  return base.toISOString().slice(11, 19);
+};
+
+function buildStatusByDate(allDates, holidayDates, weekOffDates, offset = 0) {
   const workingDays = allDates.filter(
     (d) => !holidayDates.has(d) && !weekOffDates.has(d)
   );
-
   const statusByDate = {};
 
   for (const d of allDates) {
@@ -674,160 +867,133 @@ async function seedAttendanceAndPunchesForStaff({
   }
 
   workingDays.forEach((d, idx) => {
-    statusByDate[d] = baseStatusByIndex(idx + 1);
+    const marker = (idx + 1 + offset) % 10;
+    if (marker === 0) {
+      statusByDate[d] = "Absent";
+    } else if (marker === 6) {
+      statusByDate[d] = "Half-Day";
+    } else {
+      statusByDate[d] = "Present";
+    }
   });
 
-  ensureAllRequiredStatuses(statusByDate, workingDays, holidayDates, weekOffDates);
+  return statusByDate;
+}
 
-  const scheduledStartDateTime = (dateOnly) => atTime(dateOnly, "09:00:00");
-  const scheduledEndDateTime = (dateOnly) => atTime(dateOnly, "17:00:00");
+async function seedPunchesForEmployees({
+  employees,
+  userSeedData,
+  company,
+  device,
+  holidayRows,
+  startDate,
+  endDate,
+  adminUserId,
+  shiftTypeMap,
+}) {
+  const holidayDates = new Set(
+    holidayRows.filter((h) => h.type === "Holiday").map((h) => h.holidayDate)
+  );
+  const weekOffDates = new Set(
+    holidayRows.filter((h) => h.type === "Week Off").map((h) => h.holidayDate)
+  );
 
+  const allDates = getEveryDate(startDate, endDate);
   let punchRows = 0;
-  let attendanceRows = 0;
-  const statusCounts = {};
 
-  for (const dateOnly of allDates) {
-    const status = statusByDate[dateOnly];
-    statusCounts[status] = (statusCounts[status] || 0) + 1;
+  await BiometricPunch.destroy({ where: {}, force: true });
 
-    const scheduledStart = scheduledStartDateTime(dateOnly);
-    const scheduledEnd = scheduledEndDateTime(dateOnly);
-    const holidayRow = holidayMap.get(dateOnly) || null;
+  for (let i = 0; i < userSeedData.length; i += 1) {
+    const seed = userSeedData[i];
+    const employee = employees[seed.userMail];
+    if (!employee) continue;
 
-    const punchTimes = getPunchTimesForStatus(status);
-    let firstCheckIn = null;
-    let lastCheckOut = null;
-    let totalCheckIns = 0;
-    let totalCheckOuts = 0;
+    await BiometricPunch.destroy({
+      where: {
+        staffId: employee.staffId,
+        punchDate: { [Op.between]: [startDate, endDate] },
+      },
+      force: true,
+    });
 
-    if (punchTimes) {
-      firstCheckIn = atTime(dateOnly, punchTimes.inTime);
-      lastCheckOut = atTime(dateOnly, punchTimes.outTime);
+    const offset = (i % 5) - 2;
+    const statusByDate = buildStatusByDate(allDates, holidayDates, weekOffDates, offset);
+    const shiftType = shiftTypeMap.get(String(employee.shiftTypeId || "")) || null;
+
+    for (let d = 0; d < allDates.length; d += 1) {
+      const dateOnly = allDates[d];
+      const status = statusByDate[dateOnly];
+      if (status === "Holiday" || status === "Week Off" || status === "Absent") {
+        continue;
+      }
+      if (!shiftType) continue;
+
+      const dayOffset = (d % 4) - 1;
+      const baseStart = shiftType.startTime;
+      const baseEnd = shiftType.endTime;
+
+      let inTime = shiftTime(baseStart, offset + dayOffset);
+      let outTime = shiftTime(baseEnd, offset - dayOffset);
+
+      const startDateTime = atTime(dateOnly, inTime);
+      let endDateTime = atTime(dateOnly, outTime);
+      if (endDateTime <= startDateTime) {
+        endDateTime = new Date(endDateTime.getTime() + 24 * 60 * 60 * 1000);
+      }
+
+      if (status === "Half-Day") {
+        const halfHours = Number(shiftType.halfDayHours || 4);
+        endDateTime = new Date(startDateTime.getTime() + halfHours * 60 * 60 * 1000);
+      }
+
+      const firstCheckIn = startDateTime;
+      const lastCheckOut = endDateTime;
 
       await BiometricPunch.create({
-        staffId: staffEmployee.staffId,
+        staffId: employee.staffId,
         biometricDeviceId: device.deviceId,
-        biometricNumber: staffEmployee.biometricNumber,
+        biometricNumber: employee.biometricNumber,
         punchTimestamp: firstCheckIn,
-        punchDate: dateOnly,
-        punchType: "IN",
-        isLate: firstCheckIn > atTime(dateOnly, "09:15:00"),
-        isEarlyOut: false,
-        isManual: false,
+        punchDate: toDateOnly(firstCheckIn),
         status: "Valid",
         remarks: `Seeded ${status} day IN`,
         companyId: company.companyId,
         createdBy: adminUserId,
       });
       await BiometricPunch.create({
-        staffId: staffEmployee.staffId,
+        staffId: employee.staffId,
         biometricDeviceId: device.deviceId,
-        biometricNumber: staffEmployee.biometricNumber,
+        biometricNumber: employee.biometricNumber,
         punchTimestamp: lastCheckOut,
-        punchDate: dateOnly,
-        punchType: "OUT",
-        isLate: false,
-        isEarlyOut: lastCheckOut < atTime(dateOnly, "16:45:00"),
-        isManual: false,
+        punchDate: toDateOnly(lastCheckOut),
         status: "Valid",
         remarks: `Seeded ${status} day OUT`,
         companyId: company.companyId,
         createdBy: adminUserId,
       });
-      totalCheckIns = 1;
-      totalCheckOuts = 1;
       punchRows += 2;
     }
-
-    const rawWorkingHours =
-      firstCheckIn && lastCheckOut ? diffHours(firstCheckIn, lastCheckOut) : 0;
-    const workingHours = Number(rawWorkingHours.toFixed(2));
-    const scheduledHours = diffHours(scheduledStart, scheduledEnd);
-    const overtimeHours = Math.max(0, Number((workingHours - scheduledHours).toFixed(2)));
-    const isLate = firstCheckIn ? firstCheckIn > atTime(dateOnly, "09:15:00") : false;
-    const lateByMinutes = isLate
-      ? Math.max(
-          0,
-          Math.round((firstCheckIn.getTime() - atTime(dateOnly, "09:15:00").getTime()) / 60000)
-        )
-      : 0;
-    const isEarlyExit = lastCheckOut
-      ? lastCheckOut < atTime(dateOnly, "16:45:00")
-      : false;
-    const earlyExitMinutes = isEarlyExit
-      ? Math.max(
-          0,
-          Math.round((atTime(dateOnly, "16:45:00").getTime() - lastCheckOut.getTime()) / 60000)
-        )
-      : 0;
-
-    const remarks = [];
-    if (status === "Permission") remarks.push("permUsedHours=1");
-    if (status === "Leave") remarks.push("Approved leave (seed)");
-    if (status === "Absent") remarks.push("No punches available");
-    if (status === "Holiday") remarks.push(holidayRow?.description || "Public holiday");
-    if (status === "Week Off") remarks.push("Sunday week off");
-
-    await Attendance.create({
-      staffId: staffEmployee.staffId,
-      companyId: company.companyId,
-      shiftAssignmentId: shiftAssignment.shiftAssignmentId,
-      shiftTypeId: shiftType.shiftTypeId,
-      attendanceDate: dateOnly,
-      scheduledStartTime: "09:00:00",
-      scheduledEndTime: "17:00:00",
-      firstCheckIn,
-      lastCheckOut,
-      totalCheckIns,
-      totalCheckOuts,
-      workingHours,
-      breakHours: 0,
-      overtimeHours,
-      attendanceStatus: status,
-      isLate,
-      lateByMinutes,
-      isEarlyExit,
-      earlyExitMinutes,
-      isHoliday: status === "Holiday",
-      isWeekOff: status === "Week Off",
-      autoGenerated: true,
-      remarks: remarks.join("; "),
-      approvedBy: adminUserId,
-      approvedAt: new Date(),
-      createdBy: adminUserId,
-      updatedBy: adminUserId,
-    });
-    attendanceRows += 1;
   }
 
-  return {
-    staffId: staffEmployee.staffId,
-    userId: staffUser.userId,
-    userMail: staffUser.userMail,
-    dateFrom: startDate,
-    dateTo: endDate,
-    punchRows,
-    attendanceRows,
-    statusCounts,
-  };
+  return { dateFrom: startDate, dateTo: endDate, punchRows };
 }
 
 async function main() {
   const { startDate, endDate } = getPast60DayRange();
 
   const masterData = await seedMasters();
-  const { company, shiftType, device } = masterData;
-  const { users, employees, adminUser } = await seedUsersAndEmployees(masterData);
+  const { company, shiftTypes, device, designations, grades } = masterData;
+  const { users, employees, adminUser, userSeedData } = await seedUsersViaController(masterData);
+  const leaveMasterData = await seedLeaveMasters({ company, adminUser });
 
-  const staffUser = users["2312077@nec.edu.in"];
-  const staffEmployee = employees["2312077@nec.edu.in"];
-  if (!staffUser || !staffEmployee) {
-    throw new Error("Staff user/employee (2312077@nec.edu.in) not found after seeding.");
-  }
-
-  let shiftAssignment = await ShiftAssignment.findOne({
-    where: { staffId: staffEmployee.staffId },
-    paranoid: false,
+  await assignEmployeeProfiles({
+    employees,
+    userSeedData,
+    designations,
+    grades,
+    shiftTypes,
+    company,
+    adminUser,
   });
   if (!shiftAssignment) {
       shiftAssignment = await ShiftAssignment.create({
@@ -868,12 +1034,11 @@ async function main() {
     endDate,
   });
 
-  const attendanceSeedResult = await seedAttendanceAndPunchesForStaff({
-    staffEmployee,
-    staffUser,
+  const shiftTypeMap = new Map(Object.values(shiftTypes || {}).map((s) => [String(s.shiftTypeId), s]));
+  const punchSeedResult = await seedPunchesForEmployees({
+    employees,
+    userSeedData,
     company,
-    shiftType,
-    shiftAssignment,
     device,
     holidayRows,
     startDate,
@@ -891,35 +1056,34 @@ async function main() {
           companyName: company.companyName,
           companyAcr: company.companyAcr,
         },
-        roles: ["Super Admin", "Staff"],
+        roles: ["Super Admin", "Admin", "Teaching Staff", "Non-Teaching Staff", "Student"],
         departments: ["cse", "ece", "mech", "civil", "eee", "it", "aids", "admin"],
-        users: [
-          {
-            userId: users["2312077@nec.edu.in"]?.userId,
-            userMail: "2312077@nec.edu.in",
-            role: "Staff",
-          },
-          {
-            userId: users["2312078@nec.edu.in"]?.userId,
-            userMail: "2312078@nec.edu.in",
-            role: "Super Admin",
-          },
-          {
-            userId: users["2312080@nec.edu.in"]?.userId,
-            userMail: "2312080@nec.edu.in",
-            role: "Super Admin",
-          },
-          {
-            userId: users["s.praveenkumar.offl@gmail.com"]?.userId,
-            userMail: "s.praveenkumar.offl@gmail.com",
-            role: "Super Admin",
-          },
-        ],
+        users: userSeedData.map((seed) => ({
+          userId: users[seed.userMail]?.userId,
+          userMail: seed.userMail,
+          role: seed.roleKey,
+        })),
         holidayPlanId: holidayPlan.holidayPlanId,
-        shiftTypeId: shiftType.shiftTypeId,
-        shiftAssignmentId: shiftAssignment.shiftAssignmentId,
         deviceId: device.deviceId,
-        attendanceSeedResult,
+        punchSeedResult,
+        leaveSeed: {
+          leaveTypes: Object.values(leaveMasterData.leaveTypes || {}).map((t) => ({
+            leaveTypeId: t.leaveTypeId,
+            name: t.name,
+          })),
+          leavePolicies: Object.values(leaveMasterData.leavePolicies || {}).map((p) => ({
+            leavePolicyId: p.leavePolicyId,
+            name: p.name,
+          })),
+          leavePeriods: Object.values(leaveMasterData.leavePeriods || {}).map((p) => ({
+            leavePeriodId: p.leavePeriodId,
+            name: p.name,
+            startDate: p.startDate,
+            endDate: p.endDate,
+            status: p.status,
+          })),
+          allocationsSeeded: leaveAllocations.length,
+        },
       },
       null,
       2

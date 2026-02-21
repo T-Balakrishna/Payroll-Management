@@ -9,7 +9,12 @@ const dbConfig = {
   database: process.env.DB_NAME ,
   dialect: process.env.DB_DIALECT || 'mysql',
   port: process.env.DB_PORT || 3306,
+  timezone: process.env.DB_TIMEZONE || '+05:30',
   logging: process.env.LOG_LEVEL === 'debug' ? console.log : false,
+  dialectOptions: {
+    dateStrings: true,
+    typeCast: true,
+  },
   pool: {
     max: 5,
     min: 0,

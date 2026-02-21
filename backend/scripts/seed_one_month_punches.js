@@ -276,8 +276,6 @@ async function main() {
       biometricNumber: employee.biometricNumber,
       punchTimestamp: atTime(dateOnly, inTime),
       punchDate: dateOnly,
-      punchType: "IN",
-      isManual: false,
       status: "Valid",
       companyId: company.companyId,
     });
@@ -288,8 +286,6 @@ async function main() {
       biometricNumber: employee.biometricNumber,
       punchTimestamp: atTime(dateOnly, outTime),
       punchDate: dateOnly,
-      punchType: "OUT",
-      isManual: false,
       status: "Valid",
       companyId: company.companyId,
     });

@@ -12,16 +12,6 @@ const classifyRoleType = (roleName = "") => {
   return "Other";
 };
 
-const parseBooleanFilter = (value) => {
-  if (value === undefined || value === null || value === "" || String(value).toLowerCase() === "all") {
-    return undefined;
-  }
-  const normalized = String(value).toLowerCase();
-  if (normalized === "true" || normalized === "1") return true;
-  if (normalized === "false" || normalized === "0") return false;
-  return undefined;
-};
-
 export const getAllBiometricPunches = async (req, res) => {
   try {
     const {
@@ -31,13 +21,10 @@ export const getAllBiometricPunches = async (req, res) => {
       roleType,
       biometricDeviceId,
       status,
-      punchType,
       staffId,
       biometricNumber,
       dateFrom,
       dateTo,
-      isManual,
-      isLate,
       q,
     } = req.query;
 
@@ -45,15 +32,8 @@ export const getAllBiometricPunches = async (req, res) => {
     if (companyId) where.companyId = companyId;
     if (biometricDeviceId) where.biometricDeviceId = biometricDeviceId;
     if (status) where.status = status;
-    if (punchType) where.punchType = punchType;
     if (staffId) where.staffId = staffId;
     if (biometricNumber) where.biometricNumber = { [Op.like]: `%${biometricNumber}%` };
-
-    const isManualFilter = parseBooleanFilter(isManual);
-    if (isManualFilter !== undefined) where.isManual = isManualFilter;
-
-    const isLateFilter = parseBooleanFilter(isLate);
-    if (isLateFilter !== undefined) where.isLate = isLateFilter;
 
     if (dateFrom || dateTo) {
       where.punchDate = {};
@@ -274,11 +254,9 @@ export const fetchPunches = async (req, res) => {
                 biometricNumber,
                 staffId: employee.staffId,
                 punchTimestamp: recordTime,
-                punchDate: recordTime.toISOString().slice(0, 10),
+                punchDate: `${recordTime.getFullYear()}-${String(recordTime.getMonth() + 1).padStart(2, "0")}-${String(recordTime.getDate()).padStart(2, "0")}`,
                 biometricDeviceId: device.deviceId,
                 companyId: employee.companyId,
-                punchType: "Unknown",
-                isManual: false,
                 status: "Valid",
               });
 

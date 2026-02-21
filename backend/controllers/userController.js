@@ -148,11 +148,21 @@ export const createUser = async (req, res) => {
           departmentId: user.departmentId || null,
           companyId: effectiveCompanyId,
           staffId: null,
+          companyId: effectiveCompanyId,
+          staffId: employee?.staffId || null,
           createdBy: user.createdBy || null,
           updatedBy: user.updatedBy || null,
         },
         transaction,
       });
+
+      if (student && !student.staffId && employee?.staffId) {
+        await student.update({ staffId: employee.staffId }, { transaction });
+      }
+    }
+
+    if (employee && !employee.companyId) {
+      await employee.update({ companyId: effectiveCompanyId }, { transaction });
     }
 
     await transaction.commit();

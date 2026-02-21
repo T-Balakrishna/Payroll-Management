@@ -155,6 +155,7 @@ export default function ShiftTypeMaster({ userRole, selectedCompanyId, selectedC
         columns={[
           "Name",
           "Shift Time",
+          "Minimum Hours",
           "Weekly Off",
           "Working Hours Calculation",
           ...(!selectedCompanyId ? ["Company"] : []),
@@ -165,6 +166,7 @@ export default function ShiftTypeMaster({ userRole, selectedCompanyId, selectedC
           <tr key={s.shiftTypeId} className="border-t hover:bg-gray-50">
             <td className="py-3 px-4">{s.name}</td>
             <td className="py-3 px-4">{`${toDisplayTime(s.startTime)} - ${toDisplayTime(s.endTime)}`}</td>
+            <td className="py-3 px-4">{s.minimumHours ?? "-"}</td>
             <td className="py-3 px-4">{toDisplayWeeklyOff(s.weeklyOff)}</td>
             <td className="py-3 px-4">{s.workingHoursCalculation}</td>
             {!selectedCompanyId && <td className="py-3 px-4">{getCompanyAcronym(s.companyId)}</td>}

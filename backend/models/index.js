@@ -15,6 +15,7 @@ const sequelize = new Sequelize(
   {
     host: dbConfig.host,
     dialect: dbConfig.dialect,
+    timezone: dbConfig.timezone ?? '+05:30',
     logging: dbConfig.logging ?? false,
     pool: {
       max: 5,
@@ -22,7 +23,7 @@ const sequelize = new Sequelize(
       acquire: 30000,
       idle: 10000,
     },
-    dialectOptions: {},
+    dialectOptions: dbConfig.dialectOptions ?? {},
   }
 );
 
