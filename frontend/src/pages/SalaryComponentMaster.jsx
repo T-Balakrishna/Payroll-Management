@@ -82,12 +82,7 @@ export default function SalaryComponentMaster({ userRole, selectedCompanyId, sel
     companies.find((c) => String(c.companyId) === String(id))?.companyAcr || "";
 
   const getValuePreview = (component) => {
-    if (component.calculationType === "Fixed") return component.defaultAmount ?? "-";
-    if (component.calculationType === "Percentage") {
-      const pct = component.percentage ?? "-";
-      const base = component.percentageBase || "-";
-      return `${pct}% of ${base}`;
-    }
+    if (component.type === "Earning") return "Assigned per employee";
     if (component.calculationType === "Formula") return "Formula";
     return "-";
   };

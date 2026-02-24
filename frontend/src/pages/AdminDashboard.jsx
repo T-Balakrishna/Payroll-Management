@@ -44,8 +44,8 @@ import AllotedLeaveMaster from './AllotedLeaveMaster.jsx';
 // import LeaveRequestManagement from './LeaveRequestManagement.jsx';
 import LeaveApproval from './LeaveApproval.jsx';
 import LeaveHistory from './LeaveHistory.jsx';
-// import SalaryComponentManagement from './SalaryComponentManagement.jsx';
-// import EmployeeSalaryMaster from './EmployeeSalaryMaster.jsx';
+import SalaryComponentManagement from './SalaryComponentMaster.jsx';
+import SalaryAssignmentMaster from './SalaryAssignmentMaster.jsx';
 // import SalaryGenerationManagement from './SalaryGenerationManagement.jsx';
 // import SalaryRevisionHistory from './SalaryRevisionHistory.jsx';
 // import EmployeeLoanManagement from './EmployeeLoanManagement.jsx';
@@ -274,7 +274,7 @@ const AdminDashboard = () => {
     { id: 'salaryGeneration', label: t('processPayroll'), icon: Receipt, color: 'text-blue-600', category: 'Payroll' },
     { id: 'salaryRevision', label: t('revisionHistory'), icon: History, color: 'text-slate-500', category: 'Payroll' },
     { id: 'employeeLoan', label: t('loansAdvances'), icon: HandCoins, color: 'text-amber-600', category: 'Payroll' },
-    { id: 'formulas', label: t('formulaBuilder'), icon: Settings, color: 'text-gray-600', category: 'Payroll' },
+    
 
     // Analytics & Settings
     { id: 'reportgenerator', label: t('customReports'), icon: FileSearch, color: 'text-blue-500', category: 'Reports' },
@@ -421,12 +421,11 @@ const AdminDashboard = () => {
       // case "leaveRequest": return <LeaveRequestManagement {...common} />;
       case "leaveApproval": return <LeaveApproval {...common} />;
       case "leaveHistory": return <LeaveHistory {...common} />;
-      // case "salaryComponent": return <SalaryComponentManagement {...common} />;
-      // case "salaryMaster": return <EmployeeSalaryMaster {...common} />;
+      case "salaryComponent": return <SalaryComponentManagement {...common} />;
+      case "salaryMaster": return <SalaryAssignmentMaster {...common} />;
       // case "salaryGeneration": return <SalaryGenerationManagement {...common} />;
       // case "salaryRevision": return <SalaryRevisionHistory {...common} />;
       // case "employeeLoan": return <EmployeeLoanManagement {...common} />;
-      // case "formulas": return <FormulaBuilder {...common} />;
       // case "reportgenerator": return <ReportGenerator {...common} />;
       // case "statutory": return <StatutoryReports {...common} />;
       default: return renderDashboard();

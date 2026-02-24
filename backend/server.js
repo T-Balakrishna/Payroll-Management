@@ -10,6 +10,7 @@ dotenv.config();
 import db from './models/index.js';
 import mountRoutes from './routes/mountRoutes.js';
 import { startAttendanceScheduler } from './services/processAttendance.js';
+import { seedInitialUser } from './services/seedInitialUser.js';
 const app = express();
 const PORT = process.env.PORT || 5000;
 const shouldSync = process.env.DB_SYNC === "true";
@@ -52,6 +53,12 @@ db.sequelize.authenticate()
       console.log('All models were synchronized successfully.');
     } else {
       console.log('DB sync disabled (DB_SYNC != "true").');
+    }
+
+    if (String(process.env.SEED_INITIAL_USER || "true").toLowerCase() === "true") {
+      await seedInitialUser(db);
+    } else {
+      console.log('Initial user seed disabled (SEED_INITIAL_USER != true).');
     }
 
     app.listen(PORT, () => {

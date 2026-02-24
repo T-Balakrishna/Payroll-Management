@@ -131,15 +131,34 @@ export default (sequelize) => {
         ],
         validate: {
             validateCalculationType() {
-                if (this.valueType === 'Fixed' && !this.fixedAmount) {
-                    throw new Error('fixedAmount is required when valueType is Fixed');
+                const hasText = (value) => String(value ?? '').trim().length > 0;
+                const toNumber = (value) => Number.parseFloat(String(value));
+
+                if (this.valueType === 'Percentage') {
+                    throw new Error('Percentage valueType is no longer supported');
                 }
-                if (this.valueType === 'Percentage' && (!this.percentageValue || !this.percentageBase)) {
-                    throw new Error('percentageValue and percentageBase are required when valueType is Percentage');
+
+                if (this.componentType === 'Earning') {
+                    if (this.valueType !== 'Fixed') {
+                        throw new Error('Earning components must use Fixed valueType');
+                    }
+                    const amount = toNumber(this.fixedAmount);
+                    if (!Number.isFinite(amount) || amount < 0) {
+                        throw new Error('fixedAmount is required and must be a non-negative number for Earning components');
+                    }
+                    if (hasText(this.formulaExpression)) {
+                        throw new Error('Earning components cannot have formulaExpression');
+                    }
                 }
-                if (this.valueType === 'Formula' && !this.formulaExpression) {
-        throw new Error('formulaExpression is required when valueType is Formula');
-    }
+
+                if (this.componentType === 'Deduction') {
+                    if (this.valueType !== 'Formula') {
+                        throw new Error('Deduction components must use Formula valueType');
+                    }
+                    if (!hasText(this.formulaExpression)) {
+                        throw new Error('formulaExpression is required for Deduction components');
+                    }
+                }
             }
         }
     });

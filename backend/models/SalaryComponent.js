@@ -41,12 +41,6 @@ export default (sequelize) => {
         comment: 'How the amount is calculated',
       },
 
-      defaultAmount: {
-        type: DataTypes.DECIMAL(12, 2),
-        allowNull: true,
-        comment: 'Default amount when calculationType is Fixed',
-      },
-
       percentage: {
         type: DataTypes.DECIMAL(5, 2),
         allowNull: true,
@@ -161,34 +155,27 @@ export default (sequelize) => {
       validate: {
         validateCalculationConfig() {
           const hasText = (value) => String(value || '').trim().length > 0;
-          const toNumber = (value) => Number.parseFloat(String(value));
-
-          if (this.calculationType === 'Fixed') {
-            if (
-              this.defaultAmount === null ||
-              this.defaultAmount === undefined ||
-              this.defaultAmount === ''
-            ) {
-              throw new Error('defaultAmount is required when calculationType is Fixed');
-            }
-            const amount = toNumber(this.defaultAmount);
-            if (!Number.isFinite(amount) || amount < 0) {
-              throw new Error('defaultAmount must be a valid non-negative number');
-            }
-          }
 
           if (this.calculationType === 'Percentage') {
-            const percent = toNumber(this.percentage);
-            if (!Number.isFinite(percent) || percent <= 0 || percent > 100) {
-              throw new Error('percentage must be between 0 and 100 when calculationType is Percentage');
+            throw new Error('Percentage calculation is no longer supported');
+          }
+
+          if (this.type === 'Earning') {
+            if (this.calculationType !== 'Fixed') {
+              throw new Error('Earning components must use Fixed calculation type');
             }
-            if (!hasText(this.percentageBase)) {
-              throw new Error('percentageBase is required when calculationType is Percentage');
+            if (hasText(this.formula)) {
+              throw new Error('Earning components cannot have a formula');
             }
           }
 
-          if (this.calculationType === 'Formula' && !hasText(this.formula)) {
-            throw new Error('formula is required when calculationType is Formula');
+          if (this.type === 'Deduction') {
+            if (this.calculationType !== 'Formula') {
+              throw new Error('Deduction components must use Formula calculation type');
+            }
+            if (!hasText(this.formula)) {
+              throw new Error('formula is required for Deduction components');
+            }
           }
         },
       },
@@ -208,9 +195,13 @@ export default (sequelize) => {
     instance.formula = normalizeNullableText(instance.formula);
     instance.percentageBase = normalizeNullableText(instance.percentageBase)?.toUpperCase() || null;
 
-    if (instance.calculationType !== 'Fixed') {
-      instance.defaultAmount = null;
+    if (instance.type === 'Earning') {
+      instance.calculationType = 'Fixed';
+      instance.formula = null;
+    } else if (instance.type === 'Deduction') {
+      instance.calculationType = 'Formula';
     }
+
     if (instance.calculationType !== 'Percentage') {
       instance.percentage = null;
       instance.percentageBase = null;

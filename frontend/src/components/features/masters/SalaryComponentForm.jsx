@@ -12,9 +12,6 @@ const DEFAULT_FORM = {
   description: "",
   type: "Earning",
   calculationType: "Fixed",
-  defaultAmount: "",
-  percentage: "",
-  percentageBase: "",
   formula: "",
   affectsGrossSalary: true,
   affectsNetSalary: true,
@@ -28,14 +25,6 @@ const normalizeRole = (role) => String(role || "").replace(/\s+/g, "").toLowerCa
 const toNullableString = (value) => {
   const text = String(value || "").trim();
   return text ? text : null;
-};
-
-const toNonNegativeNumberOrNull = (value) => {
-  const text = String(value ?? "").trim();
-  if (!text) return null;
-  const parsed = Number.parseFloat(text);
-  if (!Number.isFinite(parsed) || parsed < 0) return null;
-  return parsed;
 };
 
 export default function SalaryComponentForm({
@@ -58,18 +47,12 @@ export default function SalaryComponentForm({
 
   useEffect(() => {
     const id = setTimeout(() => {
+      const type = editData?.type || "Earning";
       setForm({
         ...DEFAULT_FORM,
         ...editData,
-        defaultAmount:
-          editData?.defaultAmount === null || editData?.defaultAmount === undefined
-            ? ""
-            : String(editData.defaultAmount),
-        percentage:
-          editData?.percentage === null || editData?.percentage === undefined
-            ? ""
-            : String(editData.percentage),
-        percentageBase: editData?.percentageBase || "",
+        type,
+        calculationType: type === "Deduction" ? "Formula" : "Fixed",
         formula: editData?.formula || "",
         displayOrder: editData?.displayOrder ?? 0,
       });
@@ -113,6 +96,18 @@ export default function SalaryComponentForm({
 
   const setField = (key) => (e) => {
     const value = e?.target?.type === "checkbox" ? e.target.checked : e.target.value;
+
+    if (key === "type") {
+      const calculationType = value === "Deduction" ? "Formula" : "Fixed";
+      setForm((prev) => ({
+        ...prev,
+        type: value,
+        calculationType,
+        formula: value === "Deduction" ? prev.formula : "",
+      }));
+      return;
+    }
+
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -122,7 +117,6 @@ export default function SalaryComponentForm({
     if (!form.name?.trim()) return toast.error("Component name is required");
     if (!form.code?.trim()) return toast.error("Component code is required");
     if (!form.type) return toast.error("Component type is required");
-    if (!form.calculationType) return toast.error("Calculation type is required");
     if (isSuperAdmin && !effectiveCompanyId) return toast.error("Please select a company");
 
     const displayOrder = Number.parseInt(String(form.displayOrder), 10);
@@ -130,22 +124,10 @@ export default function SalaryComponentForm({
       return toast.error("Display order must be a non-negative integer");
     }
 
-    const defaultAmount = toNonNegativeNumberOrNull(form.defaultAmount);
-    const percentage = toNonNegativeNumberOrNull(form.percentage);
+    const calculationType = form.type === "Deduction" ? "Formula" : "Fixed";
 
-    if (form.calculationType === "Fixed" && defaultAmount === null) {
-      return toast.error("Default amount is required for Fixed calculation");
-    }
-    if (form.calculationType === "Percentage") {
-      if (percentage === null || percentage <= 0 || percentage > 100) {
-        return toast.error("Percentage must be greater than 0 and up to 100");
-      }
-      if (!String(form.percentageBase || "").trim()) {
-        return toast.error("Percentage base is required");
-      }
-    }
-    if (form.calculationType === "Formula" && !String(form.formula || "").trim()) {
-      return toast.error("Formula is required");
+    if (form.type === "Deduction" && !String(form.formula || "").trim()) {
+      return toast.error("Formula is required for deduction component");
     }
 
     const payload = {
@@ -153,14 +135,8 @@ export default function SalaryComponentForm({
       code: String(form.code || "").trim().toUpperCase(),
       description: toNullableString(form.description),
       type: form.type,
-      calculationType: form.calculationType,
-      defaultAmount: form.calculationType === "Fixed" ? defaultAmount : null,
-      percentage: form.calculationType === "Percentage" ? percentage : null,
-      percentageBase:
-        form.calculationType === "Percentage"
-          ? String(form.percentageBase || "").trim().toUpperCase()
-          : null,
-      formula: form.calculationType === "Formula" ? String(form.formula || "").trim() : null,
+      calculationType,
+      formula: form.type === "Deduction" ? String(form.formula || "").trim() : null,
       affectsGrossSalary: Boolean(form.affectsGrossSalary),
       affectsNetSalary: Boolean(form.affectsNetSalary),
       isTaxable: Boolean(form.isTaxable),
@@ -216,16 +192,10 @@ export default function SalaryComponentForm({
           ]}
           required
         />
-        <Select
+        <Input
           label="Calculation Type"
-          value={form.calculationType}
-          onChange={setField("calculationType")}
-          options={[
-            { value: "Fixed", label: "Fixed" },
-            { value: "Percentage", label: "Percentage" },
-            { value: "Formula", label: "Formula" },
-          ]}
-          required
+          value={form.type === "Deduction" ? "Formula" : "Fixed"}
+          disabled
         />
         <Input
           label="Display Order"
@@ -237,43 +207,13 @@ export default function SalaryComponentForm({
         />
       </div>
 
-      {form.calculationType === "Fixed" && (
-        <Input
-          label="Default Amount"
-          type="number"
-          min={0}
-          step="0.01"
-          value={form.defaultAmount}
-          onChange={setField("defaultAmount")}
-          placeholder="0.00"
-          required
-        />
-      )}
-
-      {form.calculationType === "Percentage" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input
-            label="Percentage (%)"
-            type="number"
-            min={0}
-            max={100}
-            step="0.01"
-            value={form.percentage}
-            onChange={setField("percentage")}
-            placeholder="e.g. 12"
-            required
-          />
-          <Input
-            label="Percentage Base Code"
-            value={form.percentageBase}
-            onChange={setField("percentageBase")}
-            placeholder='e.g. "BASIC" or "GROSS"'
-            required
-          />
+      {form.type === "Earning" && (
+        <div className="text-sm text-gray-600 bg-gray-50 border rounded-lg p-3">
+          Earning components do not keep a default amount. Assign employee-specific values in Salary Assignment.
         </div>
       )}
 
-      {form.calculationType === "Formula" && (
+      {form.type === "Deduction" && (
         <div>
           <label className="block font-medium text-gray-700 mb-2">
             Formula <span className="text-red-500 ml-1">*</span>
@@ -281,11 +221,16 @@ export default function SalaryComponentForm({
           <textarea
             value={form.formula || ""}
             onChange={setField("formula")}
-            rows={3}
+            rows={5}
             className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-            placeholder='e.g. "(BASIC + DA) * 0.1"'
+            placeholder='e.g. department === "HR" && designation === "Sr Grade" ? BASIC * 0.15 : designation === "Jr Grade" ? BASIC * 0.10 : BASIC * 0.05'
             required
           />
+          <div className="mt-2 text-xs text-gray-600 space-y-1">
+            <p>You can apply multiple conditions using <code>&&</code>, <code>||</code>, and nested ternary.</p>
+            <p>Example 1: <code>department === "Finance" && designation === "Sr Grade" ? BASIC * 0.12 : BASIC * 0.08</code></p>
+            <p>Example 2: <code>designation === "Manager" ? BASIC * 0.15 : designation === "Lead" ? BASIC * 0.1 : BASIC * 0.05</code></p>
+          </div>
         </div>
       )}
 

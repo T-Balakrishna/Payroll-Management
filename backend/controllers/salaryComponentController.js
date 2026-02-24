@@ -1,5 +1,6 @@
 import db from '../models/index.js';
 import { resolveCompanyContext } from '../utils/companyScope.js';
+import formulaEvaluator from './formulaEvaluator.js';
 
 const { SalaryComponent, Company } = db;
 
@@ -20,6 +21,29 @@ const formatSequelizeError = (error) => {
 const normalizeStatus = (status) => {
   const value = String(status || '').trim().toLowerCase();
   return value === 'inactive' ? 'Inactive' : 'Active';
+};
+
+const validateDeductionFormulaOrThrow = async ({ formula, companyId, excludeComponentId = null }) => {
+  const normalizedFormula = String(formula || '').trim();
+  if (!normalizedFormula) {
+    throw new Error('Formula is required for deduction component');
+  }
+
+  const componentWhere = { companyId };
+  if (excludeComponentId) {
+    componentWhere.salaryComponentId = { [db.Sequelize.Op.ne]: excludeComponentId };
+  }
+
+  const components = await SalaryComponent.findAll({
+    where: componentWhere,
+    attributes: ['code'],
+  });
+
+  formulaEvaluator.setAllowedComponents(components.map((c) => c.code));
+  const validation = formulaEvaluator.validateFormula(normalizedFormula);
+  if (!validation.valid) {
+    throw new Error(`Invalid deduction formula: ${validation.error}`);
+  }
 };
 
 export const getAllSalaryComponents = async (req, res) => {
@@ -74,6 +98,13 @@ export const createSalaryComponent = async (req, res) => {
       status: normalizeStatus(req.body?.status),
     };
 
+    if (payload.type === 'Deduction') {
+      await validateDeductionFormulaOrThrow({
+        formula: payload.formula,
+        companyId: payload.companyId,
+      });
+    }
+
     const salaryComponent = await SalaryComponent.create(payload);
     res.status(201).json(salaryComponent);
   } catch (error) {
@@ -99,10 +130,33 @@ export const updateSalaryComponent = async (req, res) => {
       ...(req.body?.status ? { status: normalizeStatus(req.body.status) } : {}),
     };
 
+    const existingComponent = await SalaryComponent.findByPk(req.params.id);
+    if (!existingComponent) {
+      return res.status(404).json({ message: 'Salary component not found' });
+    }
+
     if (companyContext.actor && !companyContext.isSuperAdmin) {
       delete payload.companyId;
     } else if (hasCompanyIdInPayload && !companyContext.requestedCompanyId) {
       return res.status(400).json({ error: 'companyId must be a positive integer when provided' });
+    }
+
+    const resultingType = payload.type || existingComponent.type;
+    const resultingCompanyId =
+      (companyContext.actor && !companyContext.isSuperAdmin
+        ? companyContext.effectiveCompanyId
+        : payload.companyId || existingComponent.companyId);
+    const resultingFormula =
+      Object.prototype.hasOwnProperty.call(payload, 'formula')
+        ? payload.formula
+        : existingComponent.formula;
+
+    if (resultingType === 'Deduction') {
+      await validateDeductionFormulaOrThrow({
+        formula: resultingFormula,
+        companyId: resultingCompanyId,
+        excludeComponentId: existingComponent.salaryComponentId,
+      });
     }
 
     const [updated] = await SalaryComponent.update(payload, {
