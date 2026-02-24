@@ -296,7 +296,10 @@ export default function EmployeeDashboard() {
     let maxW = "max-w-5xl";
 
     if (modalContent === "profile") { maxW = "max-w-4xl"; content = <EmployeeProfilePage />; }
-    if (modalContent === "calendar") { maxW = "max-w-6xl"; content = <CalendarPage />; }
+    if (modalContent === "calendar") {
+      maxW = "max-w-6xl";
+      content = <CalendarPage empId={resolvedStaffId} companyId={companyId} />;
+    }
     if (modalContent === "takeleave") {
       maxW = "max-w-6xl";
       content = (

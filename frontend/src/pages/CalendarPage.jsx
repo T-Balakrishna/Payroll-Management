@@ -2,8 +2,10 @@
 import React, { useState, useEffect } from "react";
 import { Calendar, Sun, CalendarCheck, CheckCircle, XCircle, AlertCircle, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import API from "../api"; // your axios instance with withCredentials: true
+import { useAuth } from "../auth/AuthContext";
 
-const CalendarPage = () => {
+const CalendarPage = ({ empId = null, companyId = null }) => {
+  const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [attendanceData, setAttendanceData] = useState({}); // { "2025-02-01": "Present", ... }
   const [loading, setLoading] = useState(false);
@@ -15,6 +17,8 @@ const CalendarPage = () => {
   const firstDayIndex = new Date(year, month - 1, 1).getDay();
 
   const today = new Date();
+  const effectiveCompanyId = companyId || user?.companyId || user?.company?.companyId || null;
+  const effectiveStaffId = empId || user?.staffId || user?.employeeId || null;
 
   const statusConfig = {
     Present:    { color: "#3B82F6", bg: "#EFF6FF", icon: <CheckCircle className="w-4 h-4" /> },
@@ -28,6 +32,13 @@ const CalendarPage = () => {
     "Early Exit": { color: "#EAB308", bg: "#FEFCE8", icon: <AlertCircle className="w-4 h-4" /> },
   };
 
+  const getStatusConfig = (status) => {
+    if (!status) return { color: "#9CA3AF", bg: "#F9FAFB" };
+    // Keep leave color/icon for custom DB statuses like "test-leave" or "Leave - Sick Leave"
+    if (/leave/i.test(String(status))) return statusConfig.Leave;
+    return statusConfig[status] || statusConfig["Absent"];
+  };
+
   useEffect(() => {
     const fetchMonth = async () => {
       setLoading(true);
@@ -39,9 +50,8 @@ const CalendarPage = () => {
         const res = await API.get("/attendances/month", {
           params: {
             month: monthStr,
-            // Optional filters (add if your ProtectedRoute or context provides them)
-            // companyId: user?.companyId,
-            // staffId: user?.staffId,
+            ...(effectiveCompanyId ? { companyId: effectiveCompanyId } : {}),
+            ...(effectiveStaffId ? { staffId: effectiveStaffId } : {}),
           },
         });
 
@@ -55,7 +65,7 @@ const CalendarPage = () => {
     };
 
     fetchMonth();
-  }, [year, month]);
+  }, [year, month, effectiveCompanyId, effectiveStaffId]);
 
   const renderCells = () => {
     const cells = [];
@@ -68,7 +78,7 @@ const CalendarPage = () => {
     for (let day = 1; day <= daysInMonth; day++) {
       const cellKey = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
       const status = attendanceData[cellKey];
-      const config = status ? statusConfig[status] || statusConfig["Absent"] : { color: "#9CA3AF", bg: "#F9FAFB" };
+      const config = getStatusConfig(status);
 
       const isToday =
         day === today.getDate() &&
