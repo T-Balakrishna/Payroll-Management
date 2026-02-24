@@ -493,13 +493,16 @@ CREATE TABLE `employee_salary_components` (
   KEY `salaryComponentId` (`salaryComponentId`),
   KEY `createdBy` (`createdBy`),
   KEY `updatedBy` (`updatedBy`),
+  KEY `idx_employee_salary_master` (`employeeSalaryMasterId`),
+  KEY `idx_component_id` (`componentId`),
+  KEY `idx_component_code` (`componentCode`),
   CONSTRAINT `employee_salary_components_ibfk_1` FOREIGN KEY (`employeeSalaryMasterId`) REFERENCES `employee_salary_masters` (`employeeSalaryMasterId`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `employee_salary_components_ibfk_2` FOREIGN KEY (`componentId`) REFERENCES `salary_components` (`salaryComponentId`) ON DELETE RESTRICT,
   CONSTRAINT `employee_salary_components_ibfk_3` FOREIGN KEY (`formulaId`) REFERENCES `formulas` (`formulaId`) ON DELETE SET NULL,
   CONSTRAINT `employee_salary_components_ibfk_4` FOREIGN KEY (`salaryComponentId`) REFERENCES `salary_components` (`salaryComponentId`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `employee_salary_components_ibfk_5` FOREIGN KEY (`createdBy`) REFERENCES `users` (`userId`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `employee_salary_components_ibfk_6` FOREIGN KEY (`updatedBy`) REFERENCES `users` (`userId`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -508,6 +511,7 @@ CREATE TABLE `employee_salary_components` (
 
 LOCK TABLES `employee_salary_components` WRITE;
 /*!40000 ALTER TABLE `employee_salary_components` DISABLE KEYS */;
+INSERT INTO `employee_salary_components` VALUES (1,1,1,'Basic Pay','BA','Earning','Fixed',10000.00,NULL,NULL,NULL,NULL,10000.00,120000.00,0,1,1,1,0,NULL,'2026-02-24 15:36:17','2026-02-24 15:38:32',NULL,NULL,NULL),(2,1,2,'Dearance Allowance','DA','Earning','Fixed',5000.00,NULL,NULL,NULL,NULL,5000.00,60000.00,0,1,1,1,0,NULL,'2026-02-24 15:37:17','2026-02-24 15:37:17',NULL,NULL,NULL),(3,1,3,'House Rent Allowancce','HRA','Earning','Fixed',0.00,NULL,NULL,NULL,NULL,0.00,0.00,0,1,1,1,0,NULL,'2026-02-24 15:37:19','2026-02-24 15:37:19',NULL,NULL,NULL);
 /*!40000 ALTER TABLE `employee_salary_components` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -556,7 +560,7 @@ CREATE TABLE `employee_salary_masters` (
   CONSTRAINT `employee_salary_masters_ibfk_4` FOREIGN KEY (`createdBy`) REFERENCES `users` (`userId`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `employee_salary_masters_ibfk_5` FOREIGN KEY (`updatedBy`) REFERENCES `users` (`userId`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `employee_salary_masters_ibfk_6` FOREIGN KEY (`approvedBy`) REFERENCES `users` (`userId`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -565,6 +569,7 @@ CREATE TABLE `employee_salary_masters` (
 
 LOCK TABLES `employee_salary_masters` WRITE;
 /*!40000 ALTER TABLE `employee_salary_masters` DISABLE KEYS */;
+INSERT INTO `employee_salary_masters` VALUES (1,10,1,'2026-02-24',NULL,0.00,15000.00,0.00,15000.00,180000.00,15000.00,'Initial',NULL,NULL,'Active',NULL,1,1,NULL,NULL,'2026-02-24 15:36:17','2026-02-24 15:38:32',NULL);
 /*!40000 ALTER TABLE `employee_salary_masters` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1261,15 +1266,18 @@ CREATE TABLE `salary_components` (
   `createdAt` datetime NOT NULL,
   `updatedAt` datetime NOT NULL,
   `deletedAt` datetime DEFAULT NULL,
+  `description` text,
+  `percentageBase` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`salaryComponentId`),
   UNIQUE KEY `unique_code_per_company` (`code`,`companyId`),
+  UNIQUE KEY `unique_name_per_company` (`name`,`companyId`),
   KEY `idx_company_status` (`companyId`,`status`),
   KEY `createdBy` (`createdBy`),
   KEY `updatedBy` (`updatedBy`),
   CONSTRAINT `salary_components_ibfk_1` FOREIGN KEY (`companyId`) REFERENCES `companies` (`companyId`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `salary_components_ibfk_2` FOREIGN KEY (`createdBy`) REFERENCES `users` (`userId`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `salary_components_ibfk_3` FOREIGN KEY (`updatedBy`) REFERENCES `users` (`userId`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1278,6 +1286,7 @@ CREATE TABLE `salary_components` (
 
 LOCK TABLES `salary_components` WRITE;
 /*!40000 ALTER TABLE `salary_components` DISABLE KEYS */;
+INSERT INTO `salary_components` VALUES (1,'Basic Pay','BA','Earning','Fixed',NULL,NULL,1,1,1,0,0,'Active',1,1,1,'2026-02-24 15:35:57','2026-02-24 15:35:57',NULL,'kj',NULL),(2,'Dearance Allowance','DA','Earning','Fixed',NULL,NULL,1,1,1,0,0,'Active',1,1,1,'2026-02-24 15:36:46','2026-02-24 15:36:46',NULL,NULL,NULL),(3,'House Rent Allowancce','HRA','Earning','Fixed',NULL,NULL,1,1,1,0,0,'Active',1,1,1,'2026-02-24 15:37:02','2026-02-24 15:37:02',NULL,NULL,NULL),(4,'Provident Fund','PF','Deduction','Formula',NULL,'designation === \"Assistant Professor\" ? BA*0.10 : 0',1,1,1,0,0,'Active',1,1,1,'2026-02-24 15:38:07','2026-02-24 15:41:38',NULL,NULL,NULL);
 /*!40000 ALTER TABLE `salary_components` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1849,4 +1858,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-02-24 15:01:44
+-- Dump completed on 2026-02-24 15:44:03

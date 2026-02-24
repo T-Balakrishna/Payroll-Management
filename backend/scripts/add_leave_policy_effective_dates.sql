@@ -1,6 +1,7 @@
 -- Add effectiveFrom / effectiveTo to leave_policies for financial year alignment.
 SET @db_name := DATABASE();
 
+
 SET @has_effective_from := (
   SELECT COUNT(*)
   FROM information_schema.COLUMNS
