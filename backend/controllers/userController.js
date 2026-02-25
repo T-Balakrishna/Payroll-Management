@@ -120,8 +120,11 @@ export const createUser = async (req, res) => {
     const user = await User.create(userPayload, { transaction });
 
     const { firstName, lastName } = splitNameParts(user.userName || user.userNumber);
+    let employee = null;
+    let student = null;
+
     if (isStaffRole) {
-      await Employee.findOrCreate({
+      [employee] = await Employee.findOrCreate({
         where: { staffNumber: user.userNumber },
         defaults: {
           staffNumber: user.userNumber,
@@ -140,14 +143,12 @@ export const createUser = async (req, res) => {
         transaction,
       });
     } else if (isStudentRole) {
-      await StudentDetails.findOrCreate({
+      [student] = await StudentDetails.findOrCreate({
         where: { registerNumber: user.userNumber },
         defaults: {
           studentName: user.userName || user.userNumber,
           registerNumber: user.userNumber,
           departmentId: user.departmentId || null,
-          companyId: effectiveCompanyId,
-          staffId: null,
           companyId: effectiveCompanyId,
           staffId: employee?.staffId || null,
           createdBy: user.createdBy || null,
