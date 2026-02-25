@@ -249,7 +249,6 @@ const AdminDashboard = () => {
       { id: 'department', label: t('Department Master'), icon: Building2, color: 'text-indigo-500', category: 'Organization' },
       { id: 'designation', label: t('Designation Master'), icon: Award, color: 'text-pink-500', category: 'Organization' },
       { id: 'employeeGrade', label: t('Employee Grade Master'), icon: List, color: 'text-amber-500', category: 'Organization' },
-      { id: 'salaryComponent', label: t('Salary Component Master'), icon: HandCoins, color: 'text-emerald-500', category: 'Organization' },
 
     // Attendance Section
     { id: 'attendance', label: t('Attendance Master'), icon: Activity, color: 'text-emerald-600', category: 'Attendance' },
@@ -269,8 +268,8 @@ const AdminDashboard = () => {
     { id: 'holidayPlan', label: t('Holiday Master'), icon: Calendar, color: 'text-yellow-600', category: 'Leave' },
 
     // Payroll Section
-    { id: 'salaryComponent', label: t('salaryComponents'), icon: Wallet, color: 'text-red-400', category: 'Payroll' },
-    { id: 'salaryMaster', label: t('salaryMaster'), icon: Landmark, color: 'text-emerald-700', category: 'Payroll' },
+    { id: 'salaryComponent', label: t('Salary Component Master'), icon: HandCoins, color: 'text-emerald-500', category: 'Organization' },
+    { id: 'salaryMaster', label: t('Salary Assignment Master'), icon: Landmark, color: 'text-emerald-700', category: 'Payroll' },
     { id: 'salaryGeneration', label: t('processPayroll'), icon: Receipt, color: 'text-blue-600', category: 'Payroll' },
     { id: 'salaryRevision', label: t('revisionHistory'), icon: History, color: 'text-slate-500', category: 'Payroll' },
     { id: 'employeeLoan', label: t('loansAdvances'), icon: HandCoins, color: 'text-amber-600', category: 'Payroll' },

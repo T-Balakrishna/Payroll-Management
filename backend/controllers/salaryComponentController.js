@@ -23,8 +23,11 @@ const normalizeStatus = (status) => {
   return value === 'inactive' ? 'Inactive' : 'Active';
 };
 
+const normalizeFormulaOperators = (formula) =>
+  String(formula || '').replace(/!==/g, '!=').replace(/===/g, '==');
+
 const validateDeductionFormulaOrThrow = async ({ formula, companyId, excludeComponentId = null }) => {
-  const normalizedFormula = String(formula || '').trim();
+  const normalizedFormula = normalizeFormulaOperators(formula).trim();
   if (!normalizedFormula) {
     throw new Error('Formula is required for deduction component');
   }
@@ -99,6 +102,10 @@ export const createSalaryComponent = async (req, res) => {
     };
 
     if (payload.type === 'Deduction') {
+      payload.formula = normalizeFormulaOperators(payload.formula).trim();
+    }
+
+    if (payload.type === 'Deduction') {
       await validateDeductionFormulaOrThrow({
         formula: payload.formula,
         companyId: payload.companyId,
@@ -129,6 +136,10 @@ export const updateSalaryComponent = async (req, res) => {
       ...req.body,
       ...(req.body?.status ? { status: normalizeStatus(req.body.status) } : {}),
     };
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'formula')) {
+      payload.formula = normalizeFormulaOperators(payload.formula).trim();
+    }
 
     const existingComponent = await SalaryComponent.findByPk(req.params.id);
     if (!existingComponent) {

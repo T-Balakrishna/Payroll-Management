@@ -107,10 +107,6 @@ export default (sequelize) => {
   User.hasMany(models.Holiday, { foreignKey: 'createdBy', as: 'createdHolidays' });
   User.hasMany(models.Holiday, { foreignKey: 'updatedBy', as: 'updatedHolidays' });
 
-  // User.hasMany(models.GoogleAuth, { foreignKey: 'userId', as: 'googleAuths' });
-  // User.hasMany(models.GoogleAuth, { foreignKey: 'createdBy', as: 'createdGoogleAuths' });
-  // User.hasMany(models.GoogleAuth, { foreignKey: 'updatedBy', as: 'updatedGoogleAuths' });
-
   User.hasMany(models.Formula, { foreignKey: 'createdBy', as: 'createdFormulas' });
   User.hasMany(models.Formula, { foreignKey: 'updatedBy', as: 'updatedFormulas' });
 

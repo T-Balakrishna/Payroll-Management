@@ -27,6 +27,9 @@ const toNullableString = (value) => {
   return text ? text : null;
 };
 
+const normalizeFormulaOperators = (formula) =>
+  String(formula || "").replace(/!==/g, "!=").replace(/===/g, "==");
+
 export default function SalaryComponentForm({
   editData,
   userRole,
@@ -108,6 +111,11 @@ export default function SalaryComponentForm({
       return;
     }
 
+    if (key === "formula") {
+      setForm((prev) => ({ ...prev, formula: normalizeFormulaOperators(value) }));
+      return;
+    }
+
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -136,7 +144,7 @@ export default function SalaryComponentForm({
       description: toNullableString(form.description),
       type: form.type,
       calculationType,
-      formula: form.type === "Deduction" ? String(form.formula || "").trim() : null,
+      formula: form.type === "Deduction" ? normalizeFormulaOperators(String(form.formula || "").trim()) : null,
       affectsGrossSalary: Boolean(form.affectsGrossSalary),
       affectsNetSalary: Boolean(form.affectsNetSalary),
       isTaxable: Boolean(form.isTaxable),
@@ -223,13 +231,13 @@ export default function SalaryComponentForm({
             onChange={setField("formula")}
             rows={5}
             className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-            placeholder='e.g. department === "HR" && designation === "Sr Grade" ? BASIC * 0.15 : designation === "Jr Grade" ? BASIC * 0.10 : BASIC * 0.05'
+            placeholder='e.g. department == "HR" && designation == "Sr Grade" ? BASIC * 0.15 : designation == "Jr Grade" ? BASIC * 0.10 : BASIC * 0.05'
             required
           />
           <div className="mt-2 text-xs text-gray-600 space-y-1">
             <p>You can apply multiple conditions using <code>&&</code>, <code>||</code>, and nested ternary.</p>
-            <p>Example 1: <code>department === "Finance" && designation === "Sr Grade" ? BASIC * 0.12 : BASIC * 0.08</code></p>
-            <p>Example 2: <code>designation === "Manager" ? BASIC * 0.15 : designation === "Lead" ? BASIC * 0.1 : BASIC * 0.05</code></p>
+            <p>Example 1: <code>department == "Finance" && designation == "Sr Grade" ? BASIC * 0.12 : BASIC * 0.08</code></p>
+            <p>Example 2: <code>designation == "Manager" ? BASIC * 0.15 : designation == "Lead" ? BASIC * 0.1 : BASIC * 0.05</code></p>
           </div>
         </div>
       )}

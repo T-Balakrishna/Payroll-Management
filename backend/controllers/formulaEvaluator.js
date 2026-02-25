@@ -8,7 +8,7 @@ class FormulaEvaluator {
             '+', '-', '*', '/', '%',
             '(', ')', 
             '>', '<', '>=', '<=', 
-            '==', '!=', '===', '!==',
+            '==', '!=',
             '&&', '||', '!',
             '?', ':', // Ternary operator
             ',', '.',
@@ -34,14 +34,20 @@ class FormulaEvaluator {
         ];
     }
 
+    normalizeFormulaOperators(formula) {
+        return String(formula || '').replace(/!==/g, '!=').replace(/===/g, '==');
+    }
+
     validateFormula(formula) {
         if (!formula || typeof formula !== 'string') {
             return { valid: false, error: 'Formula must be a non-empty string' };
         }
 
         try {
+            const normalizedFormula = this.normalizeFormulaOperators(formula);
+
             // Basic sanitization - remove comments
-            let cleanFormula = formula.replace(/\/\*[\s\S]*?\*\//g, ''); // Block comments
+            let cleanFormula = normalizedFormula.replace(/\/\*[\s\S]*?\*\//g, ''); // Block comments
             cleanFormula = cleanFormula.replace(/\/\/.*/g, ''); // Line comments
 
             // Check for dangerous patterns
@@ -69,7 +75,7 @@ class FormulaEvaluator {
             }
 
             // Extract all identifiers (variables, functions, methods)
-            const identifiers = this.extractIdentifiers(formula);
+            const identifiers = this.extractIdentifiers(normalizedFormula);
             
             // Build list of allowed identifiers
             const allowedIdentifiers = [
@@ -104,7 +110,7 @@ class FormulaEvaluator {
 
             // Try to parse the formula as JavaScript (syntax check)
             try {
-                new Function(`"use strict"; return (${formula});`);
+                new Function(`"use strict"; return (${normalizedFormula});`);
             } catch (syntaxError) {
                 return {
                     valid: false,
@@ -161,8 +167,10 @@ class FormulaEvaluator {
             throw new Error('Formula is required');
         }
 
+        const normalizedFormula = this.normalizeFormulaOperators(formula);
+
         // Validate first
-        const validation = this.validateFormula(formula);
+        const validation = this.validateFormula(normalizedFormula);
         if (!validation.valid) {
             throw new Error(`Invalid formula: ${validation.error}`);
         }
@@ -179,7 +187,7 @@ class FormulaEvaluator {
             const funcBody = `
                 'use strict';
                 try {
-                    const result = (${formula});
+                    const result = (${normalizedFormula});
                     return result;
                 } catch (error) {
                     throw new Error('Formula evaluation failed: ' + error.message);
@@ -315,7 +323,7 @@ class FormulaEvaluator {
             },
             allowedOperators: {
                 arithmetic: ['+', '-', '*', '/', '%'],
-                comparison: ['>', '<', '>=', '<=', '==', '!=', '===', '!=='],
+                comparison: ['>', '<', '>=', '<=', '==', '!='],
                 logical: ['&&', '||', '!'],
                 ternary: 'condition ? trueValue : falseValue',
                 grouping: ['(', ')']
@@ -336,15 +344,15 @@ class FormulaEvaluator {
                 },
                 {
                     description: 'Complex nested ternary',
-                    formula: 'parseInt(B) === 0 || (grade === "Non Teaching" && designation === "Sweeper") ? 0 : grade === "Non Teaching" && designation === "Attender" ? 10 : grade === "Non Teaching" ? 50 : 100'
+                    formula: 'parseInt(B) == 0 || (grade == "Non Teaching" && designation == "Sweeper") ? 0 : grade == "Non Teaching" && designation == "Attender" ? 10 : grade == "Non Teaching" ? 50 : 100'
                 },
                 {
                     description: 'Multiple conditions with logical operators',
-                    formula: '(designation === "Manager" || designation === "Director") && experience > 5 ? basic * 0.2 : basic * 0.1'
+                    formula: '(designation == "Manager" || designation == "Director") && experience > 5 ? basic * 0.2 : basic * 0.1'
                 },
                 {
                     description: 'String comparison',
-                    formula: 'department === "IT" ? 5000 : 3000'
+                    formula: 'department == "IT" ? 5000 : 3000'
                 },
                 {
                     description: 'Round calculation',
@@ -368,7 +376,7 @@ class FormulaEvaluator {
                 },
                 {
                     description: 'Grade-based with multiple conditions',
-                    formula: 'grade === "A" ? 10000 : grade === "B" ? 7000 : grade === "C" ? 5000 : 3000'
+                    formula: 'grade == "A" ? 10000 : grade == "B" ? 7000 : grade == "C" ? 5000 : 3000'
                 },
                 {
                     description: 'Percentage calculation with floor',
@@ -380,8 +388,7 @@ class FormulaEvaluator {
                 }
             ],
             notes: [
-                'Use === for strict equality comparison (recommended)',
-                'Use == for loose equality comparison',
+                'Use == for equality comparison',
                 'String values must be in quotes: "Manager", "IT", etc.',
                 'Ternary operator: condition ? trueValue : falseValue',
                 'You can nest multiple ternary operators for complex conditions',

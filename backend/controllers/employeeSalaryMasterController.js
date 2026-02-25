@@ -1,4 +1,5 @@
 import db from '../models/index.js';
+import formulaEvaluator from './formulaEvaluator.js';
 
 const { EmployeeSalaryMaster, EmployeeSalaryComponent, SalaryComponent, Employee } = db;
 
@@ -14,6 +15,142 @@ const parseOptionalInt = (value) => {
   if (value === null || value === undefined || value === '') return undefined;
   const parsed = Number.parseInt(String(value), 10);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+};
+
+const toSafeNumber = (value) => {
+  const parsed = Number.parseFloat(String(value));
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const setContextValue = (context, key, value) => {
+  const normalizedKey = String(key || '').trim();
+  if (!normalizedKey) return;
+  context[normalizedKey] = value;
+  context[normalizedKey.toUpperCase()] = value;
+  context[normalizedKey.toLowerCase()] = value;
+};
+
+const buildFormulaContext = async ({ companyId, employeeSalaryMasterId, transaction }) => {
+  const employeeSalaryMaster = await EmployeeSalaryMaster.findByPk(employeeSalaryMasterId, { transaction });
+  const employee = await Employee.findByPk(employeeSalaryMaster?.staffId, {
+    include: [
+      { model: db.Department, as: 'department', required: false },
+      { model: db.Designation, as: 'designation', required: false },
+      { model: db.EmployeeGrade, as: 'employeeGrade', required: false },
+    ],
+    transaction,
+  });
+
+  const allActiveComponents = await SalaryComponent.findAll({
+    where: {
+      companyId,
+      status: 'Active',
+    },
+    attributes: ['code'],
+    transaction,
+  });
+  formulaEvaluator.setAllowedComponents(allActiveComponents.map((c) => c.code));
+
+  const assignedEarnings = await EmployeeSalaryComponent.findAll({
+    where: {
+      employeeSalaryMasterId,
+      componentType: 'Earning',
+    },
+    order: [['displayOrder', 'ASC']],
+    transaction,
+  });
+
+  const context = {};
+  assignedEarnings.forEach((component) => {
+    const amount = toSafeNumber(component.calculatedAmount ?? component.fixedAmount);
+    setContextValue(context, component.componentCode, amount);
+  });
+
+  const today = new Date();
+  const joiningDate = employee?.dateOfJoining ? new Date(employee.dateOfJoining) : null;
+  const birthDate = employee?.dateOfBirth ? new Date(employee.dateOfBirth) : null;
+  const experience = joiningDate ? Math.max(0, (today - joiningDate) / (365.25 * 24 * 60 * 60 * 1000)) : 0;
+  const age = birthDate ? Math.max(0, (today - birthDate) / (365.25 * 24 * 60 * 60 * 1000)) : 0;
+
+  context.designation = employee?.designation?.designationName || '';
+  context.department = employee?.department?.departmentName || '';
+  context.grade = employee?.employeeGrade?.employeeGradeName || '';
+  context.experience = Number(experience.toFixed(2));
+  context.employeeType = employee?.employmentStatus || '';
+  context.location = employee?.workLocation || '';
+  context.age = Number(age.toFixed(2));
+  context.joiningDate = employee?.dateOfJoining || null;
+  context.gender = employee?.gender || '';
+  context.qualification = employee?.highestQualification || '';
+
+  return context;
+};
+
+const syncDeductionComponentsForSalaryMaster = async ({ companyId, employeeSalaryMasterId, transaction }) => {
+  const context = await buildFormulaContext({ companyId, employeeSalaryMasterId, transaction });
+
+  const deductionComponents = await SalaryComponent.findAll({
+    where: {
+      companyId,
+      type: 'Deduction',
+      status: 'Active',
+    },
+    order: [
+      ['displayOrder', 'ASC'],
+      ['name', 'ASC'],
+    ],
+    transaction,
+  });
+
+  for (const component of deductionComponents) {
+    const formula = String(component.formula || '').trim();
+    if (!formula) {
+      throw new Error(`Formula missing for deduction component "${component.name}"`);
+    }
+
+    const evaluation = formulaEvaluator.evaluate(formula, context);
+    const calculatedAmount = Math.max(0, toSafeNumber(evaluation));
+    const annualAmount = Number((calculatedAmount * 12).toFixed(2));
+
+    setContextValue(context, component.code, calculatedAmount);
+
+    const existingAssignment = await EmployeeSalaryComponent.findOne({
+      where: {
+        employeeSalaryMasterId,
+        componentId: component.salaryComponentId,
+      },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+
+    const payload = {
+      employeeSalaryMasterId,
+      componentId: component.salaryComponentId,
+      componentName: component.name,
+      componentCode: component.code,
+      componentType: 'Deduction',
+      valueType: 'Formula',
+      fixedAmount: null,
+      percentageValue: null,
+      percentageBase: null,
+      formulaId: null,
+      formulaExpression: formula,
+      calculatedAmount,
+      annualAmount,
+      isStatutory: Boolean(component.isStatutory),
+      isTaxable: Boolean(component.isTaxable),
+      affectsGrossSalary: Boolean(component.affectsGrossSalary),
+      affectsNetSalary: Boolean(component.affectsNetSalary),
+      displayOrder: component.displayOrder ?? 0,
+      remarks: existingAssignment?.remarks || null,
+    };
+
+    if (existingAssignment) {
+      await existingAssignment.update(payload, { transaction });
+    } else {
+      await EmployeeSalaryComponent.create(payload, { transaction });
+    }
+  }
 };
 
 const recalculateSalaryMasterTotals = async (employeeSalaryMasterId, transaction) => {
@@ -166,6 +303,53 @@ export const deleteEmployeeSalaryMaster = async (req, res) => {
   }
 };
 
+const ensureActiveSalaryMaster = async ({
+  staffId,
+  companyId,
+  effectiveFrom,
+  createdBy,
+  updatedBy,
+  transaction,
+}) => {
+  let salaryMaster = await EmployeeSalaryMaster.findOne({
+    where: {
+      staffId,
+      companyId,
+      status: 'Active',
+    },
+    order: [
+      ['effectiveFrom', 'DESC'],
+      ['employeeSalaryMasterId', 'DESC'],
+    ],
+    transaction,
+    lock: transaction.LOCK.UPDATE,
+  });
+
+  if (!salaryMaster) {
+    salaryMaster = await EmployeeSalaryMaster.create(
+      {
+        staffId,
+        companyId,
+        effectiveFrom,
+        effectiveTo: null,
+        basicSalary: 0,
+        grossSalary: 0,
+        totalDeductions: 0,
+        netSalary: 0,
+        ctcAnnual: 0,
+        ctcMonthly: 0,
+        revisionType: 'Initial',
+        status: 'Active',
+        createdBy,
+        updatedBy,
+      },
+      { transaction }
+    );
+  }
+
+  return salaryMaster;
+};
+
 export const assignEarningComponentToEmployee = async (req, res) => {
   const transaction = await db.sequelize.transaction();
 
@@ -204,41 +388,14 @@ export const assignEarningComponentToEmployee = async (req, res) => {
       throw new Error('Only earning components can be assigned from salary assignment page');
     }
 
-    let salaryMaster = await EmployeeSalaryMaster.findOne({
-      where: {
-        staffId,
-        companyId,
-        status: 'Active',
-      },
-      order: [
-        ['effectiveFrom', 'DESC'],
-        ['employeeSalaryMasterId', 'DESC'],
-      ],
+    const salaryMaster = await ensureActiveSalaryMaster({
+      staffId,
+      companyId,
+      effectiveFrom,
+      createdBy,
+      updatedBy,
       transaction,
-      lock: transaction.LOCK.UPDATE,
     });
-
-    if (!salaryMaster) {
-      salaryMaster = await EmployeeSalaryMaster.create(
-        {
-          staffId,
-          companyId,
-          effectiveFrom,
-          effectiveTo: null,
-          basicSalary: 0,
-          grossSalary: 0,
-          totalDeductions: 0,
-          netSalary: 0,
-          ctcAnnual: 0,
-          ctcMonthly: 0,
-          revisionType: 'Initial',
-          status: 'Active',
-          createdBy,
-          updatedBy,
-        },
-        { transaction }
-      );
-    }
 
     let assignment = await EmployeeSalaryComponent.findOne({
       where: {
@@ -276,6 +433,12 @@ export const assignEarningComponentToEmployee = async (req, res) => {
     } else {
       assignment = await EmployeeSalaryComponent.create(assignmentPayload, { transaction });
     }
+
+    await syncDeductionComponentsForSalaryMaster({
+      companyId,
+      employeeSalaryMasterId: salaryMaster.employeeSalaryMasterId,
+      transaction,
+    });
 
     const totals = await recalculateSalaryMasterTotals(salaryMaster.employeeSalaryMasterId, transaction);
 

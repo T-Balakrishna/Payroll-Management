@@ -115,10 +115,6 @@ export const googleLogin = async (req, res) => {
     const payload = ticket.getPayload();
     const googleId = payload?.sub;
     const email = payload?.email;
-    const firstName = payload?.given_name || null;
-    const lastName = payload?.family_name || null;
-    const picture = payload?.picture || null;
-
     if (!googleId || !email) {
       return res.status(400).json({ msg: "Invalid Google token" });
     }
@@ -141,16 +137,6 @@ export const googleLogin = async (req, res) => {
     if (user.status && user.status !== "Active") {
       return res.status(403).json({ msg: "User is inactive" });
     }
-
-    await db.GoogleAuth.upsert({
-      googleId,
-      email,
-      firstName,
-      lastName,
-      profilePic: picture,
-      lastLogin: new Date(),
-      userId: user.userId
-    });
 
     const roleName = user.role?.roleName || "User";
 

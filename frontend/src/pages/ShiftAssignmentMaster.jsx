@@ -411,7 +411,7 @@ export default function ShiftAssignmentMaster({ userRole, selectedCompanyId, sel
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-[96rem] mx-auto">
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <div>
@@ -620,7 +620,7 @@ export default function ShiftAssignmentMaster({ userRole, selectedCompanyId, sel
 
           <div className="border-2 border-slate-200 rounded-xl overflow-hidden">
             <div className="overflow-x-auto">
-              <div className="max-h-96 overflow-y-auto">
+              <div className="max-h-[70vh] overflow-y-auto">
                 <table className="w-full">
                   <thead className="bg-slate-50 sticky top-0 z-10">
                     <tr>
