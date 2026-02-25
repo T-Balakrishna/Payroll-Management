@@ -3,7 +3,7 @@ import path from 'path';
 class FormulaEvaluator {
     constructor() {
         this.allowedComponents = [];
-        this.allowedFunctions = ['IF', 'ROUND', 'MIN', 'MAX', 'SWITCH', 'ABS', 'FLOOR', 'CEIL'];
+        this.allowedFunctions = ['IF', 'ROUND', 'MIN', 'MAX', 'SWITCH', 'ABS', 'FLOOR', 'CEIL', 'NORM'];
         this.allowedOperators = [
             '+', '-', '*', '/', '%',
             '(', ')', 
@@ -16,9 +16,12 @@ class FormulaEvaluator {
         ];
         this.allowedEmployeeAttributes = [
             'designation',
+            'designationLower',
             'grade',
             'experience',
             'department',
+            'role',
+            'roleLower',
             'employeeType',
             'location',
             'age',
@@ -35,7 +38,26 @@ class FormulaEvaluator {
     }
 
     normalizeFormulaOperators(formula) {
-        return String(formula || '').replace(/!==/g, '!=').replace(/===/g, '==');
+        const normalized = String(formula || '').replace(/!==/g, '!=').replace(/===/g, '==');
+        return this.normalizeAttributeComparisons(normalized);
+    }
+
+    normalizeAttributeComparisons(formula) {
+        let output = String(formula || '');
+
+        // designation == 'Assistant Professor'  -> NORM(designation) == NORM('Assistant Professor')
+        output = output.replace(
+            /(\b(?:designation|role)\b)\s*(==|!=)\s*("([^"\\]|\\.)*"|'([^'\\]|\\.)*')/gi,
+            'NORM($1) $2 NORM($3)'
+        );
+
+        // 'Assistant Professor' == designation  -> NORM('Assistant Professor') == NORM(designation)
+        output = output.replace(
+            /("([^"\\]|\\.)*"|'([^'\\]|\\.)*')\s*(==|!=)\s*(\b(?:designation|role)\b)/gi,
+            'NORM($1) $4 NORM($5)'
+        );
+
+        return output;
     }
 
     validateFormula(formula) {
@@ -177,6 +199,8 @@ class FormulaEvaluator {
 
         // Create a safe evaluation context
         const safeContext = this.createSafeContext(context);
+        const identifiers = this.extractIdentifiers(normalizedFormula);
+        this.injectDefaultVariables(safeContext, identifiers);
         
         try {
             // Create function with all context variables
@@ -270,6 +294,15 @@ class FormulaEvaluator {
             return cases[cases.length - 1]; // default value
         };
 
+        // Normalizes designation/role-like text for robust comparisons.
+        // Example: "Assistant Professor", "assistantProfessor", "assistant professor"
+        // all become "assistantprofessor".
+        safeContext.NORM = (value) => {
+            return String(value ?? '')
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '');
+        };
+
         // Add safe parseInt and parseFloat
         safeContext.parseInt = (value, radix = 10) => {
             const result = parseInt(value, radix);
@@ -301,6 +334,29 @@ class FormulaEvaluator {
         safeContext.Boolean = Boolean;
 
         return safeContext;
+    }
+
+    injectDefaultVariables(safeContext, identifiers = []) {
+        const blocked = new Set([
+            ...this.allowedFunctions,
+            ...this.allowedMethods,
+            'parseInt', 'parseFloat', 'Number', 'String', 'Boolean',
+            'Math', 'Date', 'true', 'false', 'null', 'undefined'
+        ]);
+
+        for (const id of identifiers) {
+            if (!id || blocked.has(id)) continue;
+            if (Object.prototype.hasOwnProperty.call(safeContext, id)) continue;
+
+            // Employee/profile string attributes default to empty string.
+            if (this.allowedEmployeeAttributes.includes(id)) {
+                safeContext[id] = '';
+                continue;
+            }
+
+            // Unknown identifiers are treated as numeric components and defaulted to 0.
+            safeContext[id] = 0;
+        }
     }
 
     setAllowedComponents(components) {

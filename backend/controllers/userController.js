@@ -130,6 +130,7 @@ export const createUser = async (req, res) => {
           staffNumber: user.userNumber,
           companyId: effectiveCompanyId,
           departmentId: user.departmentId,
+          roleId: user.roleId,
           firstName: firstName || user.userNumber,
           lastName: lastName || null,
           personalEmail: user.userMail,
@@ -163,7 +164,9 @@ export const createUser = async (req, res) => {
     }
 
     if (employee && !employee.companyId) {
-      await employee.update({ companyId: effectiveCompanyId }, { transaction });
+      await employee.update({ companyId: effectiveCompanyId, roleId: user.roleId }, { transaction });
+    } else if (employee && String(employee.roleId || '') !== String(user.roleId || '')) {
+      await employee.update({ roleId: user.roleId }, { transaction });
     }
 
     await transaction.commit();
@@ -178,6 +181,10 @@ export const createUser = async (req, res) => {
 export const updateUser = async (req, res) => {
   try {
     const payload = { ...req.body };
+    const userExists = await User.findByPk(req.params.id);
+    if (!userExists) {
+      return res.status(404).json({ message: 'User not found' });
+    }
 
     const hasCompanyIdInPayload = Object.prototype.hasOwnProperty.call(payload, 'companyId');
     const companyContext = await resolveCompanyContext(req, {
@@ -211,6 +218,14 @@ export const updateUser = async (req, res) => {
     }
 
     const user = await User.findByPk(req.params.id);
+
+    if (user) {
+      await Employee.update(
+        { roleId: user.roleId },
+        { where: { staffNumber: user.userNumber } }
+      );
+    }
+
     res.json(user);
   } catch (error) {
     res.status(400).json({ error: error.message });

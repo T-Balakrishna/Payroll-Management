@@ -37,6 +37,7 @@ const buildFormulaContext = async ({ companyId, employeeSalaryMasterId, transact
       { model: db.Department, as: 'department', required: false },
       { model: db.Designation, as: 'designation', required: false },
       { model: db.EmployeeGrade, as: 'employeeGrade', required: false },
+      { model: db.Role, as: 'role', required: false },
     ],
     transaction,
   });
@@ -61,6 +62,11 @@ const buildFormulaContext = async ({ companyId, employeeSalaryMasterId, transact
   });
 
   const context = {};
+  // Ensure every active component code exists in context to avoid "X is not defined".
+  allActiveComponents.forEach((component) => {
+    setContextValue(context, component.code, 0);
+  });
+
   assignedEarnings.forEach((component) => {
     const amount = toSafeNumber(component.calculatedAmount ?? component.fixedAmount);
     setContextValue(context, component.componentCode, amount);
@@ -73,8 +79,11 @@ const buildFormulaContext = async ({ companyId, employeeSalaryMasterId, transact
   const age = birthDate ? Math.max(0, (today - birthDate) / (365.25 * 24 * 60 * 60 * 1000)) : 0;
 
   context.designation = employee?.designation?.designationName || '';
+  context.designationLower = String(context.designation || '').trim().toLowerCase();
   context.department = employee?.department?.departmentName || '';
   context.grade = employee?.employeeGrade?.employeeGradeName || '';
+  context.role = employee?.role?.roleName || '';
+  context.roleLower = String(context.role || '').trim().toLowerCase();
   context.experience = Number(experience.toFixed(2));
   context.employeeType = employee?.employmentStatus || '';
   context.location = employee?.workLocation || '';
@@ -82,7 +91,7 @@ const buildFormulaContext = async ({ companyId, employeeSalaryMasterId, transact
   context.joiningDate = employee?.dateOfJoining || null;
   context.gender = employee?.gender || '';
   context.qualification = employee?.highestQualification || '';
-
+  console.log(context);  
   return context;
 };
 

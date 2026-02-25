@@ -78,6 +78,13 @@ export default (sequelize) => {
       references: { model: 'departments', key: 'departmentId' },
     },
 
+    roleId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: { model: 'roles', key: 'roleId' },
+      comment: 'Role mapped from users.roleId',
+    },
+
     designationId: {
       type: DataTypes.INTEGER,
       allowNull: true,
@@ -276,6 +283,11 @@ export default (sequelize) => {
     Employee.belongsTo(models.Department, {
       foreignKey: 'departmentId',
       as: 'department',
+    });
+
+    Employee.belongsTo(models.Role, {
+      foreignKey: 'roleId',
+      as: 'role',
     });
 
     Employee.belongsTo(models.Designation, {
