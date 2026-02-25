@@ -34,7 +34,6 @@ import employeeLoanRoutes from './employeeLoanRoutes.js';
 import formulaRoutes from './formulaRoutes.js';
 import permissionRoutes from './permissionRoutes.js';
 import statuaryReportsRoutes from './statutoryReportsRoutes.js';
-import googleAuthRoutes from './googleAuthRoutes.js';
 
 const mountRoutes = (app) => {
   // Core
@@ -110,8 +109,6 @@ const mountRoutes = (app) => {
   app.use('/api/permissions', permissionRoutes);
 
   app.use('/api/statuaryReports', statuaryReportsRoutes);
-
-  app.use('/api/google-auth', googleAuthRoutes);
 };
 
 export default mountRoutes;

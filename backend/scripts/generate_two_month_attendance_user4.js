@@ -25,7 +25,6 @@ const {
   BiometricDevice,
   HolidayPlan,
   Holiday,
-  BiometricPunch,
   LeaveType,
   LeavePolicy,
   LeavePeriod,
@@ -401,20 +400,24 @@ async function seedMasters() {
     company,
     roles: {
       superAdminRole,
-      adminRole,
-      teachingRole,
-      nonTeachingRole,
-      studentRole,
+      adminRole: superAdminRole,
+      teachingRole: staffRole,
+      nonTeachingRole: staffRole,
+      studentRole: staffRole,
     },
     departments,
     designations,
-    grades,
-    shiftTypes,
+    grades: {},
+    shiftTypes: {
+      teaching: shiftType,
+      nonTeaching: shiftType,
+      night: shiftType,
+    },
     device,
   };
 }
 
-async function seedUsersAndEmployees({ company, roles, departments, designations, shiftType }) {
+async function seedUsersAndEmployees({ company, roles, departments, designations, shiftTypes }) {
   const seededPasswordHash = await hashPassword(DEFAULT_PASSWORD_PLAIN);
 
   const userSeedData = [
@@ -564,24 +567,38 @@ async function seedUsersAndEmployees({ company, roles, departments, designations
       paranoid: false,
     });
     if (!user) continue;
-    const employee = await Employee.findOne({
+    let employee = await Employee.findOne({
       where: { staffNumber: user.userNumber },
       paranoid: false,
     });
+
+    const nameParts = (seed.userName || "Staff User").trim().split(/\s+/);
+    const firstName = nameParts[0] || "Staff";
+    const lastName = nameParts.slice(1).join(" ") || null;
+    const designationName =
+      seed.roleKey === "superAdmin"
+        ? "System Administrator"
+        : seed.roleKey === "teaching"
+          ? (seed.userName.startsWith("Prof") ? "Professor" : "Assistant Professor")
+          : (seed.userName.startsWith("Lab") ? "Lab Assistant" : "Office Staff");
+    const designationId = designations[designationName]?.designationId || null;
+    const selectedShiftType =
+      shiftTypes?.[seed.shiftKey] ||
+      (seed.roleKey === "teaching" ? shiftTypes?.teaching : shiftTypes?.nonTeaching);
 
     const employeePayload = {
       staffNumber: user.userNumber,
       biometricNumber: `BIO${user.userNumber}`,
       companyId: company.companyId,
-      firstName: u.employee.firstName,
-      lastName: u.employee.lastName,
+      firstName,
+      lastName,
       personalEmail: user.userMail,
       officialEmail: user.userMail,
       departmentId: user.departmentId,
-      designationId: u.employee.designationId,
+      designationId,
       dateOfJoining: "2025-06-01",
       status: "Active",
-      shiftTypeId: shiftType.shiftTypeId,
+      shiftTypeId: selectedShiftType?.shiftTypeId || null,
       employmentStatus: "Active",
       remainingPermissionHours: Number(company.permissionHoursPerMonth || 0),
       createdBy: adminUser.userId,
@@ -596,10 +613,10 @@ async function seedUsersAndEmployees({ company, roles, departments, designations
       }
       await withReprepareRetry(() => employee.update(employeePayload), "Employee.update");
     }
-    employees[u.userMail] = employee;
+    employees[seed.userMail] = employee;
   }
 
-  return { users, employees, adminUser };
+  return { users, employees, adminUser, userSeedData };
 }
 
 async function ensureHolidayData({
@@ -843,148 +860,18 @@ async function seedShiftAssignments({
   }
 }
 
-const shiftTime = (hhmmss, deltaMinutes) => {
-  const base = new Date(`1970-01-01T${hhmmss}`);
-  base.setMinutes(base.getMinutes() + deltaMinutes);
-  return base.toISOString().slice(11, 19);
-};
-
-function buildStatusByDate(allDates, holidayDates, weekOffDates, offset = 0) {
-  const workingDays = allDates.filter(
-    (d) => !holidayDates.has(d) && !weekOffDates.has(d)
-  );
-  const statusByDate = {};
-
-  for (const d of allDates) {
-    if (holidayDates.has(d)) {
-      statusByDate[d] = "Holiday";
-      continue;
-    }
-    if (weekOffDates.has(d)) {
-      statusByDate[d] = "Week Off";
-      continue;
-    }
-  }
-
-  workingDays.forEach((d, idx) => {
-    const marker = (idx + 1 + offset) % 10;
-    if (marker === 0) {
-      statusByDate[d] = "Absent";
-    } else if (marker === 6) {
-      statusByDate[d] = "Half-Day";
-    } else {
-      statusByDate[d] = "Present";
-    }
-  });
-
-  return statusByDate;
-}
-
-async function seedPunchesForEmployees({
-  employees,
-  userSeedData,
-  company,
-  device,
-  holidayRows,
-  startDate,
-  endDate,
-  adminUserId,
-  shiftTypeMap,
-}) {
-  const holidayDates = new Set(
-    holidayRows.filter((h) => h.type === "Holiday").map((h) => h.holidayDate)
-  );
-  const weekOffDates = new Set(
-    holidayRows.filter((h) => h.type === "Week Off").map((h) => h.holidayDate)
-  );
-
-  const allDates = getEveryDate(startDate, endDate);
-  let punchRows = 0;
-
-  await BiometricPunch.destroy({ where: {}, force: true });
-
-  for (let i = 0; i < userSeedData.length; i += 1) {
-    const seed = userSeedData[i];
-    const employee = employees[seed.userMail];
-    if (!employee) continue;
-
-    await BiometricPunch.destroy({
-      where: {
-        staffId: employee.staffId,
-        punchDate: { [Op.between]: [startDate, endDate] },
-      },
-      force: true,
-    });
-
-    const offset = (i % 5) - 2;
-    const statusByDate = buildStatusByDate(allDates, holidayDates, weekOffDates, offset);
-    const shiftType = shiftTypeMap.get(String(employee.shiftTypeId || "")) || null;
-
-    for (let d = 0; d < allDates.length; d += 1) {
-      const dateOnly = allDates[d];
-      const status = statusByDate[dateOnly];
-      if (status === "Holiday" || status === "Week Off" || status === "Absent") {
-        continue;
-      }
-      if (!shiftType) continue;
-
-      const dayOffset = (d % 4) - 1;
-      const baseStart = shiftType.startTime;
-      const baseEnd = shiftType.endTime;
-
-      let inTime = shiftTime(baseStart, offset + dayOffset);
-      let outTime = shiftTime(baseEnd, offset - dayOffset);
-
-      const startDateTime = atTime(dateOnly, inTime);
-      let endDateTime = atTime(dateOnly, outTime);
-      if (endDateTime <= startDateTime) {
-        endDateTime = new Date(endDateTime.getTime() + 24 * 60 * 60 * 1000);
-      }
-
-      if (status === "Half-Day") {
-        const halfHours = Number(shiftType.halfDayHours || 4);
-        endDateTime = new Date(startDateTime.getTime() + halfHours * 60 * 60 * 1000);
-      }
-
-      const firstCheckIn = startDateTime;
-      const lastCheckOut = endDateTime;
-
-      await BiometricPunch.create({
-        staffId: employee.staffId,
-        biometricDeviceId: device.deviceId,
-        biometricNumber: employee.biometricNumber,
-        punchTimestamp: firstCheckIn,
-        punchDate: toDateOnly(firstCheckIn),
-        status: "Valid",
-        remarks: `Seeded ${status} day IN`,
-        companyId: company.companyId,
-        createdBy: adminUserId,
-      });
-      await BiometricPunch.create({
-        staffId: employee.staffId,
-        biometricDeviceId: device.deviceId,
-        biometricNumber: employee.biometricNumber,
-        punchTimestamp: lastCheckOut,
-        punchDate: toDateOnly(lastCheckOut),
-        status: "Valid",
-        remarks: `Seeded ${status} day OUT`,
-        companyId: company.companyId,
-        createdBy: adminUserId,
-      });
-      punchRows += 2;
-    }
-  }
-
-  return { dateFrom: startDate, dateTo: endDate, punchRows };
-}
-
 async function main() {
   const { startDate, endDate } = getPast60DayRange();
 
   const masterData = await seedMasters();
-  const { company, shiftTypes, device, designations, grades } = masterData;
-  const { users, employees, adminUser, userSeedData } = await seedUsersViaController(masterData);
-  const leaveMasterData = await seedLeaveMasters({ company, adminUser });
+  const { company, device, shiftTypes, designations, grades } = masterData;
+  const { users, employees, adminUser, userSeedData } = await seedUsersAndEmployees({
+    company,
+    roles: masterData.roles,
+    departments: masterData.departments,
+    designations,
+    shiftTypes,
+  });
 
   await assignEmployeeProfiles({
     employees,
@@ -995,58 +882,25 @@ async function main() {
     company,
     adminUser,
   });
-  if (!shiftAssignment) {
-      shiftAssignment = await ShiftAssignment.create({
-        staffId: staffEmployee.staffId,
-        shiftTypeId: shiftType.shiftTypeId,
-        startDate,
-        endDate,
-      isRecurring: true,
-      recurringPattern: "weekly",
-      recurringDays: [1, 2, 3, 4, 5, 6],
-      status: "Active",
-      notes: "Default seeded shift assignment",
-      companyId: company.companyId,
-      createdBy: adminUser.userId,
-      updatedBy: adminUser.userId,
-    });
-  } else {
-    if (shiftAssignment.deletedAt) {
-      await shiftAssignment.restore();
-    }
-    await withReprepareRetry(() => shiftAssignment.update({
-      shiftTypeId: shiftType.shiftTypeId,
-      startDate,
-      endDate,
-      recurringPattern: "weekly",
-      recurringDays: [1, 2, 3, 4, 5, 6],
-      isRecurring: true,
-      status: "Active",
-      companyId: company.companyId,
-      updatedBy: adminUser.userId,
-    }), "ShiftAssignment.update");
-  }
 
-  const { holidayPlan, holidayRows } = await ensureHolidayData({
+  await seedShiftAssignments({
+    employees,
+    userSeedData,
+    shiftTypes,
+    company,
+    adminUser,
+    startDate,
+    endDate,
+  });
+
+  const { holidayPlan } = await ensureHolidayData({
     companyId: company.companyId,
     createdBy: adminUser.userId,
     startDate,
     endDate,
   });
 
-  const shiftTypeMap = new Map(Object.values(shiftTypes || {}).map((s) => [String(s.shiftTypeId), s]));
-  const punchSeedResult = await seedPunchesForEmployees({
-    employees,
-    userSeedData,
-    company,
-    device,
-    holidayRows,
-    startDate,
-    endDate,
-    adminUserId: adminUser.userId,
-  });
-
-  console.log("Initial master + user + attendance seed completed.");
+  console.log("Initial master + user seed completed.");
   console.log(`Seed login password: ${DEFAULT_PASSWORD_PLAIN}`);
   console.log(
     JSON.stringify(
@@ -1065,25 +919,6 @@ async function main() {
         })),
         holidayPlanId: holidayPlan.holidayPlanId,
         deviceId: device.deviceId,
-        punchSeedResult,
-        leaveSeed: {
-          leaveTypes: Object.values(leaveMasterData.leaveTypes || {}).map((t) => ({
-            leaveTypeId: t.leaveTypeId,
-            name: t.name,
-          })),
-          leavePolicies: Object.values(leaveMasterData.leavePolicies || {}).map((p) => ({
-            leavePolicyId: p.leavePolicyId,
-            name: p.name,
-          })),
-          leavePeriods: Object.values(leaveMasterData.leavePeriods || {}).map((p) => ({
-            leavePeriodId: p.leavePeriodId,
-            name: p.name,
-            startDate: p.startDate,
-            endDate: p.endDate,
-            status: p.status,
-          })),
-          allocationsSeeded: leaveAllocations.length,
-        },
       },
       null,
       2

@@ -2,7 +2,20 @@ import cron from "node-cron";
 import { Op } from "sequelize";
 import db from "../models/index.js";
 
-const { Attendance, Employee, ShiftAssignment, ShiftType, Holiday, LeaveRequest, BiometricPunch } = db;
+const {
+  Attendance,
+  Employee,
+  ShiftAssignment,
+  ShiftType,
+  Holiday,
+  LeaveRequest,
+  BiometricPunch,
+  Permission,
+  LeaveAllocation,
+  LeaveType,
+  Company,
+  sequelize,
+} = db;
 
 const WEEKLY_OFF_DAY_INDEX = {
   sunday: 0,
@@ -33,6 +46,36 @@ const combineDateTime = (dateOnly, timeValue) => {
 const diffHours = (a, b) => {
   if (!a || !b) return 0;
   return Math.max(0, (b.getTime() - a.getTime()) / (1000 * 60 * 60));
+};
+
+const parseTaggedNumber = (remarks, tag) => {
+  if (!remarks) return 0;
+  const match = String(remarks).match(new RegExp(`${tag}=([0-9]+(?:\\.[0-9]+)?)`, "i"));
+  return match ? Number(match[1]) : 0;
+};
+
+const parseTaggedInteger = (remarks, tag) => {
+  if (!remarks) return null;
+  const match = String(remarks).match(new RegExp(`${tag}=([0-9]+)`, "i"));
+  return match ? Number(match[1]) : null;
+};
+
+const calculateAvailableFromAllocation = (allocation) => {
+  const carried = Number(allocation?.carryForwardFromPrevious || 0);
+  const accrued = Number(allocation?.totalAccruedTillDate || 0);
+  const used = Number(allocation?.usedLeaves || 0);
+  return carried + accrued - used;
+};
+
+const getLeaveUnitsForDate = (leaveRequest, dateOnly) => {
+  if (!leaveRequest) return 0;
+  if (leaveRequest.leaveCategory === "Half Day") return 0.5;
+  if (leaveRequest.leaveCategory === "Short Leave") return 0.25;
+  if (leaveRequest.startDate === leaveRequest.endDate) {
+    const singleDayUnits = Number(leaveRequest.totalDays || 1);
+    return singleDayUnits > 0 ? singleDayUnits : 1;
+  }
+  return 1;
 };
 
 const normalizeWeeklyOffDays = (value) => {
@@ -123,7 +166,7 @@ export const processAttendanceForDate = async (targetDate = new Date()) => {
       status: "Active",
       employmentStatus: "Active",
     },
-    attributes: ["staffId", "companyId", "shiftTypeId", "status", "employmentStatus"],
+    attributes: ["staffId", "companyId", "shiftTypeId", "status", "employmentStatus", "remainingPermissionHours"],
   });
 
   if (employees.length === 0) {
@@ -133,7 +176,8 @@ export const processAttendanceForDate = async (targetDate = new Date()) => {
   const staffIds = employees.map((e) => e.staffId);
   const companyIds = [...new Set(employees.map((e) => e.companyId).filter(Boolean))];
 
-  const [assignments, shiftTypes, holidays, leaves, punches, existingAttendances] = await Promise.all([
+  const [assignments, shiftTypes, holidays, leaves, punches, existingAttendances, companies, leaveAllocations] =
+    await Promise.all([
     ShiftAssignment.findAll({
       where: {
         staffId: { [Op.in]: staffIds },
@@ -157,7 +201,20 @@ export const processAttendanceForDate = async (targetDate = new Date()) => {
         startDate: { [Op.lte]: dateOnly },
         endDate: { [Op.gte]: dateOnly },
       },
-      attributes: ["leaveRequestId", "staffId"],
+      attributes: [
+        "leaveRequestId",
+        "staffId",
+        "companyId",
+        "leaveTypeId",
+        "leaveAllocationId",
+        "leaveCategory",
+        "halfDayType",
+        "totalDays",
+        "startDate",
+        "endDate",
+        "updatedAt",
+      ],
+      include: [{ model: LeaveType, as: "leaveType", attributes: ["leaveTypeId", "name", "leaveTypeName"] }],
     }),
     BiometricPunch.findAll({
       where: {
@@ -172,6 +229,30 @@ export const processAttendanceForDate = async (targetDate = new Date()) => {
         staffId: { [Op.in]: staffIds },
         attendanceDate: dateOnly,
       },
+    }),
+    Company.findAll({
+      where: { companyId: { [Op.in]: companyIds } },
+      attributes: ["companyId", "permissionHoursPerMonth"],
+    }),
+    LeaveAllocation.findAll({
+      where: {
+        staffId: { [Op.in]: staffIds },
+        companyId: { [Op.in]: companyIds },
+        status: "Active",
+        effectiveFrom: { [Op.lte]: dateOnly },
+        effectiveTo: { [Op.gte]: dateOnly },
+      },
+      attributes: [
+        "leaveAllocationId",
+        "staffId",
+        "companyId",
+        "leaveTypeId",
+        "carryForwardFromPrevious",
+        "totalAccruedTillDate",
+        "usedLeaves",
+        "updatedBy",
+      ],
+      order: [["effectiveFrom", "DESC"]],
     }),
   ]);
 
@@ -190,7 +271,11 @@ export const processAttendanceForDate = async (targetDate = new Date()) => {
     holidayByCompany.get(key).push(h);
   }
 
-  const leaveByStaff = new Map(leaves.map((l) => [String(l.staffId), l]));
+  const leaveByStaff = new Map();
+  for (const l of leaves.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime())) {
+    const key = String(l.staffId);
+    if (!leaveByStaff.has(key)) leaveByStaff.set(key, l);
+  }
 
   const punchesByStaff = new Map();
   for (const p of punches) {
@@ -200,6 +285,13 @@ export const processAttendanceForDate = async (targetDate = new Date()) => {
   }
 
   const existingByStaff = new Map(existingAttendances.map((a) => [String(a.staffId), a]));
+  const companyPermissionMap = new Map(companies.map((c) => [String(c.companyId), Number(c.permissionHoursPerMonth || 0)]));
+  const allocationById = new Map(leaveAllocations.map((a) => [String(a.leaveAllocationId), a]));
+  const allocationByStaffType = new Map();
+  for (const allocation of leaveAllocations) {
+    const key = `${allocation.staffId}::${allocation.leaveTypeId}`;
+    if (!allocationByStaffType.has(key)) allocationByStaffType.set(key, allocation);
+  }
 
   let processed = 0;
   let created = 0;
@@ -207,6 +299,11 @@ export const processAttendanceForDate = async (targetDate = new Date()) => {
 
   for (const emp of employees) {
     const empKey = String(emp.staffId);
+    const existing = existingByStaff.get(empKey) || null;
+    const previousPermissionUsed = Number(parseTaggedNumber(existing?.remarks, "permUsedHours").toFixed(2));
+    const previousLeaveUsed = Number(parseTaggedNumber(existing?.remarks, "leaveUsedDays").toFixed(2));
+    const previousLeaveAllocationId = parseTaggedInteger(existing?.remarks, "leaveAllocationId");
+
     const companyHolidayRows = holidayByCompany.get(String(emp.companyId)) || [];
     const companyHoliday = companyHolidayRows.find((h) => h.type !== "Week Off");
 
@@ -231,7 +328,7 @@ export const processAttendanceForDate = async (targetDate = new Date()) => {
 
     const weeklyOffDays = normalizeWeeklyOffDays(shiftType?.weeklyOff);
     const isShiftWeeklyOff = isDateWeeklyOffByShift(dateOnly, weeklyOffDays);
-    const hasApprovedLeave = leaveByStaff.has(empKey);
+    const approvedLeave = leaveByStaff.get(empKey) || null;
 
     const scheduledStart = shiftType ? combineDateTime(dateOnly, shiftType.startTime) : null;
     let scheduledEnd = shiftType ? combineDateTime(dateOnly, shiftType.endTime) : null;
@@ -273,32 +370,157 @@ export const processAttendanceForDate = async (targetDate = new Date()) => {
     let isHoliday = false;
     let isWeekOff = false;
     const remarks = [];
+    const minimumHours = Number(shiftType?.minimumHours || shiftType?.absentHours || 6);
+    const halfDayHours = Number(shiftType?.halfDayHours || 4);
+    const hasPunches = dayPunches.length > 0;
+    const shortfallHours = Math.max(0, Number((minimumHours - workingHours).toFixed(2)));
+    const currentPermissionRemaining = Number(
+      emp.remainingPermissionHours ?? companyPermissionMap.get(String(emp.companyId)) ?? 0
+    );
 
-    // 1) Holiday check first
+    let permissionUsedHours = 0;
+    let leaveUsedDays = 0;
+    let leaveAllocationIdUsed = null;
+    let leaveRequestIdUsed = null;
+
     if (companyHoliday) {
       attendanceStatus = "Holiday";
       isHoliday = true;
       remarks.push(companyHoliday.description || "Company holiday");
     } else if (isShiftWeeklyOff) {
-      // 2) Weekly off check from shift weeklyOff constraints
       attendanceStatus = "Week Off";
       isWeekOff = true;
       remarks.push(`Shift weekly off (${weeklyOffDays.join(", ") || "configured"})`);
-    } else if (dayPunches.length === 0) {
-      // 3) No punch => absent, but approved leave should override
-      attendanceStatus = hasApprovedLeave ? "Leave" : "Absent";
-      remarks.push(hasApprovedLeave ? "Approved leave request found" : "No punches");
     } else {
-      // 4) Shift constraints and punch timings
-      const halfDayHours = Number(shiftType?.halfDayHours || 4);
-      const presentThreshold = Number(shiftType?.absentHours || 6);
+      if (hasPunches && workingHours >= minimumHours) {
+        if (isLate) attendanceStatus = "Late";
+        else if (isEarlyExit) attendanceStatus = "Early Exit";
+        else attendanceStatus = "Present";
+      } else if (
+        hasPunches &&
+        shortfallHours > 0 &&
+        shortfallHours <= 2 &&
+        currentPermissionRemaining >= Math.ceil(shortfallHours)
+      ) {
+        permissionUsedHours = Math.ceil(shortfallHours);
+        attendanceStatus = "Permission";
+        remarks.push(`Compensated ${shortfallHours}h shortfall using permission hours`);
+      } else if (hasPunches && workingHours >= halfDayHours) {
+        if (approvedLeave) {
+          const requestedLeaveUnits = Number(getLeaveUnitsForDate(approvedLeave, dateOnly).toFixed(2));
+          let targetAllocation = null;
+          if (approvedLeave.leaveAllocationId) {
+            targetAllocation = allocationById.get(String(approvedLeave.leaveAllocationId)) || null;
+            if (!targetAllocation) {
+              targetAllocation = await LeaveAllocation.findByPk(approvedLeave.leaveAllocationId);
+              if (targetAllocation) allocationById.set(String(targetAllocation.leaveAllocationId), targetAllocation);
+            }
+          }
+          if (!targetAllocation && approvedLeave.leaveTypeId) {
+            targetAllocation = allocationByStaffType.get(`${emp.staffId}::${approvedLeave.leaveTypeId}`) || null;
+          }
+          if (!targetAllocation && approvedLeave.leaveTypeId) {
+            targetAllocation = await LeaveAllocation.findOne({
+              where: {
+                staffId: emp.staffId,
+                companyId: emp.companyId,
+                leaveTypeId: approvedLeave.leaveTypeId,
+                status: "Active",
+                effectiveFrom: { [Op.lte]: dateOnly },
+                effectiveTo: { [Op.gte]: dateOnly },
+              },
+              order: [["effectiveFrom", "DESC"]],
+            });
+            if (targetAllocation) {
+              allocationById.set(String(targetAllocation.leaveAllocationId), targetAllocation);
+              allocationByStaffType.set(`${emp.staffId}::${approvedLeave.leaveTypeId}`, targetAllocation);
+            }
+          }
 
-      if (workingHours < halfDayHours) attendanceStatus = "Absent";
-      else if (workingHours < presentThreshold) attendanceStatus = "Half-Day";
-      else if (isLate) attendanceStatus = "Late";
-      else if (isEarlyExit) attendanceStatus = "Early Exit";
-      else attendanceStatus = "Present";
+          if (targetAllocation && requestedLeaveUnits > 0) {
+            let available = calculateAvailableFromAllocation(targetAllocation);
+            if (previousLeaveAllocationId && Number(previousLeaveAllocationId) === Number(targetAllocation.leaveAllocationId)) {
+              available += previousLeaveUsed;
+            }
+            if (available >= requestedLeaveUnits) {
+              leaveUsedDays = requestedLeaveUnits;
+              leaveAllocationIdUsed = targetAllocation.leaveAllocationId;
+              leaveRequestIdUsed = approvedLeave.leaveRequestId;
+              const leaveName =
+                approvedLeave.leaveType?.name || approvedLeave.leaveType?.leaveTypeName || "Leave";
+              attendanceStatus = `Leave - ${leaveName}`;
+            } else {
+              attendanceStatus = "Absent";
+              remarks.push("Approved leave found but insufficient leave balance");
+            }
+          } else {
+            attendanceStatus = "Absent";
+            remarks.push("Approved leave found but no active leave allocation");
+          }
+        } else {
+          attendanceStatus = "Absent";
+          remarks.push("Half-day hours met but no approved leave request");
+        }
+      } else if (approvedLeave) {
+        const requestedLeaveUnits = Number(getLeaveUnitsForDate(approvedLeave, dateOnly).toFixed(2));
+        let targetAllocation = null;
+        if (approvedLeave.leaveAllocationId) {
+          targetAllocation = allocationById.get(String(approvedLeave.leaveAllocationId)) || null;
+          if (!targetAllocation) {
+            targetAllocation = await LeaveAllocation.findByPk(approvedLeave.leaveAllocationId);
+            if (targetAllocation) allocationById.set(String(targetAllocation.leaveAllocationId), targetAllocation);
+          }
+        }
+        if (!targetAllocation && approvedLeave.leaveTypeId) {
+          targetAllocation = allocationByStaffType.get(`${emp.staffId}::${approvedLeave.leaveTypeId}`) || null;
+        }
+        if (!targetAllocation && approvedLeave.leaveTypeId) {
+          targetAllocation = await LeaveAllocation.findOne({
+            where: {
+              staffId: emp.staffId,
+              companyId: emp.companyId,
+              leaveTypeId: approvedLeave.leaveTypeId,
+              status: "Active",
+              effectiveFrom: { [Op.lte]: dateOnly },
+              effectiveTo: { [Op.gte]: dateOnly },
+            },
+            order: [["effectiveFrom", "DESC"]],
+          });
+          if (targetAllocation) {
+            allocationById.set(String(targetAllocation.leaveAllocationId), targetAllocation);
+            allocationByStaffType.set(`${emp.staffId}::${approvedLeave.leaveTypeId}`, targetAllocation);
+          }
+        }
+
+        if (targetAllocation && requestedLeaveUnits > 0) {
+          let available = calculateAvailableFromAllocation(targetAllocation);
+          if (previousLeaveAllocationId && Number(previousLeaveAllocationId) === Number(targetAllocation.leaveAllocationId)) {
+            available += previousLeaveUsed;
+          }
+          if (available >= requestedLeaveUnits) {
+            leaveUsedDays = requestedLeaveUnits;
+            leaveAllocationIdUsed = targetAllocation.leaveAllocationId;
+            leaveRequestIdUsed = approvedLeave.leaveRequestId;
+            const leaveName =
+              approvedLeave.leaveType?.name || approvedLeave.leaveType?.leaveTypeName || "Leave";
+            attendanceStatus = `Leave - ${leaveName}`;
+          } else {
+            attendanceStatus = "Absent";
+            remarks.push("Approved leave found but insufficient leave balance");
+          }
+        } else {
+          attendanceStatus = "Absent";
+          remarks.push("Approved leave found but no active leave allocation");
+        }
+      } else if (!hasPunches) {
+        attendanceStatus = "Absent";
+        remarks.push("No punches");
+      } else {
+        attendanceStatus = "Absent";
+      }
     }
+
+    const effectiveWorkingHours = Number((workingHours + permissionUsedHours).toFixed(2));
 
     const payload = {
       staffId: emp.staffId,
@@ -312,7 +534,7 @@ export const processAttendanceForDate = async (targetDate = new Date()) => {
       lastCheckOut,
       totalCheckIns,
       totalCheckOuts,
-      workingHours,
+      workingHours: effectiveWorkingHours,
       breakHours: 0,
       overtimeHours,
       attendanceStatus,
@@ -323,17 +545,104 @@ export const processAttendanceForDate = async (targetDate = new Date()) => {
       isHoliday,
       isWeekOff,
       autoGenerated: true,
-      remarks: remarks.join("; "),
+      remarks: [
+        ...remarks,
+        `permUsedHours=${Number(permissionUsedHours.toFixed(2))}`,
+        `leaveUsedDays=${Number(leaveUsedDays.toFixed(2))}`,
+        `leaveAllocationId=${leaveAllocationIdUsed || 0}`,
+        `leaveRequestId=${leaveRequestIdUsed || 0}`,
+        `rawWorkingHours=${Number(workingHours.toFixed(2))}`,
+      ].join("; "),
     };
 
-    const existing = existingByStaff.get(empKey);
-    if (existing) {
-      await existing.update(payload);
-      updated += 1;
-    } else {
-      await Attendance.create(payload);
-      created += 1;
-    }
+    await sequelize.transaction(async (transaction) => {
+      const permissionDelta = Number((permissionUsedHours - previousPermissionUsed).toFixed(2));
+      const updatedRemainingPermission = Math.max(0, Math.round(currentPermissionRemaining - permissionDelta));
+      if (updatedRemainingPermission !== Number(emp.remainingPermissionHours ?? 0)) {
+        await emp.update({ remainingPermissionHours: updatedRemainingPermission }, { transaction });
+      }
+
+      const leaveDeltaMap = new Map();
+      if (previousLeaveAllocationId && previousLeaveUsed > 0) {
+        leaveDeltaMap.set(
+          String(previousLeaveAllocationId),
+          Number((leaveDeltaMap.get(String(previousLeaveAllocationId)) || 0) - previousLeaveUsed)
+        );
+      }
+      if (leaveAllocationIdUsed && leaveUsedDays > 0) {
+        leaveDeltaMap.set(
+          String(leaveAllocationIdUsed),
+          Number((leaveDeltaMap.get(String(leaveAllocationIdUsed)) || 0) + leaveUsedDays)
+        );
+      }
+
+      for (const [allocationId, delta] of leaveDeltaMap.entries()) {
+        if (!delta) continue;
+        let allocation = allocationById.get(String(allocationId)) || null;
+        if (!allocation) {
+          allocation = await LeaveAllocation.findByPk(allocationId, { transaction });
+          if (!allocation) continue;
+          allocationById.set(String(allocation.leaveAllocationId), allocation);
+        }
+        const currentUsed = Number(allocation.usedLeaves || 0);
+        const nextUsed = Number(Math.max(0, currentUsed + delta).toFixed(2));
+        await allocation.update({ usedLeaves: nextUsed }, { transaction });
+        allocationById.set(String(allocation.leaveAllocationId), allocation);
+      }
+
+      let attendanceRow = existing;
+      if (attendanceRow) {
+        await attendanceRow.update(payload, { transaction });
+        updated += 1;
+      } else {
+        attendanceRow = await Attendance.create(payload, { transaction });
+        existingByStaff.set(empKey, attendanceRow);
+        created += 1;
+      }
+
+      const permissionStartTime =
+        scheduledEnd && lastCheckOut && lastCheckOut < scheduledEnd
+          ? String(lastCheckOut.toTimeString()).slice(0, 8)
+          : null;
+      const permissionEndTime = scheduledEnd ? String(scheduledEnd.toTimeString()).slice(0, 8) : null;
+
+      if (permissionUsedHours > 0) {
+        const existingPermission = await Permission.findOne({
+          where: { staffId: emp.staffId, permissionDate: dateOnly },
+          transaction,
+        });
+        if (existingPermission) {
+          await existingPermission.update(
+            {
+              attendanceId: attendanceRow.attendanceId,
+              companyId: emp.companyId,
+              permissionHours: permissionUsedHours,
+              permissionStartTime,
+              permissionEndTime,
+            },
+            { transaction }
+          );
+        } else {
+          await Permission.create(
+            {
+              staffId: emp.staffId,
+              companyId: emp.companyId,
+              attendanceId: attendanceRow.attendanceId,
+              permissionDate: dateOnly,
+              permissionHours: permissionUsedHours,
+              permissionStartTime,
+              permissionEndTime,
+            },
+            { transaction }
+          );
+        }
+      } else if (previousPermissionUsed > 0) {
+        await Permission.destroy({
+          where: { staffId: emp.staffId, permissionDate: dateOnly },
+          transaction,
+        });
+      }
+    });
 
     processed += 1;
   }

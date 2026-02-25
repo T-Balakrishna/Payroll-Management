@@ -145,18 +145,18 @@ export default function EmployeeDashboard() {
     const lower = status?.toLowerCase();
     if (lower === "approved")
       return (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200">
           <CheckCircle className="w-3 h-3" /> Approved
         </span>
       );
     if (lower === "rejected")
       return (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700 border border-red-200">
           <XCircle className="w-3 h-3" /> Rejected
         </span>
       );
     return (
-      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-200">
         <AlertCircle className="w-3 h-3" /> {status || "Pending"}
       </span>
     );
@@ -170,10 +170,10 @@ export default function EmployeeDashboard() {
       showCancelButton: true,
       confirmButtonText: "Yes, sign out",
       cancelButtonText: "Stay",
-      background: "#0f172a",
-      color: "#f1f5f9",
-      confirmButtonColor: "#f43f5e",
-      cancelButtonColor: "#1e293b",
+      background: "#ffffff",
+      color: "#1e293b",
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#e2e8f0",
     });
     if (!result.isConfirmed) return;
     try {
@@ -189,49 +189,49 @@ export default function EmployeeDashboard() {
     if (isLoading)
       return (
         <div className="flex flex-col items-center justify-center py-16 gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
-          <p className="text-slate-400 text-sm">Loading your data...</p>
+          <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+          <p className="text-gray-400 text-sm">Loading your data...</p>
         </div>
       );
 
     if (error)
       return (
         <div className="flex flex-col items-center justify-center py-16 gap-3">
-          <AlertCircle className="w-8 h-8 text-rose-400" />
-          <p className="text-rose-400 text-sm">{error}</p>
+          <AlertCircle className="w-8 h-8 text-red-400" />
+          <p className="text-red-500 text-sm">{error}</p>
         </div>
       );
 
     if (tableType === "leave") {
       return (
-        <div className="rounded-2xl border border-white/10 overflow-hidden bg-white/[0.02]">
-          <div className="flex items-center gap-3 px-6 py-5 border-b border-white/10 bg-violet-500/5">
-            <FileText className="w-5 h-5 text-violet-400" />
-            <h3 className="text-base font-bold text-slate-100">Leave History</h3>
+        <div className="rounded-2xl border border-gray-200 overflow-hidden bg-white shadow-sm">
+          <div className="flex items-center gap-3 px-6 py-5 border-b border-gray-100 bg-indigo-50">
+            <FileText className="w-5 h-5 text-indigo-500" />
+            <h3 className="text-base font-bold text-gray-800">Leave History</h3>
           </div>
           <div className="overflow-x-auto max-h-96 overflow-y-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-white/10 bg-white/[0.02]">
-                  <th className="text-left py-3.5 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest">From Date</th>
-                  <th className="text-left py-3.5 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest">To Date</th>
-                  <th className="text-left py-3.5 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest">Reason</th>
-                  <th className="text-left py-3.5 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest">Status</th>
+                <tr className="border-b border-gray-100 bg-gray-50">
+                  <th className="text-left py-3.5 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider">From Date</th>
+                  <th className="text-left py-3.5 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider">To Date</th>
+                  <th className="text-left py-3.5 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider">Reason</th>
+                  <th className="text-left py-3.5 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {leaves.length > 0 ? (
                   leaves.map((row, idx) => (
-                    <tr key={idx} className="border-b border-white/5 hover:bg-white/[0.03] transition-colors duration-150">
-                      <td className="py-4 px-6 text-sm text-slate-300">{row.from_date}</td>
-                      <td className="py-4 px-6 text-sm text-slate-300">{row.to_date}</td>
-                      <td className="py-4 px-6 text-sm text-slate-400 max-w-xs truncate">{row.description}</td>
+                    <tr key={idx} className="border-b border-gray-50 hover:bg-gray-50 transition-colors duration-150">
+                      <td className="py-4 px-6 text-sm text-gray-700">{row.from_date}</td>
+                      <td className="py-4 px-6 text-sm text-gray-700">{row.to_date}</td>
+                      <td className="py-4 px-6 text-sm text-gray-500 max-w-xs truncate">{row.description}</td>
                       <td className="py-4 px-6">{getStatusBadge(row.status)}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="4" className="text-center py-12 text-slate-500 text-sm">No leave records found</td>
+                    <td colSpan="4" className="text-center py-12 text-gray-400 text-sm">No leave records found</td>
                   </tr>
                 )}
               </tbody>
@@ -242,18 +242,18 @@ export default function EmployeeDashboard() {
     }
 
     return (
-      <div className="rounded-2xl border border-white/10 overflow-hidden bg-white/[0.02]">
-        <div className="flex items-center gap-3 px-6 py-5 border-b border-white/10 bg-cyan-500/5">
-          <Clock className="w-5 h-5 text-cyan-400" />
-          <h3 className="text-base font-bold text-slate-100">Punch History</h3>
+      <div className="rounded-2xl border border-gray-200 overflow-hidden bg-white shadow-sm">
+        <div className="flex items-center gap-3 px-6 py-5 border-b border-gray-100 bg-blue-50">
+          <Clock className="w-5 h-5 text-blue-500" />
+          <h3 className="text-base font-bold text-gray-800">Punch History</h3>
         </div>
         <div className="overflow-x-auto max-h-96 overflow-y-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-white/10 bg-white/[0.02]">
-                <th className="text-left py-3.5 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest">Date</th>
-                <th className="text-left py-3.5 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest">Time</th>
-                <th className="text-left py-3.5 px-6 text-xs font-bold text-slate-500 uppercase tracking-widest">Location</th>
+              <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="text-left py-3.5 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider">Date</th>
+                <th className="text-left py-3.5 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider">Time</th>
+                <th className="text-left py-3.5 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider">Location</th>
               </tr>
             </thead>
             <tbody>
@@ -263,15 +263,15 @@ export default function EmployeeDashboard() {
                   const time = dateObj.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
                   const date = formatDate(row.punchTimestamp);
                   return (
-                    <tr key={idx} className="border-b border-white/5 hover:bg-white/[0.03] transition-colors duration-150">
-                      <td className="py-4 px-6 text-sm text-slate-300">{date}</td>
+                    <tr key={idx} className="border-b border-gray-50 hover:bg-gray-50 transition-colors duration-150">
+                      <td className="py-4 px-6 text-sm text-gray-700">{date}</td>
                       <td className="py-4 px-6">
-                        <span className="inline-flex items-center gap-1.5 text-sm text-slate-300">
-                          <Clock className="w-3.5 h-3.5 text-cyan-500/70" />{time}
+                        <span className="inline-flex items-center gap-1.5 text-sm text-gray-700">
+                          <Clock className="w-3.5 h-3.5 text-blue-400" />{time}
                         </span>
                       </td>
                       <td className="py-4 px-6">
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs font-medium">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-indigo-100 border border-indigo-200 text-indigo-700 text-xs font-medium">
                           {row.location || "Unknown Location"}
                         </span>
                       </td>
@@ -280,7 +280,7 @@ export default function EmployeeDashboard() {
                 })
               ) : (
                 <tr>
-                  <td colSpan="3" className="text-center py-12 text-slate-500 text-sm">No punch records found</td>
+                  <td colSpan="3" className="text-center py-12 text-gray-400 text-sm">No punch records found</td>
                 </tr>
               )}
             </tbody>
@@ -314,14 +314,14 @@ export default function EmployeeDashboard() {
 
     return (
       <div
-        className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm overflow-y-auto p-4 sm:p-8 flex items-start justify-center"
+        className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm overflow-y-auto p-4 sm:p-8 flex items-start justify-center"
         onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
       >
         <div className={`relative w-full ${maxW} my-auto`}>
-          <div className="relative bg-gradient-to-b from-slate-900 to-slate-950 border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
+          <div className="relative bg-white border border-gray-200 rounded-3xl overflow-hidden shadow-2xl shadow-gray-300/50">
             <button
               onClick={closeModal}
-              className="absolute top-4 right-4 z-10 w-9 h-9 rounded-xl bg-white/5 hover:bg-rose-500/20 border border-white/10 hover:border-rose-500/30 text-slate-400 hover:text-rose-400 flex items-center justify-center transition-all text-sm font-bold"
+              className="absolute top-4 right-4 z-10 w-9 h-9 rounded-xl bg-gray-100 hover:bg-red-100 border border-gray-200 hover:border-red-200 text-gray-500 hover:text-red-500 flex items-center justify-center transition-all text-sm font-bold shadow-sm"
             >
               ✕
             </button>
@@ -338,49 +338,44 @@ export default function EmployeeDashboard() {
   const pendingLeaves = leaves.filter((l) => l.status?.toLowerCase() === "pending").length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+    <div className="min-h-screen bg-gray-50">
 
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-xl border-b border-white/10 shadow-lg shadow-black/20">
+      <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
 
           <button
             onClick={openCalendarModal}
-            className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-cyan-500/10 border border-white/10 hover:border-cyan-500/30 text-slate-400 hover:text-cyan-400 transition-all"
+            className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-blue-100 border border-gray-200 hover:border-blue-300 text-gray-500 hover:text-blue-600 transition-all"
           >
             <Calendar className="w-5 h-5" />
             <span className="text-sm font-semibold">Calendar</span>
           </button>
 
           <div className="text-center">
-            <h1 className="text-xl font-bold text-slate-100">
+            <h1 className="text-xl font-bold text-gray-900">
               Welcome back,{" "}
-              <span className="bg-gradient-to-r from-cyan-400 to-sky-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                 {userName}
               </span>
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5">Have a productive day.</p>
+            <p className="text-xs text-gray-400 mt-0.5">Have a productive day.</p>
           </div>
 
           <div className="flex items-center gap-2.5">
             <button
               onClick={openProfileModal}
-              className="w-11 h-11 rounded-xl bg-white/5 hover:bg-cyan-500/10 border border-white/10 hover:border-cyan-500/30 flex items-center justify-center overflow-hidden transition-all"
+              className="w-11 h-11 rounded-xl bg-gray-100 hover:bg-blue-100 border border-gray-200 hover:border-blue-300 flex items-center justify-center overflow-hidden transition-all"
             >
               {photoUrl ? (
-                <img
-                  src={photoUrl}
-                  alt="Profile"
-                  className="w-full h-full object-cover"
-                  onError={(e) => { e.currentTarget.src = "/placeholder-image.jpg"; }}
-                />
+                <img src={photoUrl} alt="Profile" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = "/placeholder-image.jpg"; }} />
               ) : (
-                <User className="w-5 h-5 text-slate-400" />
+                <User className="w-5 h-5 text-gray-500" />
               )}
             </button>
             <button
               onClick={handleLogout}
-              className="w-11 h-11 rounded-xl bg-white/5 hover:bg-rose-500/10 border border-white/10 hover:border-rose-500/30 flex items-center justify-center text-slate-400 hover:text-rose-400 transition-all"
+              className="w-11 h-11 rounded-xl bg-gray-100 hover:bg-red-100 border border-gray-200 hover:border-red-200 flex items-center justify-center text-gray-500 hover:text-red-500 transition-all"
             >
               <LogOut className="w-5 h-5" />
             </button>
@@ -393,33 +388,33 @@ export default function EmployeeDashboard() {
 
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="flex items-center gap-4 p-5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-cyan-500/25 hover:bg-cyan-500/[0.04] transition-all duration-200">
-            <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center shrink-0">
-              <Activity className="w-5 h-5 text-cyan-400" />
+          <div className="flex items-center gap-4 p-5 rounded-2xl bg-white border border-gray-200 hover:border-blue-300 hover:shadow-md hover:shadow-blue-100 transition-all duration-200 shadow-sm">
+            <div className="w-12 h-12 rounded-xl bg-blue-100 border border-blue-200 flex items-center justify-center shrink-0">
+              <Activity className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Total Punches</p>
-              <p className="text-3xl font-bold text-slate-100 mt-0.5">{punches.length}</p>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total Punches</p>
+              <p className="text-3xl font-bold text-gray-900 mt-0.5">{punches.length}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-4 p-5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-emerald-500/25 hover:bg-emerald-500/[0.04] transition-all duration-200">
-            <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
-              <CheckCircle className="w-5 h-5 text-emerald-400" />
+          <div className="flex items-center gap-4 p-5 rounded-2xl bg-white border border-gray-200 hover:border-emerald-300 hover:shadow-md hover:shadow-emerald-100 transition-all duration-200 shadow-sm">
+            <div className="w-12 h-12 rounded-xl bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0">
+              <CheckCircle className="w-5 h-5 text-emerald-600" />
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Approved Leaves</p>
-              <p className="text-3xl font-bold text-slate-100 mt-0.5">{approvedLeaves}</p>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Approved Leaves</p>
+              <p className="text-3xl font-bold text-gray-900 mt-0.5">{approvedLeaves}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-4 p-5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-amber-500/25 hover:bg-amber-500/[0.04] transition-all duration-200">
-            <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
-              <TrendingUp className="w-5 h-5 text-amber-400" />
+          <div className="flex items-center gap-4 p-5 rounded-2xl bg-white border border-gray-200 hover:border-amber-300 hover:shadow-md hover:shadow-amber-100 transition-all duration-200 shadow-sm">
+            <div className="w-12 h-12 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0">
+              <TrendingUp className="w-5 h-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Pending Requests</p>
-              <p className="text-3xl font-bold text-slate-100 mt-0.5">{pendingLeaves}</p>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Pending Requests</p>
+              <p className="text-3xl font-bold text-gray-900 mt-0.5">{pendingLeaves}</p>
             </div>
           </div>
         </div>
@@ -428,17 +423,17 @@ export default function EmployeeDashboard() {
         <div className="flex flex-wrap justify-center gap-3">
           <button
             onClick={openTakeLeaveModal}
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-sky-500 hover:from-cyan-400 hover:to-sky-400 text-slate-900 font-bold text-sm shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/35 transition-all hover:-translate-y-0.5"
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500 text-white font-bold text-sm shadow-md shadow-blue-200 hover:shadow-blue-300 transition-all hover:-translate-y-0.5"
           >
             <Plus className="w-4 h-4" /> Apply Leave
           </button>
 
           <button
             onClick={() => setTableType("biometric")}
-            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm border transition-all hover:-translate-y-0.5 ${
+            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm border transition-all hover:-translate-y-0.5 shadow-sm ${
               tableType === "biometric"
-                ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-400"
-                : "bg-white/[0.04] border-white/10 text-slate-400 hover:bg-white/[0.07] hover:text-slate-200"
+                ? "bg-blue-100 border-blue-300 text-blue-700"
+                : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700"
             }`}
           >
             <UserCheck className="w-4 h-4" /> Punch History
@@ -446,10 +441,10 @@ export default function EmployeeDashboard() {
 
           <button
             onClick={() => setTableType("leave")}
-            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm border transition-all hover:-translate-y-0.5 ${
+            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm border transition-all hover:-translate-y-0.5 shadow-sm ${
               tableType === "leave"
-                ? "bg-violet-500/10 border-violet-500/30 text-violet-400"
-                : "bg-white/[0.04] border-white/10 text-slate-400 hover:bg-white/[0.07] hover:text-slate-200"
+                ? "bg-indigo-100 border-indigo-300 text-indigo-700"
+                : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700"
             }`}
           >
             <FileText className="w-4 h-4" /> Leave History
