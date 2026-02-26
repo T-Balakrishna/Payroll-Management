@@ -11,7 +11,6 @@ const calculateTotalDays = ({ startDate, endDate, leaveCategory }) => {
   const end = new Date(`${endDate}T00:00:00`);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return 0;
   if (leaveCategory === "Half Day") return 0.5;
-  if (leaveCategory === "Short Leave") return 0.25;
   const diff = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
   return diff > 0 ? diff : 0;
 };
@@ -393,7 +392,6 @@ export default function TakeLeavePage({ empId, companyId }) {
               <select name="leaveCategory" value={formData.leaveCategory} onChange={onChange} className={inputCls}>
                 <option value="Full Day">Full Day</option>
                 <option value="Half Day">Half Day</option>
-                <option value="Short Leave">Short Leave</option>
               </select>
             </div>
 

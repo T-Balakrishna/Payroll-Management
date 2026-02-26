@@ -83,7 +83,7 @@ export default (sequelize) => {
 
     // Leave Category
     leaveCategory: {
-      type: DataTypes.ENUM('Full Day', 'Half Day', 'Short Leave'),
+      type: DataTypes.ENUM('Full Day', 'Half Day'),
       allowNull: false,
       defaultValue: 'Full Day',
     },
@@ -289,8 +289,6 @@ export default (sequelize) => {
         // Auto-calculate total days
         if (request.leaveCategory === 'Half Day') {
           request.totalDays = 0.5;
-        } else if (request.leaveCategory === 'Short Leave') {
-          request.totalDays = 0.25;
         }
 
         // Set applied date when moving from Draft → Pending

@@ -5,7 +5,7 @@ import EmployeeDashboard from "./pages/EmployeeDashboard";
 import { AuthProvider } from "./auth/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import CalendarPage from "./pages/CalendarPage";
-import SplashScreen from "./components/common/SplashScreen";
+import SplashScreen from "./components/SplashScreen";
 import LoginPage from "./pages/LoginPage";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";

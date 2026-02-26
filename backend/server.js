@@ -64,11 +64,11 @@ db.sequelize.authenticate()
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
       console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-      if (String(process.env.ATTENDANCE_CRON_ENABLED || "true").toLowerCase() === "true") {
-        startAttendanceScheduler();
-      } else {
-        console.log("Attendance cron disabled (ATTENDANCE_CRON_ENABLED != true).");
-      }
+      // if (String(process.env.ATTENDANCE_CRON_ENABLED || "true").toLowerCase() === "true") {
+        // startAttendanceScheduler();
+      // } else {
+      //   console.log("Attendance cron disabled (ATTENDANCE_CRON_ENABLED != true).");
+      // }
     });
   })
   .catch(err => {

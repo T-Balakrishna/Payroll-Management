@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Loader2, Search, XCircle } from "lucide-react";
+import { CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
 import API from "../api";
+import MasterHeader from "../components/common/MasterHeader";
+import MasterTable from "../components/common/MasterTable";
 
 export default function LeaveApproval({
   role,
@@ -26,6 +28,7 @@ export default function LeaveApproval({
     baseDepartmentId ? String(baseDepartmentId) : ""
   );
   const [statusFilter, setStatusFilter] = useState("Pending");
+  const [search, setSearch] = useState("");
 
   const canChooseCompany = String(effectiveRole).toLowerCase() === "super admin";
   const canChooseDepartment = ["admin", "departmentadmin"].includes(
@@ -116,6 +119,32 @@ export default function LeaveApproval({
     loadRequests();
   }, [resolvedCompany, resolvedDepartment, statusFilter]);
 
+  const filteredRequests = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return requests;
+
+    return requests.filter((row) => {
+      const staffText = row.employee
+        ? `${row.employee.firstName || ""} ${row.employee.lastName || ""}`.trim() ||
+          row.employee.staffNumber
+        : String(row.staffId || "");
+      const leaveTypeText =
+        row.leaveType?.name || row.leaveType?.leaveTypeName || String(row.leaveTypeId || "");
+      const dateRangeText = `${row.startDate || ""} ${row.endDate || ""}`.trim();
+
+      return [
+        row.leaveRequestId,
+        staffText,
+        row.employee?.staffNumber,
+        leaveTypeText,
+        dateRangeText,
+        row.status,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(q));
+    });
+  }, [requests, search]);
+
   const updateStatus = async (row, newStatus) => {
     setSavingId(row.leaveRequestId);
     try {
@@ -142,17 +171,21 @@ export default function LeaveApproval({
   };
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-gray-200 bg-white p-4">
-        <h2 className="mb-3 text-lg font-semibold text-gray-900">Leave Approval</h2>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-gray-700">Company</label>
+    <div className="h-full flex flex-col px-6">
+      <MasterHeader
+        search={search}
+        setSearch={setSearch}
+        onAddNew={loadRequests}
+        onRefresh={loadRequests}
+        placeholder="Search by request id, staff, leave type or status..."
+        buttonText="Apply Filters"
+        actions={
+          <>
             <select
               value={resolvedCompany}
               onChange={(e) => canChooseCompany && setSelectedCompany(e.target.value)}
               disabled={!canChooseCompany}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm disabled:bg-gray-100"
+              className="h-10 min-w-44 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 disabled:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">{canChooseCompany ? "Select company" : selectedCompanyName || "Company"}</option>
               {companies.map((c) => (
@@ -161,15 +194,12 @@ export default function LeaveApproval({
                 </option>
               ))}
             </select>
-          </div>
 
-          <div>
-            <label className="mb-1 block text-xs font-medium text-gray-700">Department</label>
             <select
               value={resolvedDepartment}
               onChange={(e) => canChooseDepartment && setSelectedDepartment(e.target.value)}
               disabled={!canChooseDepartment}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm disabled:bg-gray-100"
+              className="h-10 min-w-44 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 disabled:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All departments</option>
               {scopedDepartments.map((d) => (
@@ -178,113 +208,70 @@ export default function LeaveApproval({
                 </option>
               ))}
             </select>
-          </div>
 
-          <div>
-            <label className="mb-1 block text-xs font-medium text-gray-700">Status</label>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+              className="h-10 min-w-36 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="Pending">Pending</option>
               <option value="Approved">Approved</option>
               <option value="Rejected">Rejected</option>
               <option value="">All</option>
             </select>
-          </div>
+          </>
+        }
+      />
 
-          <div className="flex items-end">
-            <button
-              type="button"
-              onClick={loadRequests}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
-            >
-              <Search className="h-4 w-4" />
-              Refresh
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left font-semibold text-gray-700">Request ID</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-700">Staff</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-700">Leave Type</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-700">Date Range</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-700">Days</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-700">Status</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-700">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                    <span className="inline-flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" /> Loading...
-                    </span>
-                  </td>
-                </tr>
-              ) : requests.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                    No leave requests found for current filters
-                  </td>
-                </tr>
+      <MasterTable
+        columns={["Request ID", "Staff", "Leave Type", "Date Range", "Days", "Status", "Actions"]}
+        loading={loading}
+        emptyMessage="No leave requests found for current filters"
+      >
+        {filteredRequests.map((row) => (
+          <tr key={row.leaveRequestId} className="border-t border-gray-100">
+            <td className="py-3 px-4">{row.leaveRequestId}</td>
+            <td className="py-3 px-4">
+              {row.employee
+                ? `${row.employee.firstName || ""} ${row.employee.lastName || ""}`.trim() ||
+                  row.employee.staffNumber
+                : row.staffId}
+            </td>
+            <td className="py-3 px-4">
+              {row.leaveType?.name || row.leaveType?.leaveTypeName || row.leaveTypeId}
+            </td>
+            <td className="py-3 px-4">{row.startDate} to {row.endDate}</td>
+            <td className="py-3 px-4">{row.totalDays}</td>
+            <td className="py-3 px-4">{row.status}</td>
+            <td className="py-3 px-4">
+              {row.status === "Pending" ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => updateStatus(row, "Approved")}
+                    disabled={savingId === row.leaveRequestId}
+                    className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Approve
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateStatus(row, "Rejected")}
+                    disabled={savingId === row.leaveRequestId}
+                    className="inline-flex items-center gap-1 rounded-md bg-rose-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-rose-700 disabled:opacity-60"
+                  >
+                    <XCircle className="h-3.5 w-3.5" />
+                    Reject
+                  </button>
+                </div>
               ) : (
-                requests.map((row) => (
-                  <tr key={row.leaveRequestId} className="border-t border-gray-100">
-                    <td className="px-4 py-3">{row.leaveRequestId}</td>
-                    <td className="px-4 py-3">
-                      {row.employee
-                        ? `${row.employee.firstName || ""} ${row.employee.lastName || ""}`.trim() ||
-                          row.employee.staffNumber
-                        : row.staffId}
-                    </td>
-                    <td className="px-4 py-3">
-                      {row.leaveType?.name || row.leaveType?.leaveTypeName || row.leaveTypeId}
-                    </td>
-                    <td className="px-4 py-3">{row.startDate} to {row.endDate}</td>
-                    <td className="px-4 py-3">{row.totalDays}</td>
-                    <td className="px-4 py-3">{row.status}</td>
-                    <td className="px-4 py-3">
-                      {row.status === "Pending" ? (
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => updateStatus(row, "Approved")}
-                            disabled={savingId === row.leaveRequestId}
-                            className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
-                          >
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            Approve
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => updateStatus(row, "Rejected")}
-                            disabled={savingId === row.leaveRequestId}
-                            className="inline-flex items-center gap-1 rounded-md bg-rose-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-rose-700 disabled:opacity-60"
-                          >
-                            <XCircle className="h-3.5 w-3.5" />
-                            Reject
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-gray-500">-</span>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                <span className="text-gray-500">-</span>
               )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            </td>
+          </tr>
+        ))}
+      </MasterTable>
     </div>
   );
 }
