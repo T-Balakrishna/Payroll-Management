@@ -41,7 +41,15 @@ const sanitizeDefaultEntities = (value, dropCurrentObject = false) => {
 
 API.interceptors.response.use(
   (response) => {
-    if (response && typeof response.data !== "undefined") {
+    const responseType = String(response?.config?.responseType || "").toLowerCase();
+    const contentType = String(response?.headers?.["content-type"] || "").toLowerCase();
+    const isBinaryResponse =
+      responseType === "blob" ||
+      responseType === "arraybuffer" ||
+      contentType.includes("application/pdf") ||
+      contentType.includes("application/octet-stream");
+
+    if (!isBinaryResponse && response && typeof response.data !== "undefined") {
       // Keep root object shape, but strip "Default" company/department/designation records everywhere else.
       response.data = sanitizeDefaultEntities(response.data, false);
     }

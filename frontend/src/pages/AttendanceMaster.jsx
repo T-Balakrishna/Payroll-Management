@@ -13,9 +13,15 @@ const formatDateTime = (value) => (value ? new Date(value).toLocaleString() : "-
 export default function AttendanceMaster({ userRole, selectedCompanyId }) {
   const { user } = useAuth();
   const isSuperAdmin = normalizeRole(userRole || user?.role) === "superadmin";
+  const isAdmin = normalizeRole(userRole || user?.role) === "admin";
+  const canEditStatus = isSuperAdmin || isAdmin;
 
   const [attendances, setAttendances] = useState([]);
   const [companies, setCompanies] = useState([]);
+  const [leaveTypes, setLeaveTypes] = useState([]);
+  const [holidays, setHolidays] = useState([]);
+  const [statusDrafts, setStatusDrafts] = useState({});
+  const [savingAttendanceId, setSavingAttendanceId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({
     companyId: selectedCompanyId || "",
@@ -48,6 +54,37 @@ export default function AttendanceMaster({ userRole, selectedCompanyId }) {
     };
     loadCompanies();
   }, [isSuperAdmin]);
+
+  useEffect(() => {
+    if (!effectiveCompanyId) {
+      setLeaveTypes([]);
+      setHolidays([]);
+      return;
+    }
+
+    const loadStatusDependencies = async () => {
+      try {
+        const [leaveTypeRes, holidayRes] = await Promise.all([
+          API.get("/leaveTypes", { params: { companyId: effectiveCompanyId } }),
+          API.get("/holidays", { params: { companyId: effectiveCompanyId } }),
+        ]);
+
+        const activeLeaveTypes = (leaveTypeRes.data || []).filter(
+          (lt) => String(lt.status || "Active").toLowerCase() === "active"
+        );
+        const activeHolidays = (holidayRes.data || []).filter(
+          (h) => String(h.status || "Active").toLowerCase() === "active"
+        );
+
+        setLeaveTypes(activeLeaveTypes);
+        setHolidays(activeHolidays);
+      } catch (err) {
+        console.error("Error loading leave types/holidays:", err);
+      }
+    };
+
+    loadStatusDependencies();
+  }, [effectiveCompanyId]);
 
   const fetchAttendance = useCallback(async () => {
     if (!effectiveCompanyId) {
@@ -82,6 +119,14 @@ export default function AttendanceMaster({ userRole, selectedCompanyId }) {
     return () => clearTimeout(id);
   }, [fetchAttendance]);
 
+  useEffect(() => {
+    const next = {};
+    attendances.forEach((row) => {
+      next[row.attendanceId] = row.attendanceStatus || "";
+    });
+    setStatusDrafts(next);
+  }, [attendances]);
+
   const resetFilters = () => {
     setFilters((prev) => ({
       companyId: prev.companyId || selectedCompanyId || "",
@@ -99,6 +144,73 @@ export default function AttendanceMaster({ userRole, selectedCompanyId }) {
       return acc;
     }, {});
   }, [attendances]);
+
+  const getStatusOptionsForDate = useCallback(
+    (attendanceDate) => {
+      const base = [
+        { value: "Present", label: "Present" },
+        { value: "Absent", label: "Absent" },
+        { value: "Half-Day", label: "Half-Day" },
+      ];
+
+      const leaveOptions = leaveTypes.map((lt) => {
+        const leaveName = String(lt.name || lt.leaveTypeName || "").trim();
+        return {
+          value: `Leave - ${leaveName}`,
+          label: `Leave - ${leaveName}`,
+        };
+      });
+
+      const holidaysForDate = holidays.filter((holiday) => {
+        const holidayDate = String(holiday.holidayDate || "");
+        return Boolean(attendanceDate && holidayDate && holidayDate === attendanceDate);
+      });
+
+      if (holidaysForDate.length > 0) {
+        const holidayNames = holidaysForDate
+          .map((h) => String(h.description || "").trim())
+          .filter(Boolean)
+          .join(", ");
+        const hasWeekOffHoliday = holidaysForDate.some(
+          (h) => String(h.type || "").trim().toLowerCase() === "week off"
+        );
+        base.push({
+          value: "Holiday",
+          label: holidayNames ? `Holiday (${holidayNames})` : "Holiday",
+        });
+        if (hasWeekOffHoliday) {
+          base.push({ value: "Week Off", label: "Week Off" });
+        }
+      }
+
+      return [...base, ...leaveOptions];
+    },
+    [holidays, leaveTypes]
+  );
+
+  const saveAttendanceStatus = async (row) => {
+    if (!canEditStatus) return;
+    const nextStatus = String(statusDrafts[row.attendanceId] || "").trim();
+    if (!nextStatus) {
+      toast.error("Select attendance status");
+      return;
+    }
+
+    try {
+      setSavingAttendanceId(row.attendanceId);
+      await API.put(`/attendances/${row.attendanceId}`, {
+        attendanceStatus: nextStatus,
+        updatedBy: user?.userId ?? user?.id ?? null,
+      });
+      toast.success("Attendance status updated");
+      await fetchAttendance();
+    } catch (err) {
+      const message = err.response?.data?.error || "Failed to update attendance status";
+      toast.error(String(message));
+    } finally {
+      setSavingAttendanceId(null);
+    }
+  };
 
   return (
     <div className="h-full flex flex-col px-6 gap-4">
@@ -190,11 +302,13 @@ export default function AttendanceMaster({ userRole, selectedCompanyId }) {
           "Date",
           "Staff No",
           "Staff Name",
+          "Attendance Status",
           "First Check-In",
           "Last Check-Out",
           "Working Hrs",
           "Late",
           "Early Exit",
+          ...(canEditStatus ? ["Action"] : []),
         ]}
         loading={loading}
       >
@@ -212,11 +326,47 @@ export default function AttendanceMaster({ userRole, selectedCompanyId }) {
               <td className="py-3 px-4">{row.attendanceDate || "-"}</td>
               <td className="py-3 px-4">{row.employee?.staffNumber || "-"}</td>
               <td className="py-3 px-4">{fullName || "-"}</td>
+              <td className="py-3 px-4">
+                {canEditStatus ? (
+                  <select
+                    value={statusDrafts[row.attendanceId] ?? row.attendanceStatus ?? ""}
+                    onChange={(e) =>
+                      setStatusDrafts((prev) => ({
+                        ...prev,
+                        [row.attendanceId]: e.target.value,
+                      }))
+                    }
+                    className="w-full max-w-xs border border-gray-300 rounded px-2 py-1 text-sm"
+                  >
+                    {getStatusOptionsForDate(row.attendanceDate).map((opt) => (
+                      <option key={`${row.attendanceId}-${opt.value}`} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  row.attendanceStatus || "-"
+                )}
+              </td>
               <td className="py-3 px-4">{formatDateTime(row.firstCheckIn)}</td>
               <td className="py-3 px-4">{formatDateTime(row.lastCheckOut)}</td>
               <td className="py-3 px-4">{row.workingHours ?? "-"}</td>
               <td className="py-3 px-4">{row.isLate ? "Yes" : "No"}</td>
               <td className="py-3 px-4">{row.isEarlyExit ? "Yes" : "No"}</td>
+              {canEditStatus && (
+                <td className="py-3 px-4">
+                  <Button
+                    type="button"
+                    onClick={() => saveAttendanceStatus(row)}
+                    disabled={
+                      savingAttendanceId === row.attendanceId ||
+                      String(statusDrafts[row.attendanceId] ?? "").trim() === String(row.attendanceStatus || "").trim()
+                    }
+                  >
+                    {savingAttendanceId === row.attendanceId ? "Saving..." : "Save"}
+                  </Button>
+                </td>
+              )}
             </tr>
           );
         })}

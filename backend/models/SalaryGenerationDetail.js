@@ -17,6 +17,16 @@ export default (sequelize) => {
       onDelete: 'CASCADE',
     },
 
+    companyId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'companies',
+        key: 'companyId',
+      },
+      onDelete: 'SET NULL',
+    },
+
     componentId: {
       type: DataTypes.INTEGER,
       allowNull: false,
@@ -113,6 +123,10 @@ export default (sequelize) => {
       {
         fields: ['salaryGenerationId'],
         name: 'idx_salary_generation',
+      },
+      {
+        fields: ['companyId'],
+        name: 'idx_salary_generation_company',
       },
       {
         fields: ['componentId'],

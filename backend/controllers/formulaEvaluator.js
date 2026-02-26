@@ -27,7 +27,37 @@ class FormulaEvaluator {
             'age',
             'joiningDate',
             'gender',
-            'qualification'
+            'qualification',
+            'payDate',
+            'payDay',
+            'payMonth',
+            'payMonthName',
+            'payYear',
+            'payPeriodStart',
+            'payPeriodEnd',
+            'periodStart',
+            'periodEnd',
+            'present',
+            'leave',
+            'absent',
+            'presentDays',
+            'leaveDays',
+            'absentDays',
+            'paidLeaveDays',
+            'unpaidLeaveDays',
+            'weekOffDays',
+            'holidayDays',
+            'paymentDays',
+            'payment_days',
+            'payableDays',
+            'payable_days',
+            'lossOfPayLeave',
+            'lopLeave',
+            'lopleave',
+            'lossofpayleave',
+            'lop',
+            'lossOfPayDays',
+            'lopDays'
         ];
         
         // Allowed JavaScript methods for numbers and strings
@@ -343,14 +373,42 @@ class FormulaEvaluator {
             'parseInt', 'parseFloat', 'Number', 'String', 'Boolean',
             'Math', 'Date', 'true', 'false', 'null', 'undefined'
         ]);
+        const numericEmployeeAttributes = new Set([
+            'experience',
+            'age',
+            'payDay',
+            'payMonth',
+            'payYear',
+            'present',
+            'leave',
+            'absent',
+            'presentDays',
+            'leaveDays',
+            'absentDays',
+            'paidLeaveDays',
+            'unpaidLeaveDays',
+            'weekOffDays',
+            'holidayDays',
+            'paymentDays',
+            'payment_days',
+            'payableDays',
+            'payable_days',
+            'lossOfPayLeave',
+            'lopLeave',
+            'lopleave',
+            'lossofpayleave',
+            'lop',
+            'lossOfPayDays',
+            'lopDays'
+        ]);
 
         for (const id of identifiers) {
             if (!id || blocked.has(id)) continue;
             if (Object.prototype.hasOwnProperty.call(safeContext, id)) continue;
 
-            // Employee/profile string attributes default to empty string.
+            // Employee attributes default to either numeric zero or empty string.
             if (this.allowedEmployeeAttributes.includes(id)) {
-                safeContext[id] = '';
+                safeContext[id] = numericEmployeeAttributes.has(id) ? 0 : '';
                 continue;
             }
 
@@ -431,6 +489,14 @@ class FormulaEvaluator {
                     formula: 'basic + hra + da'
                 },
                 {
+                    description: 'Apply only for selected months (February and September)',
+                    formula: '(payMonth == 2 || payMonth == 9) ? basic * 0.05 : 0'
+                },
+                {
+                    description: 'Apply only within specific payroll date range',
+                    formula: '(payDate >= "2026-02-01" && payDate <= "2026-02-28") ? 1500 : 0'
+                },
+                {
                     description: 'Grade-based with multiple conditions',
                     formula: 'grade == "A" ? 10000 : grade == "B" ? 7000 : grade == "C" ? 5000 : 3000'
                 },
@@ -450,7 +516,8 @@ class FormulaEvaluator {
                 'You can nest multiple ternary operators for complex conditions',
                 'Use parseInt() or parseFloat() to convert strings to numbers',
                 'All salary component codes can be used as variables',
-                'Employee attributes like designation, grade, department are available'
+                'Employee attributes like designation, grade, department are available',
+                'Payroll context variables are available: payMonth (1-12), payMonthName, payYear, payDate, payPeriodStart, payPeriodEnd'
             ]
         };
     }

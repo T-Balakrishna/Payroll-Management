@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { HandCoins, Pencil } from "lucide-react";
 import API from "../api";
@@ -13,6 +13,70 @@ const normalizeRole = (role) => String(role || "").replace(/\s+/g, "").toLowerCa
 const toNumber = (value) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+};
+const STAFF_ROLE_KEYS = new Set(["teachingstaff", "nonteachingstaff"]);
+const normalizeRoleName = (value) => String(value || "").toLowerCase().replace(/[\s-]/g, "");
+const todayDateString = () => new Date().toISOString().slice(0, 10);
+const monthRangeFromDate = (value) => {
+  const base = new Date(value || new Date());
+  if (Number.isNaN(base.getTime())) {
+    const today = todayDateString();
+    return { start: today, end: today };
+  }
+  const year = base.getFullYear();
+  const month = base.getMonth();
+  const start = new Date(year, month, 1).toISOString().slice(0, 10);
+  const end = new Date(year, month + 1, 0).toISOString().slice(0, 10);
+  return { start, end };
+};
+
+const parseCsvLine = (line) => {
+  const values = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === "," && !inQuotes) {
+      values.push(current.trim());
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+
+  values.push(current.trim());
+  return values.map((v) => v.replace(/^"(.*)"$/, "$1").trim());
+};
+
+const parseCsvText = (text) => {
+  const lines = String(text || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length < 2) return [];
+  const headers = parseCsvLine(lines[0]);
+  return lines.slice(1).map((line) => {
+    const values = parseCsvLine(line);
+    return headers.reduce((acc, key, idx) => {
+      acc[key] = values[idx] ?? "";
+      return acc;
+    }, {});
+  });
+};
+
+const parseJsonObject = (value) => {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(String(value));
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (error) {
+    return {};
+  }
 };
 
 export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) {
@@ -42,8 +106,13 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
   const [assignedMap, setAssignedMap] = useState({});
   const [deductionAssignedMap, setDeductionAssignedMap] = useState({});
   const [inputMap, setInputMap] = useState({});
-  const [savingComponentId, setSavingComponentId] = useState(null);
+  const [amountBasisMap, setAmountBasisMap] = useState({});
+  const [savingAllFixed, setSavingAllFixed] = useState(false);
   const [loadingAssignment, setLoadingAssignment] = useState(false);
+  const [autoSyncingFormulas, setAutoSyncingFormulas] = useState(false);
+  const [formulaDate, setFormulaDate] = useState(todayDateString);
+  const [formulaDebugContext, setFormulaDebugContext] = useState(null);
+  const fileInputRef = useRef(null);
 
   const hasCompanyScope = isSuperAdmin || Boolean(companyId);
 
@@ -87,7 +156,14 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
       if (filters.employeeGradeId) params.employeeGradeId = filters.employeeGradeId;
 
       const res = await API.get("/employees", { params });
-      setEmployees(Array.isArray(res.data) ? res.data : []);
+      const allEmployees = Array.isArray(res.data) ? res.data : [];
+      const salaryAssignableEmployees = allEmployees.filter((emp) => {
+        const employeeRole = normalizeRoleName(emp?.role?.roleName);
+        const userRole = normalizeRoleName(emp?.user?.role?.roleName);
+        const effectiveRole = employeeRole || userRole;
+        return STAFF_ROLE_KEYS.has(effectiveRole);
+      });
+      setEmployees(salaryAssignableEmployees);
     } catch (error) {
       toast.error("Failed to load employees");
     }
@@ -101,8 +177,22 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
     setActiveSalaryMaster(null);
     setAssignedMap({});
     setDeductionAssignedMap({});
+    setFormulaDebugContext(null);
 
     try {
+      setAutoSyncingFormulas(true);
+      const { start: payPeriodStart, end: payPeriodEnd } = monthRangeFromDate(formulaDate);
+      const syncRes = await API.post("/employeeSalaryMasters/sync-formula-components", {
+        staffId: employee.staffId,
+        companyId,
+        formulaDate,
+        payPeriodStart,
+        payPeriodEnd,
+        updatedBy: currentUserId,
+        createdBy: currentUserId,
+      });
+      setFormulaDebugContext(syncRes?.data?.formulaContext || null);
+
       const res = await API.get("/employeeSalaryMasters", {
         params: {
           staffId: employee.staffId,
@@ -136,9 +226,20 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
         });
         return next;
       });
+
+      setAmountBasisMap((prev) => {
+        const next = { ...prev };
+        Object.keys(map).forEach((componentId) => {
+          const meta = parseJsonObject(map[componentId]?.remarks);
+          const basis = String(meta.amountBasis || "").toLowerCase() === "daily" ? "daily" : "monthly";
+          next[componentId] = basis;
+        });
+        return next;
+      });
     } catch (error) {
       toast.error("Failed to load employee salary assignment");
     } finally {
+      setAutoSyncingFormulas(false);
       setLoadingAssignment(false);
     }
   };
@@ -150,6 +251,11 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
   useEffect(() => {
     fetchEmployees();
   }, [companyId, filters.departmentId, filters.designationId, filters.employeeGradeId, filters.status]);
+
+  useEffect(() => {
+    if (!selectedEmployee?.staffId) return;
+    loadEmployeeAssignment(selectedEmployee);
+  }, [formulaDate]);
 
   const filteredEmployees = useMemo(() => {
     const q = String(search || "").trim().toLowerCase();
@@ -170,7 +276,10 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
       activeSalaryMaster?.grossSalary ??
       activeSalaryMaster?.totalEarnings;
     if (Number.isFinite(Number(fromMaster))) return Number(fromMaster);
-    return Object.values(assignedMap).reduce((sum, item) => sum + toNumber(item?.fixedAmount), 0);
+    return Object.values(assignedMap).reduce(
+      (sum, item) => sum + toNumber(item?.calculatedAmount ?? item?.fixedAmount),
+      0
+    );
   }, [activeSalaryMaster, assignedMap]);
 
   const totalDeductions = useMemo(() => {
@@ -188,38 +297,53 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
     return grossSalary - totalDeductions;
   }, [activeSalaryMaster, grossSalary, totalDeductions]);
 
-  const saveComponentAmount = async (component) => {
+  const fixedEarningComponents = useMemo(
+    () => earningComponents.filter((c) => String(c.calculationType || "").toLowerCase() !== "formula"),
+    [earningComponents]
+  );
+
+  const saveAllFixedComponents = async () => {
     if (!selectedEmployee?.staffId) return toast.error("Select an employee");
 
-    const rawValue = String(inputMap[component.salaryComponentId] ?? "").trim();
-    if (!rawValue) return toast.error("Enter amount");
-
-    const amount = Number.parseFloat(rawValue);
-    if (!Number.isFinite(amount) || amount < 0) {
-      return toast.error("Amount must be a non-negative number");
-    }
-
     try {
-      setSavingComponentId(component.salaryComponentId);
-      await API.post("/employeeSalaryMasters/assign-earning-component", {
-        staffId: selectedEmployee.staffId,
-        companyId,
-        componentId: component.salaryComponentId,
-        fixedAmount: amount,
-        updatedBy: currentUserId,
-        createdBy: currentUserId,
+      setSavingAllFixed(true);
+      const payloads = fixedEarningComponents.map((component) => {
+        const rawValue = String(inputMap[component.salaryComponentId] ?? "").trim();
+        const amount = rawValue === "" ? 0 : Number.parseFloat(rawValue);
+        const safeAmount = Number.isFinite(amount) && amount >= 0 ? amount : 0;
+        return {
+          staffId: selectedEmployee.staffId,
+          companyId,
+          componentId: component.salaryComponentId,
+          formulaDate,
+          fixedAmount: safeAmount,
+          amountBasis: String(amountBasisMap[component.salaryComponentId] || "monthly").toLowerCase() === "daily" ? "daily" : "monthly",
+          updatedBy: currentUserId,
+          createdBy: currentUserId,
+        };
       });
 
-      toast.success(`${component.name} assigned`);
+      if (payloads.length === 0) {
+        toast.info("No fixed components to assign");
+        return;
+      }
+
+      const results = await Promise.allSettled(
+        payloads.map((payload) => API.post("/employeeSalaryMasters/assign-earning-component", payload))
+      );
+      const successCount = results.filter((r) => r.status === "fulfilled").length;
+      const failCount = results.length - successCount;
+      if (successCount > 0) toast.success(`${successCount} components assigned`);
+      if (failCount > 0) toast.warning(`${failCount} components failed to assign`);
       await loadEmployeeAssignment(selectedEmployee);
     } catch (error) {
       const message =
         error?.response?.data?.error ||
         error?.response?.data?.message ||
-        "Failed to assign component";
+        "Failed to assign components";
       toast.error(String(message));
     } finally {
-      setSavingComponentId(null);
+      setSavingAllFixed(false);
     }
   };
 
@@ -228,8 +352,108 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
     setActiveSalaryMaster(null);
     setAssignedMap({});
     setDeductionAssignedMap({});
-    setSavingComponentId(null);
+    setAmountBasisMap({});
+    setSavingAllFixed(false);
     setLoadingAssignment(false);
+    setAutoSyncingFormulas(false);
+    setFormulaDate(todayDateString());
+    setFormulaDebugContext(null);
+  };
+
+  const handleBulkUpload = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    if (!companyId) {
+      toast.error("Select a company before bulk upload");
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const rows = parseCsvText(text);
+      if (!rows.length) {
+        toast.error("CSV file is empty or invalid");
+        return;
+      }
+
+      const employeeByStaffId = new Map(employees.map((e) => [String(e.staffId), e]));
+      const employeeByStaffNumber = new Map(employees.map((e) => [String(e.staffNumber || "").trim().toLowerCase(), e]));
+      const componentByCode = new Map(earningComponents.map((c) => [String(c.code || "").trim().toUpperCase(), c]));
+      const componentByName = new Map(earningComponents.map((c) => [String(c.name || "").trim().toLowerCase(), c]));
+
+      const payloads = rows.map((row) => {
+        const staffIdKey = String(row.staffId || "").trim();
+        const staffNumberKey = String(row.staffNumber || "").trim().toLowerCase();
+        const componentCodeKey = String(row.componentCode || "").trim().toUpperCase();
+        const componentNameKey = String(row.componentName || "").trim().toLowerCase();
+
+        const employee = employeeByStaffNumber.get(staffNumberKey) || employeeByStaffId.get(staffIdKey);
+        const component = componentByCode.get(componentCodeKey) || componentByName.get(componentNameKey);
+        if (!employee || !component) return null;
+
+        const isFormula = String(component.calculationType || "").toLowerCase() === "formula";
+        const fixedAmountRaw = String(row.fixedAmount ?? "").trim();
+        const parsedFixedAmount = fixedAmountRaw === "" ? 0 : Number.parseFloat(fixedAmountRaw);
+        const fixedAmount = Number.isFinite(parsedFixedAmount) && parsedFixedAmount >= 0 ? parsedFixedAmount : null;
+        if (!isFormula && fixedAmount === null) return null;
+        const amountBasis = String(row.amountBasis || "monthly").trim().toLowerCase() === "daily" ? "daily" : "monthly";
+
+        return {
+          staffId: employee.staffId,
+          companyId,
+          componentId: component.salaryComponentId,
+          formulaDate: String(formulaDate || "").trim() || todayDateString(),
+          updatedBy: currentUserId,
+          createdBy: currentUserId,
+          ...(isFormula ? {} : { fixedAmount, amountBasis }),
+        };
+      }).filter(Boolean);
+
+      if (!payloads.length) {
+        toast.error("CSV must contain valid staffNumber, componentCode/componentName and fixedAmount (for fixed components). amountBasis is optional (monthly/daily).");
+        return;
+      }
+
+      const results = await Promise.allSettled(
+        payloads.map((payload) => API.post("/employeeSalaryMasters/assign-earning-component", payload))
+      );
+      const successCount = results.filter((r) => r.status === "fulfilled").length;
+      const failCount = results.length - successCount;
+
+      if (successCount > 0) {
+        toast.success(`Uploaded: ${successCount} assignments`);
+      }
+      if (failCount > 0) {
+        toast.warning(`Completed with errors: ${failCount} failed`);
+      }
+      if (selectedEmployee?.staffId) {
+        await loadEmployeeAssignment(selectedEmployee);
+      }
+    } catch (error) {
+      toast.error("Bulk upload failed");
+    }
+  };
+
+  const downloadSampleTemplate = () => {
+    const headers = ["staffNumber", "componentCode", "componentName", "fixedAmount", "amountBasis"];
+    const sampleRows = [
+      ["EMP0001", "BASIC", "", "18000", "monthly"],
+      ["EMP0002", "HRA", "", "600", "daily"],
+      ["EMP0003", "ATT_INC", "", "", "monthly"],
+    ];
+
+    const csv = [headers.join(","), ...sampleRows.map((row) => row.join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "salary_assignment_bulk_upload_template.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -259,6 +483,21 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
           onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
           options={[{ value: "Active", label: "Active" }, { value: "Inactive", label: "Inactive" }]}
         />
+        <div className="flex items-end gap-2 md:col-span-4">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            className="hidden"
+            onChange={handleBulkUpload}
+          />
+          <Button type="button" onClick={() => fileInputRef.current?.click()}>
+            Upload CSV
+          </Button>
+          <Button type="button" variant="secondary" onClick={downloadSampleTemplate}>
+            Download Sample
+          </Button>
+        </div>
       </div>
 
       {!hasCompanyScope && (
@@ -335,6 +574,19 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
               <div className="text-xs text-gray-500 mt-1">
                 Active Salary Master: {activeSalaryMaster?.employeeSalaryMasterId || "Not created yet"}
               </div>
+              <div className="mt-3 max-w-xs">
+                <Input
+                  label="Formula Date"
+                  type="date"
+                  value={formulaDate}
+                  onChange={(e) => setFormulaDate(e.target.value)}
+                />
+              </div>
+              {formulaDebugContext && (
+                <div className="mt-2 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-1">
+                  Formula Context: period {formulaDebugContext.payPeriodStart || "-"} to {formulaDebugContext.payPeriodEnd || "-"}, designation {formulaDebugContext.designation || "-"}, lopLeave {formulaDebugContext.lopLeave ?? 0}
+                </div>
+              )}
             </div>
           )}
 
@@ -342,46 +594,77 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
 
           {!loadingAssignment && selectedEmployee && (
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-gray-700">Earning Components (Fixed per employee)</h3>
+              <h3 className="text-sm font-semibold text-gray-700">Earning Components</h3>
               {earningComponents.map((component) => (
                 <div key={component.salaryComponentId} className="border rounded-lg p-3">
                   <div className="flex items-center justify-between mb-2">
                     <div>
                       <p className="font-medium text-gray-900">{component.name}</p>
                       <p className="text-xs text-gray-500">{component.code}</p>
-                      <p className="text-xs text-gray-500 mt-1">Formula: Fixed value per employee</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Calculation: {component.calculationType === "Formula" ? "Formula" : "Fixed value per employee"}
+                      </p>
+                      {component.calculationType === "Formula" && (
+                        <p className="text-xs text-gray-600 break-words mt-1">Formula: {component.formula || "No formula"}</p>
+                      )}
                     </div>
-                    <p className="text-xs text-gray-500">Current: {assignedMap[component.salaryComponentId]?.fixedAmount ?? "-"}</p>
+                    <p className="text-xs text-gray-500">
+                      Current: {assignedMap[component.salaryComponentId]?.calculatedAmount ?? assignedMap[component.salaryComponentId]?.fixedAmount ?? "-"}
+                    </p>
                   </div>
 
                   <div className="flex items-end gap-2">
-                    <Input
-                      label="Amount"
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      value={inputMap[component.salaryComponentId] ?? ""}
-                      onChange={(e) =>
-                        setInputMap((prev) => ({
-                          ...prev,
-                          [component.salaryComponentId]: e.target.value,
-                        }))
-                      }
-                      placeholder="0.00"
-                    />
-                    <Button
-                      type="button"
-                      onClick={() => saveComponentAmount(component)}
-                      disabled={savingComponentId === component.salaryComponentId}
-                    >
-                      {savingComponentId === component.salaryComponentId ? "Saving..." : "Assign"}
-                    </Button>
+                    {component.calculationType !== "Formula" ? (
+                      <>
+                        <Input
+                          label="Amount"
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={inputMap[component.salaryComponentId] ?? ""}
+                          onChange={(e) =>
+                            setInputMap((prev) => ({
+                              ...prev,
+                              [component.salaryComponentId]: e.target.value,
+                            }))
+                          }
+                          placeholder="0.00"
+                        />
+                        <div className="w-44">
+                          <label className="block text-xs text-gray-600 mb-1">Basis</label>
+                          <select
+                            value={amountBasisMap[component.salaryComponentId] || "monthly"}
+                            onChange={(e) =>
+                              setAmountBasisMap((prev) => ({
+                                ...prev,
+                                [component.salaryComponentId]: e.target.value === "daily" ? "daily" : "monthly",
+                              }))
+                            }
+                            className="w-full border border-gray-300 rounded px-2 py-2 text-sm"
+                          >
+                            <option value="monthly">Monthly</option>
+                            <option value="daily">Daily</option>
+                          </select>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-2 py-1">
+                        Already Assigned
+                      </p>
+                    )}
                   </div>
                 </div>
               ))}
 
               {earningComponents.length === 0 && (
                 <p className="text-sm text-gray-500">No earning components found for this company.</p>
+              )}
+              {fixedEarningComponents.length > 0 && (
+                <div className="flex justify-end pt-1">
+                  <Button type="button" onClick={saveAllFixedComponents} disabled={savingAllFixed}>
+                    {savingAllFixed ? "Saving..." : "Assign"}
+                  </Button>
+                </div>
               )}
 
               <h3 className="text-sm font-semibold text-gray-700 pt-2">Deduction Components (Auto calculated by formula)</h3>
@@ -399,7 +682,8 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
                 <p>Gross Salary: {grossSalary}</p>
                 <p>Total Deductions: {totalDeductions}</p>
                 <p>Net Salary: {netSalary}</p>
-                <p className="text-xs mt-1">Deduction amount is auto-calculated from formula and cannot be assigned manually.</p>
+                <p className="text-xs mt-1">Formula-based earning and deduction components are auto-assigned and auto-calculated.</p>
+                {autoSyncingFormulas && <p className="text-xs mt-1">Syncing formula components...</p>}
               </div>
             </div>
           )}

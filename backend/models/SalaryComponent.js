@@ -161,11 +161,14 @@ export default (sequelize) => {
           }
 
           if (this.type === 'Earning') {
-            if (this.calculationType !== 'Fixed') {
-              throw new Error('Earning components must use Fixed calculation type');
+            if (!['Fixed', 'Formula'].includes(this.calculationType)) {
+              throw new Error('Earning components must use Fixed or Formula calculation type');
             }
-            if (hasText(this.formula)) {
-              throw new Error('Earning components cannot have a formula');
+            if (this.calculationType === 'Formula' && !hasText(this.formula)) {
+              throw new Error('formula is required when Earning component uses Formula calculation type');
+            }
+            if (this.calculationType !== 'Formula' && hasText(this.formula)) {
+              throw new Error('Earning components can only keep formula when calculationType is Formula');
             }
           }
 
@@ -195,11 +198,10 @@ export default (sequelize) => {
     instance.formula = normalizeNullableText(instance.formula);
     instance.percentageBase = normalizeNullableText(instance.percentageBase)?.toUpperCase() || null;
 
-    if (instance.type === 'Earning') {
-      instance.calculationType = 'Fixed';
-      instance.formula = null;
-    } else if (instance.type === 'Deduction') {
+    if (instance.type === 'Deduction') {
       instance.calculationType = 'Formula';
+    } else if (instance.type === 'Earning' && !['Fixed', 'Formula'].includes(instance.calculationType)) {
+      instance.calculationType = 'Fixed';
     }
 
     if (instance.calculationType !== 'Percentage') {

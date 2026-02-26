@@ -31,6 +31,7 @@ import DesignationMaster from './DesignationMaster.jsx';
 import RoleMaster from './RoleMaster.jsx';
 import EmployeeGradeMaster from './EmployeeGradeMaster.jsx';
 import BiometricDeviceMaster from './BiometricDeviceMaster.jsx';
+import BiometricDeviceAssignMaster from './BiometricDeviceAssignMaster.jsx';
 import BiometricPunchMaster from './BiometricPunchMaster.jsx';
 import AttendanceMaster from './AttendanceMaster.jsx';
 import ShiftTypeMaster from './ShiftTypeMaster.jsx';
@@ -46,7 +47,7 @@ import LeaveApproval from './LeaveApproval.jsx';
 import LeaveHistory from './LeaveHistory.jsx';
 import SalaryComponentManagement from './SalaryComponentMaster.jsx';
 import SalaryAssignmentMaster from './SalaryAssignmentMaster.jsx';
-// import SalaryGenerationManagement from './SalaryGenerationManagement.jsx';
+import SalaryGenerationManagement from './SalaryGenerationManagement.jsx';
 // import SalaryRevisionHistory from './SalaryRevisionHistory.jsx';
 // import EmployeeLoanManagement from './EmployeeLoanManagement.jsx';
 // import StatutoryReports from './StatutoryReports.jsx';
@@ -255,6 +256,7 @@ const AdminDashboard = () => {
     { id: 'shiftType', label: t('Shift Type Master'), icon: Clock, color: 'text-cyan-500', category: 'Attendance' },
     { id: 'shiftAssignment', label: t('Shift Assignment Master'), icon: Briefcase, color: 'text-blue-400', category: 'Attendance' },
     { id: 'biometricDevice', label: t('Biometric Device Master'), icon: Monitor, color: 'text-slate-500', category: 'Attendance' },
+    { id: 'biometricAssign', label: t('Biometric Assign Master'), icon: Fingerprint, color: 'text-indigo-600', category: 'Attendance' },
     { id: 'punches', label: t('Biometric Punch Master'), icon: Fingerprint, color: 'text-purple-600', category: 'Attendance' },
     
     // Leave Section
@@ -410,6 +412,7 @@ const AdminDashboard = () => {
       case "shiftType": return <ShiftTypeMaster {...common} />;
       case "shiftAssignment": return <ShiftAssignmentMaster {...common} />;
       case "biometricDevice": return <BiometricDeviceMaster {...common} />;
+      case "biometricAssign": return <BiometricDeviceAssignMaster {...common} />;
       case "punches": return <BiometricPunchMaster {...common} />;
       case "holidayPlan": return <HolidayPlanMaster {...common} />;
       case "leaveType": return <LeaveTypeMaster {...common} />;
@@ -422,7 +425,7 @@ const AdminDashboard = () => {
       case "leaveHistory": return <LeaveHistory {...common} />;
       case "salaryComponent": return <SalaryComponentManagement {...common} />;
       case "salaryMaster": return <SalaryAssignmentMaster {...common} />;
-      // case "salaryGeneration": return <SalaryGenerationManagement {...common} />;
+      case "salaryGeneration": return <SalaryGenerationManagement {...common} />;
       // case "salaryRevision": return <SalaryRevisionHistory {...common} />;
       // case "employeeLoan": return <EmployeeLoanManagement {...common} />;
       // case "reportgenerator": return <ReportGenerator {...common} />;

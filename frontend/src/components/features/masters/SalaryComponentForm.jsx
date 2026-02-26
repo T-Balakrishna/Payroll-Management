@@ -43,6 +43,7 @@ export default function SalaryComponentForm({
   const currentUserId = user?.userId ?? user?.id ?? "system";
 
   const [form, setForm] = useState(DEFAULT_FORM);
+  const [showSampleFormulas, setShowSampleFormulas] = useState(false);
   const [companyId, setCompanyId] = useState(
     editData?.companyId || (!isSuperAdmin ? selectedCompanyId : "")
   );
@@ -55,7 +56,10 @@ export default function SalaryComponentForm({
         ...DEFAULT_FORM,
         ...editData,
         type,
-        calculationType: type === "Deduction" ? "Formula" : "Fixed",
+        calculationType:
+          type === "Deduction"
+            ? "Formula"
+            : (editData?.calculationType === "Formula" ? "Formula" : "Fixed"),
         formula: editData?.formula || "",
         displayOrder: editData?.displayOrder ?? 0,
       });
@@ -106,7 +110,17 @@ export default function SalaryComponentForm({
         ...prev,
         type: value,
         calculationType,
-        formula: value === "Deduction" ? prev.formula : "",
+        formula: value === "Deduction" ? prev.formula : (calculationType === "Formula" ? prev.formula : ""),
+      }));
+      return;
+    }
+
+    if (key === "calculationType") {
+      const nextValue = value === "Formula" ? "Formula" : "Fixed";
+      setForm((prev) => ({
+        ...prev,
+        calculationType: prev.type === "Deduction" ? "Formula" : nextValue,
+        formula: nextValue === "Formula" ? prev.formula : "",
       }));
       return;
     }
@@ -132,10 +146,12 @@ export default function SalaryComponentForm({
       return toast.error("Display order must be a non-negative integer");
     }
 
-    const calculationType = form.type === "Deduction" ? "Formula" : "Fixed";
+    const calculationType = form.type === "Deduction"
+      ? "Formula"
+      : (form.calculationType === "Formula" ? "Formula" : "Fixed");
 
-    if (form.type === "Deduction" && !String(form.formula || "").trim()) {
-      return toast.error("Formula is required for deduction component");
+    if (calculationType === "Formula" && !String(form.formula || "").trim()) {
+      return toast.error("Formula is required for formula-based component");
     }
 
     const payload = {
@@ -144,7 +160,7 @@ export default function SalaryComponentForm({
       description: toNullableString(form.description),
       type: form.type,
       calculationType,
-      formula: form.type === "Deduction" ? normalizeFormulaOperators(String(form.formula || "").trim()) : null,
+      formula: calculationType === "Formula" ? normalizeFormulaOperators(String(form.formula || "").trim()) : null,
       affectsGrossSalary: Boolean(form.affectsGrossSalary),
       affectsNetSalary: Boolean(form.affectsNetSalary),
       isTaxable: Boolean(form.isTaxable),
@@ -200,10 +216,19 @@ export default function SalaryComponentForm({
           ]}
           required
         />
-        <Input
+        <Select
           label="Calculation Type"
-          value={form.type === "Deduction" ? "Formula" : "Fixed"}
-          disabled
+          value={form.calculationType}
+          onChange={setField("calculationType")}
+          options={
+            form.type === "Deduction"
+              ? [{ value: "Formula", label: "Formula" }]
+              : [
+                  { value: "Fixed", label: "Fixed" },
+                  { value: "Formula", label: "Formula" },
+                ]
+          }
+          disabled={form.type === "Deduction"}
         />
         <Input
           label="Display Order"
@@ -215,13 +240,13 @@ export default function SalaryComponentForm({
         />
       </div>
 
-      {form.type === "Earning" && (
+      {form.type === "Earning" && form.calculationType === "Fixed" && (
         <div className="text-sm text-gray-600 bg-gray-50 border rounded-lg p-3">
           Earning components do not keep a default amount. Assign employee-specific values in Salary Assignment.
         </div>
       )}
 
-      {form.type === "Deduction" && (
+      {form.calculationType === "Formula" && (
         <div>
           <label className="block font-medium text-gray-700 mb-2">
             Formula <span className="text-red-500 ml-1">*</span>
@@ -234,10 +259,30 @@ export default function SalaryComponentForm({
             placeholder='e.g. department == "HR" && designation == "Sr Grade" ? BASIC * 0.15 : designation == "Jr Grade" ? BASIC * 0.10 : BASIC * 0.05'
             required
           />
-          <div className="mt-2 text-xs text-gray-600 space-y-1">
+          <div className="mt-2 text-xs text-gray-600">
             <p>You can apply multiple conditions using <code>&&</code>, <code>||</code>, and nested ternary.</p>
-            <p>Example 1: <code>department == "Finance" && designation == "Sr Grade" ? BASIC * 0.12 : BASIC * 0.08</code></p>
-            <p>Example 2: <code>designation == "Manager" ? BASIC * 0.15 : designation == "Lead" ? BASIC * 0.1 : BASIC * 0.05</code></p>
+            <p>Use payable-day logic with attendance variables like <code>present</code> and <code>leave</code>.</p>
+          </div>
+
+          <div className="mt-3 border rounded-lg bg-gray-50">
+            <button
+              type="button"
+              onClick={() => setShowSampleFormulas((prev) => !prev)}
+              className="w-full text-left px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg"
+            >
+              {showSampleFormulas ? "Hide sample formulas" : "Show sample formulas"}
+            </button>
+
+            {showSampleFormulas && (
+              <div className="px-3 pb-3 text-xs text-gray-700 space-y-2">
+                <p>1. Attendance incentive based on payable days:</p>
+                <p><code>(NORM(designation) == NORM("Sweeper") || NORM(designation) == NORM("Gardener")) ? (present + (leave - lossOfPayLeave)) * 100 : 0</code></p>
+                <p>2. Formula for selected months:</p>
+                <p><code>(payMonth == 2 || payMonth == 9) ? BASIC * 0.05 : 0</code></p>
+                <p>3. Deduction based on non-LOP leave only:</p>
+                <p><code>leave &gt; lossOfPayLeave ? (leave - lossOfPayLeave) * 200 : 0</code></p>
+              </div>
+            )}
           </div>
         </div>
       )}

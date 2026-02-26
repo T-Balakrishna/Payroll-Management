@@ -26,10 +26,18 @@ const normalizeStatus = (status) => {
 const normalizeFormulaOperators = (formula) =>
   String(formula || '').replace(/!==/g, '!=').replace(/===/g, '==');
 
-const validateDeductionFormulaOrThrow = async ({ formula, companyId, excludeComponentId = null }) => {
+const validateFormulaOrThrow = async ({
+  formula,
+  companyId,
+  componentType,
+  calculationType,
+  excludeComponentId = null,
+}) => {
+  if (calculationType !== 'Formula') return;
+
   const normalizedFormula = normalizeFormulaOperators(formula).trim();
   if (!normalizedFormula) {
-    throw new Error('Formula is required for deduction component');
+    throw new Error(`Formula is required for ${String(componentType || 'component').toLowerCase()} component`);
   }
 
   const componentWhere = { companyId };
@@ -45,7 +53,7 @@ const validateDeductionFormulaOrThrow = async ({ formula, companyId, excludeComp
   formulaEvaluator.setAllowedComponents(components.map((c) => c.code));
   const validation = formulaEvaluator.validateFormula(normalizedFormula);
   if (!validation.valid) {
-    throw new Error(`Invalid deduction formula: ${validation.error}`);
+    throw new Error(`Invalid formula: ${validation.error}`);
   }
 };
 
@@ -101,15 +109,27 @@ export const createSalaryComponent = async (req, res) => {
       status: normalizeStatus(req.body?.status),
     };
 
-    if (payload.type === 'Deduction') {
+    if (Object.prototype.hasOwnProperty.call(payload, 'formula')) {
       payload.formula = normalizeFormulaOperators(payload.formula).trim();
     }
 
-    if (payload.type === 'Deduction') {
-      await validateDeductionFormulaOrThrow({
-        formula: payload.formula,
-        companyId: payload.companyId,
-      });
+    const intendedType = payload.type;
+    const intendedCalculationType =
+      intendedType === 'Deduction'
+        ? 'Formula'
+        : (payload.calculationType === 'Formula' ? 'Formula' : 'Fixed');
+
+    await validateFormulaOrThrow({
+      formula: payload.formula,
+      companyId: payload.companyId,
+      componentType: intendedType,
+      calculationType: intendedCalculationType,
+    });
+
+    payload.calculationType = intendedCalculationType;
+
+    if (payload.calculationType !== 'Formula') {
+      payload.formula = null;
     }
 
     const salaryComponent = await SalaryComponent.create(payload);
@@ -153,6 +173,11 @@ export const updateSalaryComponent = async (req, res) => {
     }
 
     const resultingType = payload.type || existingComponent.type;
+    const resultingCalculationType = payload.calculationType || existingComponent.calculationType;
+    const effectiveCalculationType =
+      resultingType === 'Deduction'
+        ? 'Formula'
+        : (resultingCalculationType === 'Formula' ? 'Formula' : 'Fixed');
     const resultingCompanyId =
       (companyContext.actor && !companyContext.isSuperAdmin
         ? companyContext.effectiveCompanyId
@@ -162,12 +187,18 @@ export const updateSalaryComponent = async (req, res) => {
         ? payload.formula
         : existingComponent.formula;
 
-    if (resultingType === 'Deduction') {
-      await validateDeductionFormulaOrThrow({
-        formula: resultingFormula,
-        companyId: resultingCompanyId,
-        excludeComponentId: existingComponent.salaryComponentId,
-      });
+    await validateFormulaOrThrow({
+      formula: resultingFormula,
+      companyId: resultingCompanyId,
+      componentType: resultingType,
+      calculationType: effectiveCalculationType,
+      excludeComponentId: existingComponent.salaryComponentId,
+    });
+
+    payload.calculationType = effectiveCalculationType;
+
+    if (payload.calculationType !== 'Formula') {
+      payload.formula = null;
     }
 
     const [updated] = await SalaryComponent.update(payload, {

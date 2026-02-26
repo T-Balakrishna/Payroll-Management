@@ -1,7 +1,15 @@
 import db from '../models/index.js';
 import formulaEvaluator from './formulaEvaluator.js';
 
-const { EmployeeSalaryMaster, EmployeeSalaryComponent, SalaryComponent, Employee } = db;
+const { EmployeeSalaryMaster, EmployeeSalaryComponent, SalaryComponent, Employee, User, Attendance, LeaveType } = db;
+const normalizeRoleName = (value = '') => String(value).toLowerCase().replace(/[\s-]/g, '');
+const STAFF_ROLE_KEYS = new Set(['teachingstaff', 'nonteachingstaff']);
+const normalizeText = (value = '') => String(value || '').trim().toLowerCase();
+const parseLeaveTypeFromStatus = (status = '') => {
+  const text = String(status || '').trim();
+  if (!/^leave\s*-/i.test(text)) return null;
+  return text.replace(/^leave\s*-\s*/i, '').trim();
+};
 
 const toNonNegativeNumber = (value, fieldName) => {
   const parsed = Number.parseFloat(String(value));
@@ -22,6 +30,68 @@ const toSafeNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const parseJsonObject = (value) => {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(String(value));
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (error) {
+    return {};
+  }
+};
+
+const toOptionalNonNegativeNumber = (value, fieldName) => {
+  if (value === null || value === undefined || String(value).trim() === '') return undefined;
+  return toNonNegativeNumber(value, fieldName);
+};
+
+const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
+const toDateOnlyString = (value) => {
+  if (!value) return null;
+  const dt = new Date(value);
+  if (Number.isNaN(dt.getTime())) return null;
+  return dt.toISOString().slice(0, 10);
+};
+
+const buildMonthRange = (baseDateValue) => {
+  const baseDate = new Date(baseDateValue || new Date());
+  const year = baseDate.getUTCFullYear();
+  const monthIndex = baseDate.getUTCMonth();
+  const start = new Date(Date.UTC(year, monthIndex, 1));
+  const end = new Date(Date.UTC(year, monthIndex + 1, 0));
+  return {
+    start: toDateOnlyString(start),
+    end: toDateOnlyString(end),
+  };
+};
+
+const buildDefaultPayPeriod = (baseDateValue) => {
+  const baseDate = new Date(baseDateValue || new Date());
+  const year = baseDate.getUTCFullYear();
+  const monthIndex = baseDate.getUTCMonth();
+  const start = new Date(Date.UTC(year, monthIndex, 1));
+  const end = new Date(Date.UTC(year, monthIndex + 1, 0));
+  return {
+    payDate: toDateOnlyString(baseDate),
+    payPeriodStart: toDateOnlyString(start),
+    payPeriodEnd: toDateOnlyString(end),
+  };
+};
+
 const setContextValue = (context, key, value) => {
   const normalizedKey = String(key || '').trim();
   if (!normalizedKey) return;
@@ -30,7 +100,17 @@ const setContextValue = (context, key, value) => {
   context[normalizedKey.toLowerCase()] = value;
 };
 
-const buildFormulaContext = async ({ companyId, employeeSalaryMasterId, transaction }) => {
+const buildFormulaContext = async ({
+  companyId,
+  employeeSalaryMasterId,
+  formulaDate,
+  payPeriodStart,
+  payPeriodEnd,
+  presentDaysOverride,
+  leaveDaysOverride,
+  lossOfPayLeaveOverride,
+  transaction,
+}) => {
   const employeeSalaryMaster = await EmployeeSalaryMaster.findByPk(employeeSalaryMasterId, { transaction });
   const employee = await Employee.findByPk(employeeSalaryMaster?.staffId, {
     include: [
@@ -56,6 +136,7 @@ const buildFormulaContext = async ({ companyId, employeeSalaryMasterId, transact
     where: {
       employeeSalaryMasterId,
       componentType: 'Earning',
+      valueType: 'Fixed',
     },
     order: [['displayOrder', 'ASC']],
     transaction,
@@ -91,17 +172,172 @@ const buildFormulaContext = async ({ companyId, employeeSalaryMasterId, transact
   context.joiningDate = employee?.dateOfJoining || null;
   context.gender = employee?.gender || '';
   context.qualification = employee?.highestQualification || '';
-  console.log(context);  
+
+  const derivedPeriod = buildDefaultPayPeriod(formulaDate || employeeSalaryMaster?.effectiveFrom);
+  const resolvedPayDate = toDateOnlyString(formulaDate) || derivedPeriod.payDate;
+  const resolvedPayPeriodStart = toDateOnlyString(payPeriodStart) || derivedPeriod.payPeriodStart;
+  const resolvedPayPeriodEnd = toDateOnlyString(payPeriodEnd) || derivedPeriod.payPeriodEnd;
+  const payDateObject = new Date(`${resolvedPayDate}T00:00:00`);
+
+  context.payDate = resolvedPayDate;
+  context.payDay = payDateObject.getDate();
+  context.payMonth = payDateObject.getMonth() + 1;
+  context.payMonthName = MONTH_NAMES[payDateObject.getMonth()];
+  context.payYear = payDateObject.getFullYear();
+  context.payPeriodStart = resolvedPayPeriodStart;
+  context.payPeriodEnd = resolvedPayPeriodEnd;
+  context.periodStart = resolvedPayPeriodStart;
+  context.periodEnd = resolvedPayPeriodEnd;
+
+  let presentDays = toOptionalNonNegativeNumber(presentDaysOverride, 'presentDays');
+  let leaveDays = toOptionalNonNegativeNumber(leaveDaysOverride, 'leaveDays');
+  let lossOfPayLeave = toOptionalNonNegativeNumber(lossOfPayLeaveOverride, 'lossOfPayLeave');
+  let absentDays;
+  let paidLeaveDays = 0;
+  let unpaidLeaveDays = 0;
+  let weekOffDays = 0;
+  let holidayDays = 0;
+  let payableDays = 0;
+
+  if (presentDays === undefined || leaveDays === undefined || lossOfPayLeave === undefined) {
+    const leaveTypes = await LeaveType.findAll({
+      where: { companyId },
+      attributes: ['name', 'leaveTypeName', 'isWithoutPay', 'isLeaveWithoutPay'],
+      transaction,
+    });
+    const leaveTypeByName = new Map();
+    leaveTypes.forEach((lt) => {
+      if (lt.name) leaveTypeByName.set(normalizeText(lt.name), lt);
+      if (lt.leaveTypeName) leaveTypeByName.set(normalizeText(lt.leaveTypeName), lt);
+    });
+
+    const attendanceRows = await Attendance.findAll({
+      where: {
+        companyId,
+        staffId: employeeSalaryMaster?.staffId,
+        attendanceDate: {
+          [db.Sequelize.Op.between]: [resolvedPayPeriodStart, resolvedPayPeriodEnd],
+        },
+      },
+      attributes: ['attendanceStatus'],
+      transaction,
+    });
+
+    let computedPresent = 0;
+    let computedLeave = 0;
+    let computedAbsent = 0;
+    let computedLossOfPayLeave = 0;
+    let computedPaidLeaveDays = 0;
+    let computedUnpaidLeaveDays = 0;
+    let computedWeekOffDays = 0;
+    let computedHolidayDays = 0;
+
+    for (const row of attendanceRows) {
+      const statusRaw = String(row.attendanceStatus || '').trim();
+      const status = normalizeText(statusRaw);
+      if (status === 'present') {
+        computedPresent += 1;
+      } else if (status === 'late' || status === 'early exit' || status === 'permission') {
+        computedPresent += 1;
+      } else if (status === 'half-day') {
+        computedPresent += 0.5;
+        computedAbsent += 0.5;
+      } else if (status === 'week off') {
+        computedWeekOffDays += 1;
+      } else if (status === 'holiday') {
+        computedHolidayDays += 1;
+      } else if (status === 'absent') {
+        computedAbsent += 1;
+      } else if (status.startsWith('leave')) {
+        computedLeave += 1;
+        const leaveTypeName = parseLeaveTypeFromStatus(statusRaw);
+        const leaveType = leaveTypeByName.get(normalizeText(leaveTypeName || ''));
+        const isWithoutPayByType = Boolean(leaveType?.isWithoutPay || leaveType?.isLeaveWithoutPay);
+        const isWithoutPayByText = /loss\s*of\s*pay/.test(status) || /\blop\b/.test(status);
+        if (isWithoutPayByType || isWithoutPayByText) {
+          computedLossOfPayLeave += 1;
+          computedUnpaidLeaveDays += 1;
+        } else {
+          computedPaidLeaveDays += 1;
+        }
+      }
+    }
+
+    if (presentDays === undefined) presentDays = Number(computedPresent.toFixed(2));
+    if (leaveDays === undefined) leaveDays = Number(computedLeave.toFixed(2));
+    if (lossOfPayLeave === undefined) lossOfPayLeave = Number(computedLossOfPayLeave.toFixed(2));
+    absentDays = Number(computedAbsent.toFixed(2));
+    paidLeaveDays = Number(computedPaidLeaveDays.toFixed(2));
+    unpaidLeaveDays = Number(computedUnpaidLeaveDays.toFixed(2));
+    weekOffDays = Number(computedWeekOffDays.toFixed(2));
+    holidayDays = Number(computedHolidayDays.toFixed(2));
+  }
+
+  context.presentDays = presentDays ?? 0;
+  context.leaveDays = leaveDays ?? 0;
+  context.lossOfPayLeave = lossOfPayLeave ?? 0;
+  context.absentDays = absentDays ?? 0;
+  context.paidLeaveDays = paidLeaveDays;
+  context.unpaidLeaveDays = unpaidLeaveDays;
+  context.weekOffDays = weekOffDays;
+  context.holidayDays = holidayDays;
+  payableDays = Number(
+    (
+      Number(context.presentDays || 0) +
+      Number(context.paidLeaveDays || 0) +
+      Number(context.weekOffDays || 0) +
+      Number(context.holidayDays || 0)
+    ).toFixed(2)
+  );
+  context.payableDays = payableDays;
+  context.paymentDays = payableDays;
+  context.payment_days = payableDays;
+  context.payable_days = payableDays;
+  context.present = context.presentDays;
+  context.holiday = context.holidayDays;
+  context.weekoff = context.weekOffDays;
+  context.weekOff = context.weekOffDays;
+  context.leave = context.leaveDays;
+  context.paidLeave = context.paidLeaveDays;
+  context.unpaidLeave = context.unpaidLeaveDays;
+  context.absent = context.absentDays;
+  context.lopLeave = context.lossOfPayLeave;
+  context.lopleave = context.lossOfPayLeave;
+  context.lossofpayleave = context.lossOfPayLeave;
+  context.lop = context.lossOfPayLeave;
+  context.lossOfPayDays = context.lossOfPayLeave;
+  context.lopDays = context.lossOfPayLeave;
+
   return context;
 };
 
-const syncDeductionComponentsForSalaryMaster = async ({ companyId, employeeSalaryMasterId, transaction }) => {
-  const context = await buildFormulaContext({ companyId, employeeSalaryMasterId, transaction });
+const syncFormulaComponentsForSalaryMaster = async ({
+  companyId,
+  employeeSalaryMasterId,
+  formulaDate,
+  payPeriodStart,
+  payPeriodEnd,
+  presentDaysOverride,
+  leaveDaysOverride,
+  lossOfPayLeaveOverride,
+  transaction,
+}) => {
+  const context = await buildFormulaContext({
+    companyId,
+    employeeSalaryMasterId,
+    formulaDate,
+    payPeriodStart,
+    payPeriodEnd,
+    presentDaysOverride,
+    leaveDaysOverride,
+    lossOfPayLeaveOverride,
+    transaction,
+  });
 
-  const deductionComponents = await SalaryComponent.findAll({
+  const formulaComponents = await SalaryComponent.findAll({
     where: {
       companyId,
-      type: 'Deduction',
+      calculationType: 'Formula',
       status: 'Active',
     },
     order: [
@@ -111,10 +347,30 @@ const syncDeductionComponentsForSalaryMaster = async ({ companyId, employeeSalar
     transaction,
   });
 
-  for (const component of deductionComponents) {
+  const activeFormulaComponentIds = formulaComponents.map((c) => c.salaryComponentId);
+  if (activeFormulaComponentIds.length > 0) {
+    await EmployeeSalaryComponent.destroy({
+      where: {
+        employeeSalaryMasterId,
+        valueType: 'Formula',
+        componentId: { [db.Sequelize.Op.notIn]: activeFormulaComponentIds },
+      },
+      transaction,
+    });
+  } else {
+    await EmployeeSalaryComponent.destroy({
+      where: {
+        employeeSalaryMasterId,
+        valueType: 'Formula',
+      },
+      transaction,
+    });
+  }
+
+  for (const component of formulaComponents) {
     const formula = String(component.formula || '').trim();
     if (!formula) {
-      throw new Error(`Formula missing for deduction component "${component.name}"`);
+      throw new Error(`Formula missing for component "${component.name}"`);
     }
 
     const evaluation = formulaEvaluator.evaluate(formula, context);
@@ -137,7 +393,7 @@ const syncDeductionComponentsForSalaryMaster = async ({ companyId, employeeSalar
       componentId: component.salaryComponentId,
       componentName: component.name,
       componentCode: component.code,
-      componentType: 'Deduction',
+      componentType: component.type,
       valueType: 'Formula',
       fixedAmount: null,
       percentageValue: null,
@@ -160,6 +416,8 @@ const syncDeductionComponentsForSalaryMaster = async ({ companyId, employeeSalar
       await EmployeeSalaryComponent.create(payload, { transaction });
     }
   }
+
+  return context;
 };
 
 const recalculateSalaryMasterTotals = async (employeeSalaryMasterId, transaction) => {
@@ -366,22 +624,44 @@ export const assignEarningComponentToEmployee = async (req, res) => {
     const staffId = parseOptionalInt(req.body.staffId);
     const companyId = parseOptionalInt(req.body.companyId);
     const componentId = parseOptionalInt(req.body.componentId);
-    const fixedAmount = toNonNegativeNumber(req.body.fixedAmount, 'fixedAmount');
     const updatedBy = parseOptionalInt(req.body.updatedBy) || null;
     const createdBy = parseOptionalInt(req.body.createdBy) || updatedBy;
     const effectiveFrom = String(req.body.effectiveFrom || new Date().toISOString().slice(0, 10));
+    const formulaDate = String(req.body.formulaDate || effectiveFrom);
+    const payPeriodStart = req.body.payPeriodStart ? String(req.body.payPeriodStart) : undefined;
+    const payPeriodEnd = req.body.payPeriodEnd ? String(req.body.payPeriodEnd) : undefined;
+    const presentDaysOverride = toOptionalNonNegativeNumber(req.body.presentDays, 'presentDays');
+    const leaveDaysOverride = toOptionalNonNegativeNumber(req.body.leaveDays, 'leaveDays');
+    const lossOfPayLeaveOverride = toOptionalNonNegativeNumber(req.body.lossOfPayLeave, 'lossOfPayLeave');
 
     if (!staffId || !companyId || !componentId) {
       throw new Error('staffId, companyId and componentId are required');
     }
 
-    const employee = await Employee.findByPk(staffId, { transaction });
+    const employee = await Employee.findByPk(staffId, {
+      include: [{ model: db.Role, as: 'role', required: false }],
+      transaction,
+    });
     if (!employee) {
       throw new Error('Employee not found');
     }
 
     if (String(employee.companyId) !== String(companyId)) {
       throw new Error('Employee does not belong to the selected company');
+    }
+
+    // Salary assignment is allowed only for Teaching/Non Teaching staff.
+    let roleName = employee?.role?.roleName || '';
+    if (!roleName) {
+      const mappedUser = await User.findOne({
+        where: { userNumber: employee.staffNumber },
+        include: [{ model: db.Role, as: 'role', attributes: ['roleId', 'roleName'], required: false }],
+        transaction,
+      });
+      roleName = mappedUser?.role?.roleName || '';
+    }
+    if (!STAFF_ROLE_KEYS.has(normalizeRoleName(roleName))) {
+      throw new Error('Salary assignment is allowed only for Teaching Staff and Non Teaching Staff');
     }
 
     const salaryComponent = await SalaryComponent.findByPk(componentId, { transaction });
@@ -396,6 +676,18 @@ export const assignEarningComponentToEmployee = async (req, res) => {
     if (salaryComponent.type !== 'Earning') {
       throw new Error('Only earning components can be assigned from salary assignment page');
     }
+    const hasFixedAmount =
+      req.body.fixedAmount !== null &&
+      req.body.fixedAmount !== undefined &&
+      String(req.body.fixedAmount).trim() !== '';
+    if (salaryComponent.calculationType === 'Fixed' && !hasFixedAmount) {
+      throw new Error('fixedAmount is required for fixed earning component');
+    }
+
+    const fixedAmount =
+      salaryComponent.calculationType === 'Fixed'
+        ? toNonNegativeNumber(req.body.fixedAmount, 'fixedAmount')
+        : null;
 
     const salaryMaster = await ensureActiveSalaryMaster({
       staffId,
@@ -421,20 +713,30 @@ export const assignEarningComponentToEmployee = async (req, res) => {
       componentName: salaryComponent.name,
       componentCode: salaryComponent.code,
       componentType: salaryComponent.type,
-      valueType: 'Fixed',
+      valueType: salaryComponent.calculationType === 'Formula' ? 'Formula' : 'Fixed',
       fixedAmount,
       percentageValue: null,
       percentageBase: null,
       formulaId: null,
-      formulaExpression: null,
-      calculatedAmount: fixedAmount,
-      annualAmount: Number((fixedAmount * 12).toFixed(2)),
+      formulaExpression: salaryComponent.calculationType === 'Formula' ? salaryComponent.formula : null,
+      calculatedAmount: salaryComponent.calculationType === 'Formula' ? 0 : fixedAmount,
+      annualAmount: Number(((salaryComponent.calculationType === 'Formula' ? 0 : fixedAmount) * 12).toFixed(2)),
       isStatutory: Boolean(salaryComponent.isStatutory),
       isTaxable: Boolean(salaryComponent.isTaxable),
       affectsGrossSalary: Boolean(salaryComponent.affectsGrossSalary),
       affectsNetSalary: Boolean(salaryComponent.affectsNetSalary),
       displayOrder: salaryComponent.displayOrder ?? 0,
-      remarks: req.body.remarks || null,
+      remarks: (() => {
+        const previous = parseJsonObject(assignment?.remarks);
+        const requestedBasis = String(req.body.amountBasis || previous.amountBasis || 'monthly').trim().toLowerCase();
+        const amountBasis = requestedBasis === 'daily' ? 'daily' : 'monthly';
+        const note = String(req.body.remarks || previous.note || '').trim();
+        return JSON.stringify({
+          ...previous,
+          amountBasis,
+          note: note || undefined,
+        });
+      })(),
     };
 
     if (assignment) {
@@ -443,9 +745,15 @@ export const assignEarningComponentToEmployee = async (req, res) => {
       assignment = await EmployeeSalaryComponent.create(assignmentPayload, { transaction });
     }
 
-    await syncDeductionComponentsForSalaryMaster({
+    await syncFormulaComponentsForSalaryMaster({
       companyId,
       employeeSalaryMasterId: salaryMaster.employeeSalaryMasterId,
+      formulaDate,
+      payPeriodStart,
+      payPeriodEnd,
+      presentDaysOverride,
+      leaveDaysOverride,
+      lossOfPayLeaveOverride,
       transaction,
     });
 
@@ -474,6 +782,90 @@ export const assignEarningComponentToEmployee = async (req, res) => {
       salaryMaster: updatedSalaryMaster,
       assignment,
       totals,
+    });
+  } catch (error) {
+    await transaction.rollback();
+    res.status(400).json({ error: error.message });
+  }
+};
+
+export const syncFormulaComponentsForEmployee = async (req, res) => {
+  const transaction = await db.sequelize.transaction();
+
+  try {
+    const staffId = parseOptionalInt(req.body.staffId);
+    const companyId = parseOptionalInt(req.body.companyId);
+    const updatedBy = parseOptionalInt(req.body.updatedBy) || null;
+    const createdBy = parseOptionalInt(req.body.createdBy) || updatedBy;
+    const effectiveFrom = String(req.body.effectiveFrom || new Date().toISOString().slice(0, 10));
+    const formulaDate = String(req.body.formulaDate || effectiveFrom);
+    const defaultMonthRange = buildMonthRange(formulaDate);
+    const payPeriodStart = req.body.payPeriodStart ? String(req.body.payPeriodStart) : defaultMonthRange.start;
+    const payPeriodEnd = req.body.payPeriodEnd ? String(req.body.payPeriodEnd) : defaultMonthRange.end;
+    const presentDaysOverride = toOptionalNonNegativeNumber(req.body.presentDays, 'presentDays');
+    const leaveDaysOverride = toOptionalNonNegativeNumber(req.body.leaveDays, 'leaveDays');
+    const lossOfPayLeaveOverride = toOptionalNonNegativeNumber(req.body.lossOfPayLeave, 'lossOfPayLeave');
+
+    if (!staffId || !companyId) {
+      throw new Error('staffId and companyId are required');
+    }
+
+    const employee = await Employee.findByPk(staffId, {
+      include: [{ model: db.Role, as: 'role', required: false }],
+      transaction,
+    });
+    if (!employee) {
+      throw new Error('Employee not found');
+    }
+    if (String(employee.companyId) !== String(companyId)) {
+      throw new Error('Employee does not belong to the selected company');
+    }
+
+    const salaryMaster = await ensureActiveSalaryMaster({
+      staffId,
+      companyId,
+      effectiveFrom,
+      createdBy,
+      updatedBy,
+      transaction,
+    });
+
+    const formulaContext = await syncFormulaComponentsForSalaryMaster({
+      companyId,
+      employeeSalaryMasterId: salaryMaster.employeeSalaryMasterId,
+      formulaDate,
+      payPeriodStart,
+      payPeriodEnd,
+      presentDaysOverride,
+      leaveDaysOverride,
+      lossOfPayLeaveOverride,
+      transaction,
+    });
+
+    const totals = await recalculateSalaryMasterTotals(salaryMaster.employeeSalaryMasterId, transaction);
+    await EmployeeSalaryMaster.update(
+      { ...totals, updatedBy },
+      {
+        where: { employeeSalaryMasterId: salaryMaster.employeeSalaryMasterId },
+        transaction,
+      }
+    );
+
+    const updatedSalaryMaster = await EmployeeSalaryMaster.findByPk(
+      salaryMaster.employeeSalaryMasterId,
+      {
+        include: [{ model: db.EmployeeSalaryComponent, as: 'components' }],
+        transaction,
+      }
+    );
+
+    await transaction.commit();
+
+    res.status(200).json({
+      message: 'Formula components synced successfully',
+      salaryMaster: updatedSalaryMaster,
+      totals,
+      formulaContext,
     });
   } catch (error) {
     await transaction.rollback();

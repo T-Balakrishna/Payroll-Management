@@ -139,15 +139,24 @@ export default (sequelize) => {
                 }
 
                 if (this.componentType === 'Earning') {
-                    if (this.valueType !== 'Fixed') {
-                        throw new Error('Earning components must use Fixed valueType');
+                    if (!['Fixed', 'Formula'].includes(this.valueType)) {
+                        throw new Error('Earning components must use Fixed or Formula valueType');
                     }
-                    const amount = toNumber(this.fixedAmount);
-                    if (!Number.isFinite(amount) || amount < 0) {
-                        throw new Error('fixedAmount is required and must be a non-negative number for Earning components');
+
+                    if (this.valueType === 'Fixed') {
+                        const amount = toNumber(this.fixedAmount);
+                        if (!Number.isFinite(amount) || amount < 0) {
+                            throw new Error('fixedAmount is required and must be a non-negative number for Earning components');
+                        }
+                        if (hasText(this.formulaExpression)) {
+                            throw new Error('Earning components cannot have formulaExpression when valueType is Fixed');
+                        }
                     }
-                    if (hasText(this.formulaExpression)) {
-                        throw new Error('Earning components cannot have formulaExpression');
+
+                    if (this.valueType === 'Formula') {
+                        if (!hasText(this.formulaExpression)) {
+                            throw new Error('formulaExpression is required when Earning component uses Formula valueType');
+                        }
                     }
                 }
 

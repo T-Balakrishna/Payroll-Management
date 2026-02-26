@@ -4,6 +4,8 @@ import * as salaryGenerationController from '../controllers/salaryGenerationCont
 // Routes for salary generations
 // Frontend should call: /api/salaryGenerations
 router.get('/', salaryGenerationController.getAllSalaryGenerations);
+router.post('/generate-monthly', salaryGenerationController.generateMonthlySalary);
+router.get('/download-spreadsheet', salaryGenerationController.downloadSalaryGenerationSpreadsheet);
 router.get('/:id', salaryGenerationController.getSalaryGenerationById);
 router.post('/', salaryGenerationController.createSalaryGeneration);
 router.put('/:id', salaryGenerationController.updateSalaryGeneration);
