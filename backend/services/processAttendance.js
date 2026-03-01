@@ -70,7 +70,6 @@ const calculateAvailableFromAllocation = (allocation) => {
 const getLeaveUnitsForDate = (leaveRequest, dateOnly) => {
   if (!leaveRequest) return 0;
   if (leaveRequest.leaveCategory === "Half Day") return 0.5;
-  if (leaveRequest.leaveCategory === "Short Leave") return 0.25;
   if (leaveRequest.startDate === leaveRequest.endDate) {
     const singleDayUnits = Number(leaveRequest.totalDays || 1);
     return singleDayUnits > 0 ? singleDayUnits : 1;
@@ -392,131 +391,383 @@ export const processAttendanceForDate = async (targetDate = new Date()) => {
       isWeekOff = true;
       remarks.push(`Shift weekly off (${weeklyOffDays.join(", ") || "configured"})`);
     } else {
-      if (hasPunches && workingHours >= minimumHours) {
-        if (isLate) attendanceStatus = "Late";
-        else if (isEarlyExit) attendanceStatus = "Early Exit";
-        else attendanceStatus = "Present";
-      } else if (
-        hasPunches &&
-        shortfallHours > 0 &&
-        shortfallHours <= 2 &&
-        currentPermissionRemaining >= Math.ceil(shortfallHours)
-      ) {
-        permissionUsedHours = Math.ceil(shortfallHours);
-        attendanceStatus = "Permission";
-        remarks.push(`Compensated ${shortfallHours}h shortfall using permission hours`);
-      } else if (hasPunches && workingHours >= halfDayHours) {
-        if (approvedLeave) {
-          const requestedLeaveUnits = Number(getLeaveUnitsForDate(approvedLeave, dateOnly).toFixed(2));
-          let targetAllocation = null;
-          if (approvedLeave.leaveAllocationId) {
-            targetAllocation = allocationById.get(String(approvedLeave.leaveAllocationId)) || null;
-            if (!targetAllocation) {
-              targetAllocation = await LeaveAllocation.findByPk(approvedLeave.leaveAllocationId);
-              if (targetAllocation) allocationById.set(String(targetAllocation.leaveAllocationId), targetAllocation);
-            }
-          }
-          if (!targetAllocation && approvedLeave.leaveTypeId) {
-            targetAllocation = allocationByStaffType.get(`${emp.staffId}::${approvedLeave.leaveTypeId}`) || null;
-          }
-          if (!targetAllocation && approvedLeave.leaveTypeId) {
-            targetAllocation = await LeaveAllocation.findOne({
-              where: {
-                staffId: emp.staffId,
-                companyId: emp.companyId,
-                leaveTypeId: approvedLeave.leaveTypeId,
-                status: "Active",
-                effectiveFrom: { [Op.lte]: dateOnly },
-                effectiveTo: { [Op.gte]: dateOnly },
-              },
-              order: [["effectiveFrom", "DESC"]],
-            });
-            if (targetAllocation) {
-              allocationById.set(String(targetAllocation.leaveAllocationId), targetAllocation);
-              allocationByStaffType.set(`${emp.staffId}::${approvedLeave.leaveTypeId}`, targetAllocation);
-            }
-          }
+      // ===== UPDATED FLOW (with FN/AN + permission from both sides) =====
 
-          if (targetAllocation && requestedLeaveUnits > 0) {
-            let available = calculateAvailableFromAllocation(targetAllocation);
-            if (previousLeaveAllocationId && Number(previousLeaveAllocationId) === Number(targetAllocation.leaveAllocationId)) {
-              available += previousLeaveUsed;
+      const coversFullShift =
+        Boolean(
+          hasPunches &&
+            scheduledStart &&
+            scheduledEnd &&
+            firstCheckIn &&
+            lastCheckOut &&
+            firstCheckIn <= scheduledStart &&
+            lastCheckOut >= scheduledEnd
+        );
+
+      // helper: decide FN/AN based on which side is more missing
+      const getHalfDaySession = () => {
+        if (!scheduledStart || !scheduledEnd || !firstCheckIn || !lastCheckOut) return "FN";
+
+        const missingBeforeMin = Math.max(
+          0,
+          Math.round((firstCheckIn.getTime() - scheduledStart.getTime()) / 60000)
+        );
+        const missingAfterMin = Math.max(
+          0,
+          Math.round((scheduledEnd.getTime() - lastCheckOut.getTime()) / 60000)
+        );
+
+        // We want which half he is PRESENT:
+        // - If morning missing more => present in AN
+        // - If evening missing more => present in FN
+        return missingBeforeMin >= missingAfterMin ? "AN" : "FN";
+      };
+
+      // helper: permission hours from BOTH SIDES (rounded separately)
+      const getPermissionHoursBothSides = () => {
+        if (!scheduledStart || !scheduledEnd || !firstCheckIn || !lastCheckOut) return 0;
+
+        const lateMin = Math.max(0, Math.round((firstCheckIn.getTime() - scheduledStart.getTime()) / 60000));
+        const earlyMin = Math.max(0, Math.round((scheduledEnd.getTime() - lastCheckOut.getTime()) / 60000));
+
+        const lateHours = lateMin > 0 ? Math.ceil(lateMin / 60) : 0;
+        const earlyHours = earlyMin > 0 ? Math.ceil(earlyMin / 60) : 0;
+
+        return lateHours + earlyHours;
+      };
+
+      if (coversFullShift) {
+        attendanceStatus = "Present";
+      } else if (hasPunches) {
+        // If punches exist but shift not covered
+
+        // If >= minimum hours, try permission (both sides)
+        if (workingHours >= minimumHours) {
+          const neededPermissionHours = getPermissionHoursBothSides();
+
+          if (neededPermissionHours > 0 && currentPermissionRemaining >= neededPermissionHours) {
+            permissionUsedHours = neededPermissionHours;
+            attendanceStatus = `Permission-${permissionUsedHours}`;
+            remarks.push(`Compensated late/early using permission hours (${permissionUsedHours}h)`);
+          } else {
+            // Not enough permission -> go leave/absent checks
+            if (workingHours >= halfDayHours) {
+              if (approvedLeave) {
+                // same leave/allocation logic (unchanged)
+                const requestedLeaveUnits = Number(getLeaveUnitsForDate(approvedLeave, dateOnly).toFixed(2));
+
+                let targetAllocation = null;
+
+                if (approvedLeave.leaveAllocationId) {
+                  targetAllocation = allocationById.get(String(approvedLeave.leaveAllocationId)) || null;
+                  if (!targetAllocation) {
+                    targetAllocation = await LeaveAllocation.findByPk(approvedLeave.leaveAllocationId);
+                    if (targetAllocation) allocationById.set(String(targetAllocation.leaveAllocationId), targetAllocation);
+                  }
+                }
+
+                if (!targetAllocation && approvedLeave.leaveTypeId) {
+                  targetAllocation = allocationByStaffType.get(`${emp.staffId}::${approvedLeave.leaveTypeId}`) || null;
+                }
+
+                if (!targetAllocation && approvedLeave.leaveTypeId) {
+                  targetAllocation = await LeaveAllocation.findOne({
+                    where: {
+                      staffId: emp.staffId,
+                      companyId: emp.companyId,
+                      leaveTypeId: approvedLeave.leaveTypeId,
+                      status: "Active",
+                      effectiveFrom: { [Op.lte]: dateOnly },
+                      effectiveTo: { [Op.gte]: dateOnly },
+                    },
+                    order: [["effectiveFrom", "DESC"]],
+                  });
+
+                  if (targetAllocation) {
+                    allocationById.set(String(targetAllocation.leaveAllocationId), targetAllocation);
+                    allocationByStaffType.set(`${emp.staffId}::${approvedLeave.leaveTypeId}`, targetAllocation);
+                  }
+                }
+
+                if (targetAllocation && requestedLeaveUnits > 0) {
+                  let available = calculateAvailableFromAllocation(targetAllocation);
+                  if (
+                    previousLeaveAllocationId &&
+                    Number(previousLeaveAllocationId) === Number(targetAllocation.leaveAllocationId)
+                  ) {
+                    available += previousLeaveUsed;
+                  }
+
+                  if (available >= requestedLeaveUnits) {
+                    leaveUsedDays = requestedLeaveUnits;
+                    leaveAllocationIdUsed = targetAllocation.leaveAllocationId;
+                    leaveRequestIdUsed = approvedLeave.leaveRequestId;
+
+                    const leaveName =
+                      approvedLeave.leaveType?.name || approvedLeave.leaveType?.leaveTypeName || "Leave";
+
+                    // If it's half-day leave, append FN/AN (use leave halfDayType if present else infer)
+                    if (requestedLeaveUnits === 0.5) {
+                      const half =
+                        approvedLeave.halfDayType
+                          ? String(approvedLeave.halfDayType).toUpperCase().includes("AN")
+                            ? "AN"
+                            : "FN"
+                          : getHalfDaySession();
+                      attendanceStatus = `Leave - ${leaveName} - Half-day-${half}`;
+                    } else {
+                      attendanceStatus = `Leave - ${leaveName}`;
+                    }
+                  } else {
+                    // half-day absent case -> mark FN/AN
+                    const half = getHalfDaySession();
+                    attendanceStatus = `Half-day-${half}`;
+                    remarks.push("Approved leave found but insufficient leave balance");
+                  }
+                } else {
+                  const half = getHalfDaySession();
+                  attendanceStatus = `Half-day-${half}`;
+                  remarks.push("Approved leave found but no active leave allocation");
+                }
+              } else {
+                // No leave -> half-day absent marking
+                const half = getHalfDaySession();
+                attendanceStatus = `Half-day-${half}`;
+                remarks.push("Insufficient permission and no approved leave");
+              }
+            } else {
+              // < half day hours -> full-day leave only else absent
+              const leaveUnits = approvedLeave ? Number(getLeaveUnitsForDate(approvedLeave, dateOnly).toFixed(2)) : 0;
+              const hasApprovedFullDayLeave = Boolean(approvedLeave) && leaveUnits >= 1;
+
+              if (hasApprovedFullDayLeave) {
+                // keep your existing full-day leave allocation logic (unchanged)
+                // (same block you already have for full-day leave)
+                const requestedLeaveUnits = 1;
+
+                let targetAllocation = null;
+
+                if (approvedLeave.leaveAllocationId) {
+                  targetAllocation = allocationById.get(String(approvedLeave.leaveAllocationId)) || null;
+                  if (!targetAllocation) {
+                    targetAllocation = await LeaveAllocation.findByPk(approvedLeave.leaveAllocationId);
+                    if (targetAllocation) allocationById.set(String(targetAllocation.leaveAllocationId), targetAllocation);
+                  }
+                }
+
+                if (!targetAllocation && approvedLeave.leaveTypeId) {
+                  targetAllocation = allocationByStaffType.get(`${emp.staffId}::${approvedLeave.leaveTypeId}`) || null;
+                }
+
+                if (!targetAllocation && approvedLeave.leaveTypeId) {
+                  targetAllocation = await LeaveAllocation.findOne({
+                    where: {
+                      staffId: emp.staffId,
+                      companyId: emp.companyId,
+                      leaveTypeId: approvedLeave.leaveTypeId,
+                      status: "Active",
+                      effectiveFrom: { [Op.lte]: dateOnly },
+                      effectiveTo: { [Op.gte]: dateOnly },
+                    },
+                    order: [["effectiveFrom", "DESC"]],
+                  });
+
+                  if (targetAllocation) {
+                    allocationById.set(String(targetAllocation.leaveAllocationId), targetAllocation);
+                    allocationByStaffType.set(`${emp.staffId}::${approvedLeave.leaveTypeId}`, targetAllocation);
+                  }
+                }
+
+                if (targetAllocation) {
+                  let available = calculateAvailableFromAllocation(targetAllocation);
+                  if (
+                    previousLeaveAllocationId &&
+                    Number(previousLeaveAllocationId) === Number(targetAllocation.leaveAllocationId)
+                  ) {
+                    available += previousLeaveUsed;
+                  }
+
+                  if (available >= requestedLeaveUnits) {
+                    leaveUsedDays = requestedLeaveUnits;
+                    leaveAllocationIdUsed = targetAllocation.leaveAllocationId;
+                    leaveRequestIdUsed = approvedLeave.leaveRequestId;
+
+                    const leaveName =
+                      approvedLeave.leaveType?.name || approvedLeave.leaveType?.leaveTypeName || "Leave";
+
+                    attendanceStatus = `Leave - ${leaveName}`;
+                  } else {
+                    attendanceStatus = "Absent";
+                    remarks.push("Full-day leave found but insufficient leave balance");
+                  }
+                } else {
+                  attendanceStatus = "Absent";
+                  remarks.push("Full-day leave found but no active leave allocation");
+                }
+              } else {
+                attendanceStatus = "Absent";
+                remarks.push("Worked less than half-day hours");
+              }
             }
-            if (available >= requestedLeaveUnits) {
-              leaveUsedDays = requestedLeaveUnits;
-              leaveAllocationIdUsed = targetAllocation.leaveAllocationId;
-              leaveRequestIdUsed = approvedLeave.leaveRequestId;
-              const leaveName =
-                approvedLeave.leaveType?.name || approvedLeave.leaveType?.leaveTypeName || "Leave";
-              attendanceStatus = `Leave - ${leaveName}`;
+          }
+        } else if (workingHours >= halfDayHours) {
+          // < minimum but >= half day: try leave else mark half-day-FN/AN
+          if (approvedLeave) {
+            // keep your existing approved leave logic (unchanged)
+            const requestedLeaveUnits = Number(getLeaveUnitsForDate(approvedLeave, dateOnly).toFixed(2));
+
+            let targetAllocation = null;
+
+            if (approvedLeave.leaveAllocationId) {
+              targetAllocation = allocationById.get(String(approvedLeave.leaveAllocationId)) || null;
+              if (!targetAllocation) {
+                targetAllocation = await LeaveAllocation.findByPk(approvedLeave.leaveAllocationId);
+                if (targetAllocation) allocationById.set(String(targetAllocation.leaveAllocationId), targetAllocation);
+              }
+            }
+
+            if (!targetAllocation && approvedLeave.leaveTypeId) {
+              targetAllocation = allocationByStaffType.get(`${emp.staffId}::${approvedLeave.leaveTypeId}`) || null;
+            }
+
+            if (!targetAllocation && approvedLeave.leaveTypeId) {
+              targetAllocation = await LeaveAllocation.findOne({
+                where: {
+                  staffId: emp.staffId,
+                  companyId: emp.companyId,
+                  leaveTypeId: approvedLeave.leaveTypeId,
+                  status: "Active",
+                  effectiveFrom: { [Op.lte]: dateOnly },
+                  effectiveTo: { [Op.gte]: dateOnly },
+                },
+                order: [["effectiveFrom", "DESC"]],
+              });
+
+              if (targetAllocation) {
+                allocationById.set(String(targetAllocation.leaveAllocationId), targetAllocation);
+                allocationByStaffType.set(`${emp.staffId}::${approvedLeave.leaveTypeId}`, targetAllocation);
+              }
+            }
+
+            if (targetAllocation && requestedLeaveUnits > 0) {
+              let available = calculateAvailableFromAllocation(targetAllocation);
+              if (
+                previousLeaveAllocationId &&
+                Number(previousLeaveAllocationId) === Number(targetAllocation.leaveAllocationId)
+              ) {
+                available += previousLeaveUsed;
+              }
+
+              if (available >= requestedLeaveUnits) {
+                leaveUsedDays = requestedLeaveUnits;
+                leaveAllocationIdUsed = targetAllocation.leaveAllocationId;
+                leaveRequestIdUsed = approvedLeave.leaveRequestId;
+
+                const leaveName =
+                  approvedLeave.leaveType?.name || approvedLeave.leaveType?.leaveTypeName || "Leave";
+
+                if (requestedLeaveUnits === 0.5) {
+                  const half =
+                    approvedLeave.halfDayType
+                      ? String(approvedLeave.halfDayType).toUpperCase().includes("AN")
+                        ? "AN"
+                        : "FN"
+                      : getHalfDaySession();
+                  attendanceStatus = `Leave - ${leaveName} - Half-day-${half}`;
+                } else {
+                  attendanceStatus = `Leave - ${leaveName}`;
+                }
+              } else {
+                const half = getHalfDaySession();
+                attendanceStatus = `Half-day-${half}`;
+                remarks.push("Approved leave found but insufficient leave balance");
+              }
+            } else {
+              const half = getHalfDaySession();
+              attendanceStatus = `Half-day-${half}`;
+              remarks.push("Approved leave found but no active leave allocation");
+            }
+          } else {
+            const half = getHalfDaySession();
+            attendanceStatus = `Half-day-${half}`;
+            remarks.push("Worked below minimum hours and no approved leave");
+          }
+        } else {
+          // < half day hours -> full-day leave only else absent
+          const leaveUnits = approvedLeave ? Number(getLeaveUnitsForDate(approvedLeave, dateOnly).toFixed(2)) : 0;
+          const hasApprovedFullDayLeave = Boolean(approvedLeave) && leaveUnits >= 1;
+
+          if (hasApprovedFullDayLeave) {
+            // keep your existing full-day leave allocation logic (unchanged)
+            const requestedLeaveUnits = 1;
+
+            let targetAllocation = null;
+
+            if (approvedLeave.leaveAllocationId) {
+              targetAllocation = allocationById.get(String(approvedLeave.leaveAllocationId)) || null;
+              if (!targetAllocation) {
+                targetAllocation = await LeaveAllocation.findByPk(approvedLeave.leaveAllocationId);
+                if (targetAllocation) allocationById.set(String(targetAllocation.leaveAllocationId), targetAllocation);
+              }
+            }
+
+            if (!targetAllocation && approvedLeave.leaveTypeId) {
+              targetAllocation = allocationByStaffType.get(`${emp.staffId}::${approvedLeave.leaveTypeId}`) || null;
+            }
+
+            if (!targetAllocation && approvedLeave.leaveTypeId) {
+              targetAllocation = await LeaveAllocation.findOne({
+                where: {
+                  staffId: emp.staffId,
+                  companyId: emp.companyId,
+                  leaveTypeId: approvedLeave.leaveTypeId,
+                  status: "Active",
+                  effectiveFrom: { [Op.lte]: dateOnly },
+                  effectiveTo: { [Op.gte]: dateOnly },
+                },
+                order: [["effectiveFrom", "DESC"]],
+              });
+
+              if (targetAllocation) {
+                allocationById.set(String(targetAllocation.leaveAllocationId), targetAllocation);
+                allocationByStaffType.set(`${emp.staffId}::${approvedLeave.leaveTypeId}`, targetAllocation);
+              }
+            }
+
+            if (targetAllocation) {
+              let available = calculateAvailableFromAllocation(targetAllocation);
+              if (
+                previousLeaveAllocationId &&
+                Number(previousLeaveAllocationId) === Number(targetAllocation.leaveAllocationId)
+              ) {
+                available += previousLeaveUsed;
+              }
+
+              if (available >= requestedLeaveUnits) {
+                leaveUsedDays = requestedLeaveUnits;
+                leaveAllocationIdUsed = targetAllocation.leaveAllocationId;
+                leaveRequestIdUsed = approvedLeave.leaveRequestId;
+
+                const leaveName =
+                  approvedLeave.leaveType?.name || approvedLeave.leaveType?.leaveTypeName || "Leave";
+
+                attendanceStatus = `Leave - ${leaveName}`;
+              } else {
+                attendanceStatus = "Absent";
+                remarks.push("Full-day leave found but insufficient leave balance");
+              }
             } else {
               attendanceStatus = "Absent";
-              remarks.push("Approved leave found but insufficient leave balance");
+              remarks.push("Full-day leave found but no active leave allocation");
             }
           } else {
             attendanceStatus = "Absent";
-            remarks.push("Approved leave found but no active leave allocation");
-          }
-        } else {
-          attendanceStatus = "Absent";
-          remarks.push("Half-day hours met but no approved leave request");
-        }
-      } else if (approvedLeave) {
-        const requestedLeaveUnits = Number(getLeaveUnitsForDate(approvedLeave, dateOnly).toFixed(2));
-        let targetAllocation = null;
-        if (approvedLeave.leaveAllocationId) {
-          targetAllocation = allocationById.get(String(approvedLeave.leaveAllocationId)) || null;
-          if (!targetAllocation) {
-            targetAllocation = await LeaveAllocation.findByPk(approvedLeave.leaveAllocationId);
-            if (targetAllocation) allocationById.set(String(targetAllocation.leaveAllocationId), targetAllocation);
+            remarks.push("Worked less than half-day hours");
           }
         }
-        if (!targetAllocation && approvedLeave.leaveTypeId) {
-          targetAllocation = allocationByStaffType.get(`${emp.staffId}::${approvedLeave.leaveTypeId}`) || null;
-        }
-        if (!targetAllocation && approvedLeave.leaveTypeId) {
-          targetAllocation = await LeaveAllocation.findOne({
-            where: {
-              staffId: emp.staffId,
-              companyId: emp.companyId,
-              leaveTypeId: approvedLeave.leaveTypeId,
-              status: "Active",
-              effectiveFrom: { [Op.lte]: dateOnly },
-              effectiveTo: { [Op.gte]: dateOnly },
-            },
-            order: [["effectiveFrom", "DESC"]],
-          });
-          if (targetAllocation) {
-            allocationById.set(String(targetAllocation.leaveAllocationId), targetAllocation);
-            allocationByStaffType.set(`${emp.staffId}::${approvedLeave.leaveTypeId}`, targetAllocation);
-          }
-        }
-
-        if (targetAllocation && requestedLeaveUnits > 0) {
-          let available = calculateAvailableFromAllocation(targetAllocation);
-          if (previousLeaveAllocationId && Number(previousLeaveAllocationId) === Number(targetAllocation.leaveAllocationId)) {
-            available += previousLeaveUsed;
-          }
-          if (available >= requestedLeaveUnits) {
-            leaveUsedDays = requestedLeaveUnits;
-            leaveAllocationIdUsed = targetAllocation.leaveAllocationId;
-            leaveRequestIdUsed = approvedLeave.leaveRequestId;
-            const leaveName =
-              approvedLeave.leaveType?.name || approvedLeave.leaveType?.leaveTypeName || "Leave";
-            attendanceStatus = `Leave - ${leaveName}`;
-          } else {
-            attendanceStatus = "Absent";
-            remarks.push("Approved leave found but insufficient leave balance");
-          }
-        } else {
-          attendanceStatus = "Absent";
-          remarks.push("Approved leave found but no active leave allocation");
-        }
-      } else if (!hasPunches) {
-        attendanceStatus = "Absent";
-        remarks.push("No punches");
       } else {
         attendanceStatus = "Absent";
+        remarks.push("No punches");
       }
     }
 
@@ -656,7 +907,7 @@ export const processAttendanceForDate = async (targetDate = new Date()) => {
 };
 
 export const startAttendanceScheduler = () => {
-  const cronExpression = "0 0 * * *";
+  const cronExpression = "* * * * *";
   const timezone = "Asia/Kolkata";
 
   cron.schedule(
@@ -668,7 +919,16 @@ export const startAttendanceScheduler = () => {
       }
       isAttendanceJobRunning = true;
       try {
-        const result = await processAttendanceForDate(new Date());
+        const result = await processAttendanceForDate(new Date(2026, 1, 27));
+        // await processAttendanceForDate(new Date(2026, 1, 9));
+        // await processAttendanceForDate(new Date(2026, 1, 8));
+        // await processAttendanceForDate(new Date(2026, 1, 7));
+        // await processAttendanceForDate(new Date(2026, 1, 6));
+        // await processAttendanceForDate(new Date(2026, 1, 5));
+        // await processAttendanceForDate(new Date(2026, 1, 4));
+        // await processAttendanceForDate(new Date(2026, 1, 3));
+        // await processAttendanceForDate(new Date(2026, 1, 2));
+        // await processAttendanceForDate(new Date(2026, 1, 1));
         console.log("[attendance-cron] completed", result);
       } catch (error) {
         console.error("[attendance-cron] failed:", error.message);

@@ -1011,7 +1011,7 @@ CREATE TABLE `leave_requests` (
   `startDate` date NOT NULL,
   `endDate` date NOT NULL,
   `totalDays` decimal(4,1) NOT NULL DEFAULT '0.0' COMMENT 'Total leave days (can be 0.5 for half day)',
-  `leaveCategory` enum('Full Day','Half Day','Short Leave') NOT NULL DEFAULT 'Full Day',
+  `leaveCategory` enum('Full Day','Half Day') NOT NULL DEFAULT 'Full Day',
   `halfDayType` enum('First Half','Second Half') DEFAULT NULL COMMENT 'Required if leaveCategory is Half Day',
   `reason` text NOT NULL,
   `hasDocuments` tinyint(1) NOT NULL DEFAULT '0',
