@@ -5,42 +5,49 @@ import { useAuth } from '../auth/AuthContext';
 import MasterTable from '../components/common/MasterTable';
 import Button from '../components/ui/Button';
 
-const toMonthInputValue = (date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  return `${year}-${month}`;
+const toDateOnly = (date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 };
 
-const getPreviousMonthValue = () => {
+const getPreviousMonthRange = () => {
   const d = new Date();
   d.setDate(1);
   d.setMonth(d.getMonth() - 1);
-  return toMonthInputValue(d);
+  const start = new Date(d.getFullYear(), d.getMonth(), 1);
+  const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  return {
+    fromDate: toDateOnly(start),
+    toDate: toDateOnly(end),
+  };
 };
 
 export default function SalaryGenerationManagement({ selectedCompanyId }) {
   const { user } = useAuth();
   const companyId = selectedCompanyId || user?.companyId || user?.company?.companyId || '';
   const currentUserId = user?.userId ?? user?.id ?? null;
+  const defaultRange = getPreviousMonthRange();
 
-  const [monthValue, setMonthValue] = useState(getPreviousMonthValue);
+  const [fromDate, setFromDate] = useState(defaultRange.fromDate);
+  const [toDate, setToDate] = useState(defaultRange.toDate);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [absentEmployees, setAbsentEmployees] = useState([]);
-
-  const selectedMonth = useMemo(() => Number.parseInt(String(monthValue).split('-')[1], 10) || 0, [monthValue]);
-  const selectedYear = useMemo(() => Number.parseInt(String(monthValue).split('-')[0], 10) || 0, [monthValue]);
+  const selectedMonth = useMemo(() => Number.parseInt(String(fromDate || '').slice(5, 7), 10) || 0, [fromDate]);
+  const selectedYear = useMemo(() => Number.parseInt(String(fromDate || '').slice(0, 4), 10) || 0, [fromDate]);
 
   const fetchGenerated = async () => {
-    if (!companyId || !selectedMonth || !selectedYear) return;
+    if (!companyId || !fromDate || !toDate) return;
     setLoading(true);
     try {
       const res = await API.get('/salaryGenerations', {
         params: {
           companyId,
-          salaryMonth: selectedMonth,
-          salaryYear: selectedYear,
+          fromDate,
+          toDate,
         },
       });
       setRows(Array.isArray(res.data) ? res.data : []);
@@ -53,15 +60,19 @@ export default function SalaryGenerationManagement({ selectedCompanyId }) {
 
   useEffect(() => {
     fetchGenerated();
-  }, [companyId, selectedMonth, selectedYear]);
+  }, [companyId, fromDate, toDate]);
 
   const handleGenerate = async () => {
     if (!companyId) {
       toast.error('Select a company first');
       return;
     }
-    if (!selectedMonth || !selectedYear) {
-      toast.error('Select month');
+    if (!fromDate || !toDate) {
+      toast.error('Select from and to dates');
+      return;
+    }
+    if (fromDate > toDate) {
+      toast.error('From date must be before or equal to To date');
       return;
     }
 
@@ -70,6 +81,8 @@ export default function SalaryGenerationManagement({ selectedCompanyId }) {
     try {
       await API.post('/salaryGenerations/generate-monthly', {
         companyId,
+        fromDate,
+        toDate,
         salaryMonth: selectedMonth,
         salaryYear: selectedYear,
         generatedBy: currentUserId,
@@ -91,8 +104,12 @@ export default function SalaryGenerationManagement({ selectedCompanyId }) {
   };
 
   const handleDownloadSpreadsheet = async () => {
-    if (!companyId || !selectedMonth || !selectedYear) {
-      toast.error('Select company and month first');
+    if (!companyId || !fromDate || !toDate) {
+      toast.error('Select company and date range first');
+      return;
+    }
+    if (fromDate > toDate) {
+      toast.error('From date must be before or equal to To date');
       return;
     }
 
@@ -100,8 +117,8 @@ export default function SalaryGenerationManagement({ selectedCompanyId }) {
       const res = await API.get('/salaryGenerations/download-spreadsheet', {
         params: {
           companyId,
-          salaryMonth: selectedMonth,
-          salaryYear: selectedYear,
+          fromDate,
+          toDate,
         },
         responseType: 'blob',
       });
@@ -125,7 +142,7 @@ export default function SalaryGenerationManagement({ selectedCompanyId }) {
       link.href = url;
       const contentDisposition = String(res?.headers?.['content-disposition'] || '');
       const nameMatch = /filename="?([^"]+)"?/i.exec(contentDisposition);
-      link.download = nameMatch?.[1] || `salary-generation-${selectedYear}-${String(selectedMonth).padStart(2, '0')}.xlsx`;
+      link.download = nameMatch?.[1] || `salary-generation-${fromDate}-to-${toDate}.xlsx`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -135,15 +152,71 @@ export default function SalaryGenerationManagement({ selectedCompanyId }) {
     }
   };
 
+  const handleDownloadPdf = async () => {
+    if (!companyId || !fromDate || !toDate) {
+      toast.error('Select company and date range first');
+      return;
+    }
+    if (fromDate > toDate) {
+      toast.error('From date must be before or equal to To date');
+      return;
+    }
+
+    try {
+      const res = await API.get('/salaryGenerations/download-pdf', {
+        params: {
+          companyId,
+          fromDate,
+          toDate,
+        },
+        responseType: 'blob',
+      });
+      const contentType = String(res?.headers?.['content-type'] || '').toLowerCase();
+      if (contentType.includes('application/json')) {
+        const text = await res.data.text();
+        let parsed = {};
+        try {
+          parsed = JSON.parse(text);
+        } catch (jsonErr) {
+          parsed = {};
+        }
+        throw new Error(parsed.error || parsed.message || 'Failed to download PDF');
+      }
+
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const contentDisposition = String(res?.headers?.['content-disposition'] || '');
+      const nameMatch = /filename="?([^"]+)"?/i.exec(contentDisposition);
+      link.download = nameMatch?.[1] || `salary-generation-${fromDate}-to-${toDate}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      toast.error(error?.message || 'Failed to download PDF');
+    }
+  };
+
   return (
     <div className="h-full flex flex-col gap-4 px-6">
       <div className="bg-white border rounded-lg p-4 flex flex-wrap items-end gap-3">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Salary Month</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
           <input
-            type="month"
-            value={monthValue}
-            onChange={(e) => setMonthValue(e.target.value)}
+            type="date"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            className="h-10 rounded-lg border border-gray-300 px-3 text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
+          <input
+            type="date"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
             className="h-10 rounded-lg border border-gray-300 px-3 text-sm"
           />
         </div>
@@ -152,6 +225,9 @@ export default function SalaryGenerationManagement({ selectedCompanyId }) {
         </Button>
         <Button type="button" variant="secondary" onClick={handleDownloadSpreadsheet} disabled={loading || rows.length === 0}>
           Download Spreadsheet
+        </Button>
+        <Button type="button" variant="secondary" onClick={handleDownloadPdf} disabled={loading || rows.length === 0}>
+          Download PDF
         </Button>
       </div>
 

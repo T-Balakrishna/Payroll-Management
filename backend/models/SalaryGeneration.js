@@ -279,8 +279,8 @@ export default (sequelize) => {
     indexes: [
       {
         unique: true,
-        fields: ['staffId', 'salaryMonth', 'salaryYear'],
-        name: 'unique_employee_month_year',
+        fields: ['companyId', 'staffId', 'payPeriodStart', 'payPeriodEnd'],
+        name: 'unique_employee_pay_period',
       },
       {
         fields: ['companyId', 'salaryMonth', 'salaryYear'],

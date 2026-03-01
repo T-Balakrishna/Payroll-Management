@@ -3,6 +3,7 @@ import { resolveCompanyContext } from '../utils/companyScope.js';
 import formulaEvaluator from './formulaEvaluator.js';
 
 const { SalaryComponent, Company } = db;
+const PROFESSIONAL_TAX_FORMULA = '(isProfessionalTaxMonth == 1) ? (sixMonthGrossAverage <= 20000 ? 0 : sixMonthGrossAverage <= 30000 ? 135 : sixMonthGrossAverage <= 45000 ? 315 : sixMonthGrossAverage <= 60000 ? 690 : sixMonthGrossAverage <= 75000 ? 1025 : 1250) : 0';
 
 const formatSequelizeError = (error) => {
   if (!error) return 'Operation failed';
@@ -25,6 +26,35 @@ const normalizeStatus = (status) => {
 
 const normalizeFormulaOperators = (formula) =>
   String(formula || '').replace(/!==/g, '!=').replace(/===/g, '==');
+
+const isProfessionalTaxComponent = ({ code, name, type }) => {
+  const normalizedCode = String(code || '').trim().toUpperCase();
+  const normalizedName = String(name || '').trim().toLowerCase();
+  const normalizedType = String(type || '').trim();
+  const codeMatch = normalizedCode === 'PT' ||
+    normalizedCode === 'PTAX' ||
+    normalizedCode === 'PROFESSIONAL_TAX' ||
+    normalizedCode === 'PROFESSIONALTAX';
+  const nameMatch = normalizedName === 'professional tax';
+  return (codeMatch || nameMatch) && (!normalizedType || normalizedType === 'Deduction');
+};
+
+const applyProfessionalTaxHardcoding = (payload, fallback = {}) => {
+  const candidate = {
+    code: Object.prototype.hasOwnProperty.call(payload, 'code') ? payload.code : fallback.code,
+    name: Object.prototype.hasOwnProperty.call(payload, 'name') ? payload.name : fallback.name,
+    type: Object.prototype.hasOwnProperty.call(payload, 'type') ? payload.type : fallback.type,
+  };
+  if (!isProfessionalTaxComponent(candidate)) return payload;
+
+  return {
+    ...payload,
+    type: 'Deduction',
+    calculationType: 'Formula',
+    formula: PROFESSIONAL_TAX_FORMULA,
+    isStatutory: true,
+  };
+};
 
 const validateFormulaOrThrow = async ({
   formula,
@@ -108,31 +138,32 @@ export const createSalaryComponent = async (req, res) => {
       companyId: companyContext.effectiveCompanyId,
       status: normalizeStatus(req.body?.status),
     };
+    const hardenedPayload = applyProfessionalTaxHardcoding(payload);
 
-    if (Object.prototype.hasOwnProperty.call(payload, 'formula')) {
-      payload.formula = normalizeFormulaOperators(payload.formula).trim();
+    if (Object.prototype.hasOwnProperty.call(hardenedPayload, 'formula')) {
+      hardenedPayload.formula = normalizeFormulaOperators(hardenedPayload.formula).trim();
     }
 
-    const intendedType = payload.type;
+    const intendedType = hardenedPayload.type;
     const intendedCalculationType =
       intendedType === 'Deduction'
         ? 'Formula'
-        : (payload.calculationType === 'Formula' ? 'Formula' : 'Fixed');
+        : (hardenedPayload.calculationType === 'Formula' ? 'Formula' : 'Fixed');
 
     await validateFormulaOrThrow({
-      formula: payload.formula,
-      companyId: payload.companyId,
+      formula: hardenedPayload.formula,
+      companyId: hardenedPayload.companyId,
       componentType: intendedType,
       calculationType: intendedCalculationType,
     });
 
-    payload.calculationType = intendedCalculationType;
+    hardenedPayload.calculationType = intendedCalculationType;
 
-    if (payload.calculationType !== 'Formula') {
-      payload.formula = null;
+    if (hardenedPayload.calculationType !== 'Formula') {
+      hardenedPayload.formula = null;
     }
 
-    const salaryComponent = await SalaryComponent.create(payload);
+    const salaryComponent = await SalaryComponent.create(hardenedPayload);
     res.status(201).json(salaryComponent);
   } catch (error) {
     const statusCode = error.name?.startsWith('Sequelize') ? 400 : 500;
@@ -157,23 +188,24 @@ export const updateSalaryComponent = async (req, res) => {
       ...(req.body?.status ? { status: normalizeStatus(req.body.status) } : {}),
     };
 
-    if (Object.prototype.hasOwnProperty.call(payload, 'formula')) {
-      payload.formula = normalizeFormulaOperators(payload.formula).trim();
-    }
-
     const existingComponent = await SalaryComponent.findByPk(req.params.id);
     if (!existingComponent) {
       return res.status(404).json({ message: 'Salary component not found' });
     }
+    const hardenedPayload = applyProfessionalTaxHardcoding(payload, existingComponent || {});
+
+    if (Object.prototype.hasOwnProperty.call(hardenedPayload, 'formula')) {
+      hardenedPayload.formula = normalizeFormulaOperators(hardenedPayload.formula).trim();
+    }
 
     if (companyContext.actor && !companyContext.isSuperAdmin) {
-      delete payload.companyId;
+      delete hardenedPayload.companyId;
     } else if (hasCompanyIdInPayload && !companyContext.requestedCompanyId) {
       return res.status(400).json({ error: 'companyId must be a positive integer when provided' });
     }
 
-    const resultingType = payload.type || existingComponent.type;
-    const resultingCalculationType = payload.calculationType || existingComponent.calculationType;
+    const resultingType = hardenedPayload.type || existingComponent.type;
+    const resultingCalculationType = hardenedPayload.calculationType || existingComponent.calculationType;
     const effectiveCalculationType =
       resultingType === 'Deduction'
         ? 'Formula'
@@ -181,10 +213,10 @@ export const updateSalaryComponent = async (req, res) => {
     const resultingCompanyId =
       (companyContext.actor && !companyContext.isSuperAdmin
         ? companyContext.effectiveCompanyId
-        : payload.companyId || existingComponent.companyId);
+        : hardenedPayload.companyId || existingComponent.companyId);
     const resultingFormula =
-      Object.prototype.hasOwnProperty.call(payload, 'formula')
-        ? payload.formula
+      Object.prototype.hasOwnProperty.call(hardenedPayload, 'formula')
+        ? hardenedPayload.formula
         : existingComponent.formula;
 
     await validateFormulaOrThrow({
@@ -195,13 +227,13 @@ export const updateSalaryComponent = async (req, res) => {
       excludeComponentId: existingComponent.salaryComponentId,
     });
 
-    payload.calculationType = effectiveCalculationType;
+    hardenedPayload.calculationType = effectiveCalculationType;
 
-    if (payload.calculationType !== 'Formula') {
-      payload.formula = null;
+    if (hardenedPayload.calculationType !== 'Formula') {
+      hardenedPayload.formula = null;
     }
 
-    const [updated] = await SalaryComponent.update(payload, {
+    const [updated] = await SalaryComponent.update(hardenedPayload, {
       where: {
         salaryComponentId: req.params.id,
         ...(companyContext.actor && !companyContext.isSuperAdmin

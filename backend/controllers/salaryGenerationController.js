@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs';
+import PDFDocument from 'pdfkit';
 import formulaEvaluator from './formulaEvaluator.js';
 import db from '../models/index.js';
 
@@ -34,11 +35,115 @@ const buildMonthRange = (year, month) => {
   };
 };
 
+const daysBetweenInclusive = (startDateOnly, endDateOnly) => {
+  const start = new Date(`${startDateOnly}T00:00:00Z`);
+  const end = new Date(`${endDateOnly}T00:00:00Z`);
+  const millis = end.getTime() - start.getTime();
+  return Math.floor(millis / 86400000) + 1;
+};
+
+const getMonthsInRange = (startDateOnly, endDateOnly) => {
+  const start = new Date(`${startDateOnly}T00:00:00Z`);
+  const end = new Date(`${endDateOnly}T00:00:00Z`);
+  const seen = new Set();
+  const months = [];
+  const cursor = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1));
+  const finish = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), 1));
+  while (cursor <= finish) {
+    const month = cursor.getUTCMonth() + 1;
+    const year = cursor.getUTCFullYear();
+    const key = `${year}-${String(month).padStart(2, '0')}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      months.push({ year, month, key });
+    }
+    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  }
+  return months;
+};
+
+const isProfessionalTaxComponent = (component = {}) => {
+  const code = normalize(component?.componentCode || component?.code || '');
+  const name = normalize(component?.componentName || component?.name || '');
+  return code === 'pt' ||
+    code === 'ptax' ||
+    code === 'professional_tax' ||
+    code === 'professionaltax' ||
+    name === 'professional tax';
+};
+
+const calculateProfessionalTaxDeduction = (sixMonthGrossAverage, appliesForPeriod) => {
+  if (!appliesForPeriod) return 0;
+  const gross = Number.isFinite(sixMonthGrossAverage) ? sixMonthGrossAverage : 0;
+  if (gross <= 20000) return 0;
+  if (gross <= 30000) return 135;
+  if (gross <= 45000) return 315;
+  if (gross <= 60000) return 690;
+  if (gross <= 75000) return 1025;
+  return 1250;
+};
+
 const isPastMonth = (year, month) => {
   const now = new Date();
   const currentYear = now.getUTCFullYear();
   const currentMonth = now.getUTCMonth() + 1;
   return year < currentYear || (year === currentYear && month < currentMonth);
+};
+
+const isPastOrTodayRange = (endDateOnly) => {
+  const today = new Date();
+  const todayUtc = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+  const endUtc = new Date(`${endDateOnly}T00:00:00Z`);
+  return endUtc < todayUtc;
+};
+
+const resolvePayPeriod = ({ salaryMonth, salaryYear, fromDate, toDate, strictPastMonth = true }) => {
+  const parsedFrom = fromDate ? toDateOnly(fromDate) : null;
+  const parsedTo = toDate ? toDateOnly(toDate) : null;
+
+  if (parsedFrom || parsedTo) {
+    if (!parsedFrom || !parsedTo) {
+      throw new Error('Both fromDate and toDate are required');
+    }
+    if (parsedFrom > parsedTo) {
+      throw new Error('fromDate must be before or equal to toDate');
+    }
+
+    if (strictPastMonth && !isPastOrTodayRange(parsedTo)) {
+      throw new Error('Salary can be generated only for completed date ranges');
+    }
+
+    return {
+      start: parsedFrom,
+      end: parsedTo,
+      salaryMonth: Number.parseInt(parsedFrom.slice(5, 7), 10),
+      salaryYear: Number.parseInt(parsedFrom.slice(0, 4), 10),
+      daysInPeriod: daysBetweenInclusive(parsedFrom, parsedTo),
+      source: 'range',
+    };
+  }
+
+  if (!salaryMonth || !salaryYear) {
+    throw new Error('Either fromDate/toDate or salaryMonth/salaryYear is required');
+  }
+
+  if (salaryMonth < 1 || salaryMonth > 12) {
+    throw new Error('salaryMonth must be between 1 and 12');
+  }
+
+  if (strictPastMonth && !isPastMonth(salaryYear, salaryMonth)) {
+    throw new Error('Salary can be generated only for previous months');
+  }
+
+  const { start, end, daysInMonth } = buildMonthRange(salaryYear, salaryMonth);
+  return {
+    start,
+    end,
+    salaryMonth,
+    salaryYear,
+    daysInPeriod: daysInMonth,
+    source: 'month',
+  };
 };
 
 const parseLeaveTypeFromStatus = (status = '') => {
@@ -169,12 +274,24 @@ export const getAllSalaryGenerations = async (req, res) => {
     const staffId = toInt(req.query.staffId);
     const salaryMonth = toInt(req.query.salaryMonth);
     const salaryYear = toInt(req.query.salaryYear);
+    const rawFromDate = String(req.query.fromDate || '').trim();
+    const rawToDate = String(req.query.toDate || '').trim();
+    const fromDate = toDateOnly(rawFromDate);
+    const toDate = toDateOnly(rawToDate);
     const status = String(req.query.status || '').trim();
 
     if (companyId) where.companyId = companyId;
     if (staffId) where.staffId = staffId;
-    if (salaryMonth) where.salaryMonth = salaryMonth;
-    if (salaryYear) where.salaryYear = salaryYear;
+    if (rawFromDate || rawToDate) {
+      if (!fromDate || !toDate) {
+        return res.status(400).json({ error: 'Both valid fromDate and toDate are required' });
+      }
+      where.payPeriodStart = fromDate;
+      where.payPeriodEnd = toDate;
+    } else {
+      if (salaryMonth) where.salaryMonth = salaryMonth;
+      if (salaryYear) where.salaryYear = salaryYear;
+    }
     if (status) where.status = status;
 
     const salaryGenerations = await SalaryGeneration.findAll({
@@ -230,19 +347,32 @@ export const generateMonthlySalary = async (req, res) => {
     const companyId = toInt(req.body.companyId);
     const salaryMonth = toInt(req.body.salaryMonth);
     const salaryYear = toInt(req.body.salaryYear);
+    const fromDate = req.body.fromDate;
+    const toDate = req.body.toDate;
     const generatedBy = toInt(req.body.generatedBy);
 
-    if (!companyId || !salaryMonth || !salaryYear) {
-      throw new Error('companyId, salaryMonth and salaryYear are required');
+    if (!companyId) {
+      throw new Error('companyId is required');
     }
-    if (salaryMonth < 1 || salaryMonth > 12) {
-      throw new Error('salaryMonth must be between 1 and 12');
-    }
-    if (!isPastMonth(salaryYear, salaryMonth)) {
-      throw new Error('Salary can be generated only for previous months');
-    }
+    const period = resolvePayPeriod({
+      salaryMonth,
+      salaryYear,
+      fromDate,
+      toDate,
+      strictPastMonth: true,
+    });
+    const {
+      start,
+      end,
+      daysInPeriod,
+      salaryMonth: resolvedSalaryMonth,
+      salaryYear: resolvedSalaryYear,
+    } = period;
+    const monthsInRange = getMonthsInRange(start, end);
+    const periodMonthNumbers = monthsInRange.map((m) => m.month);
+    const periodMonthKeys = monthsInRange.map((m) => m.key);
+    const isProfessionalTaxMonth = periodMonthNumbers.includes(2) || periodMonthNumbers.includes(9);
 
-    const { start, end, daysInMonth } = buildMonthRange(salaryYear, salaryMonth);
     const leaveTypes = await LeaveType.findAll({ where: { companyId }, transaction });
     const activeComponentCodes = await SalaryComponent.findAll({
       where: { companyId, status: 'Active' },
@@ -300,6 +430,23 @@ export const generateMonthlySalary = async (req, res) => {
       attendanceByStaff.get(key).push(row);
     }
 
+    const previousGrossRows = await SalaryGeneration.findAll({
+      where: {
+        companyId,
+        staffId: { [db.Sequelize.Op.in]: staffIds },
+        payPeriodEnd: { [db.Sequelize.Op.lt]: start },
+      },
+      attributes: ['staffId', 'grossSalary', 'payPeriodEnd'],
+      order: [['payPeriodEnd', 'DESC']],
+      transaction,
+    });
+    const previousGrossByStaff = new Map();
+    for (const row of previousGrossRows) {
+      const key = String(row.staffId);
+      if (!previousGrossByStaff.has(key)) previousGrossByStaff.set(key, []);
+      previousGrossByStaff.get(key).push(Number(row.grossSalary || 0));
+    }
+
     const absentEmployees = [];
     for (const emp of targetEmployees) {
       const rows = attendanceByStaff.get(String(emp.staffId)) || [];
@@ -328,9 +475,9 @@ export const generateMonthlySalary = async (req, res) => {
       const employeeName = `${salaryMaster?.employees?.firstName || ''} ${salaryMaster?.employees?.lastName || ''}`.trim();
       const staffNumber = salaryMaster?.employees?.staffNumber || staffId;
       const empAttendanceRows = attendanceByStaff.get(String(staffId)) || [];
-      const summary = buildAttendanceSummary({ attendanceRows: empAttendanceRows, leaveTypeByName, daysInMonth });
+      const summary = buildAttendanceSummary({ attendanceRows: empAttendanceRows, leaveTypeByName, daysInMonth: daysInPeriod });
       const lossOfPayDays = Number((summary.absentDays + summary.unpaidLeaveDays).toFixed(2));
-      const payableDays = Number(Math.max(0, daysInMonth - lossOfPayDays).toFixed(2));
+      const payableDays = Number(Math.max(0, daysInPeriod - lossOfPayDays).toFixed(2));
       const monthlyPayableFactor = Number((payableDays / STANDARD_MONTH_DAYS).toFixed(6));
       const formulaContext = {};
       activeComponentCodes.forEach((component) => setFormulaContextValue(formulaContext, component.code, 0));
@@ -361,11 +508,19 @@ export const generateMonthlySalary = async (req, res) => {
       formulaContext.payable_days = Number(payableDays || 0);
       formulaContext.paymentDays = Number(payableDays || 0);
       formulaContext.payment_days = Number(payableDays || 0);
-      formulaContext.payMonth = salaryMonth;
-      formulaContext.payYear = salaryYear;
+      formulaContext.payMonth = resolvedSalaryMonth;
+      formulaContext.payYear = resolvedSalaryYear;
       formulaContext.payPeriodStart = start;
       formulaContext.payPeriodEnd = end;
       formulaContext.payDate = end;
+      formulaContext.periodMonths = monthsInRange.length;
+      formulaContext.payPeriodMonths = monthsInRange.length;
+      formulaContext.monthsInPeriod = monthsInRange.length;
+      formulaContext.payMonths = periodMonthNumbers.join(',');
+      formulaContext.payMonthKeys = periodMonthKeys.join(',');
+      formulaContext.periodDays = daysInPeriod;
+      formulaContext.isProfessionalTaxMonth = isProfessionalTaxMonth ? 1 : 0;
+      formulaContext.ptApplicableMonth = formulaContext.isProfessionalTaxMonth;
 
       const components = await EmployeeSalaryComponent.findAll({
         where: { employeeSalaryMasterId: salaryMaster.employeeSalaryMasterId },
@@ -439,16 +594,28 @@ export const generateMonthlySalary = async (req, res) => {
       }
 
       const grossSalary = Number(totalEarnings.toFixed(2));
+      const previousGrossValues = previousGrossByStaff.get(String(staffId)) || [];
+      const trailingFiveGross = previousGrossValues.slice(0, 5);
+      const sixMonthGrossTotal = Number((trailingFiveGross.reduce((sum, n) => sum + Number(n || 0), 0) + grossSalary).toFixed(2));
+      const sixMonthGrossAverage = Number((sixMonthGrossTotal / (trailingFiveGross.length + 1 || 1)).toFixed(2));
+      formulaContext.sixMonthGross = sixMonthGrossTotal;
+      formulaContext.sixMonthGrossTotal = sixMonthGrossTotal;
+      formulaContext.sixMonthGrossAverage = sixMonthGrossAverage;
+      formulaContext.gross6Month = sixMonthGrossTotal;
+      formulaContext.avgGross6Month = sixMonthGrossAverage;
 
       for (const c of deductionCandidates) {
         const baseAmount = Number(c.calculatedAmount || 0);
         const remarksMeta = parseComponentRemarks(c.remarks);
         const amountBasis = String(remarksMeta.amountBasis || 'monthly').trim().toLowerCase();
-        const calculatedAmount = c.valueType === 'Formula' && c.formulaExpression
-          ? Number(Math.max(0, toSafeNumber(formulaEvaluator.evaluate(String(c.formulaExpression), formulaContext))).toFixed(2))
-          : amountBasis === 'daily'
-            ? Number((baseAmount * payableDays).toFixed(2))
-            : Number((baseAmount * monthlyPayableFactor).toFixed(2));
+        const isPTComponent = isProfessionalTaxComponent(c);
+        const calculatedAmount = isPTComponent
+          ? Number(calculateProfessionalTaxDeduction(sixMonthGrossAverage, isProfessionalTaxMonth).toFixed(2))
+          : c.valueType === 'Formula' && c.formulaExpression
+            ? Number(Math.max(0, toSafeNumber(formulaEvaluator.evaluate(String(c.formulaExpression), formulaContext))).toFixed(2))
+            : amountBasis === 'daily'
+              ? Number((baseAmount * payableDays).toFixed(2))
+              : Number((baseAmount * monthlyPayableFactor).toFixed(2));
         const perDayAmount = amountBasis === 'daily'
           ? baseAmount
           : Number((baseAmount / STANDARD_MONTH_DAYS).toFixed(2));
@@ -471,12 +638,16 @@ export const generateMonthlySalary = async (req, res) => {
           calculationType: c.valueType === 'Percentage' ? 'Percentage' : c.valueType,
           baseAmount,
           calculatedAmount,
-          isProrated: amountBasis === 'daily' || payableDays !== daysInMonth,
+          isProrated: amountBasis === 'daily' || payableDays !== daysInPeriod,
           proratedAmount: calculatedAmount,
-          formula: c.formulaExpression || null,
+          formula: isPTComponent
+            ? 'isProfessionalTaxMonth ? slab(sixMonthGrossAverage) : 0'
+            : c.formulaExpression || null,
           remarks: amountBasis === 'daily'
             ? 'Daily basis deduction prorated by payable days'
-            : 'Monthly deduction prorated as monthly/30 * payableDays',
+            : isPTComponent
+              ? `Professional Tax slab on sixMonthGrossAverage=${sixMonthGrossAverage} (applies in Feb/Sep only)`
+              : 'Monthly deduction prorated as monthly/30 * payableDays',
           createdBy: generatedBy || null,
           updatedBy: generatedBy || null,
         });
@@ -506,11 +677,11 @@ export const generateMonthlySalary = async (req, res) => {
         staffId,
         employeeSalaryMasterId: salaryMaster.employeeSalaryMasterId,
         companyId,
-        salaryMonth,
-        salaryYear,
+        salaryMonth: resolvedSalaryMonth,
+        salaryYear: resolvedSalaryYear,
         payPeriodStart: start,
         payPeriodEnd: end,
-        workingDays: daysInMonth,
+        workingDays: daysInPeriod,
         presentDays: summary.presentDays,
         absentDays: summary.absentDays,
         paidLeaveDays: summary.paidLeaveDays,
@@ -536,7 +707,7 @@ export const generateMonthlySalary = async (req, res) => {
       };
 
       let record = await SalaryGeneration.findOne({
-        where: { staffId, salaryMonth, salaryYear },
+        where: { staffId, companyId, payPeriodStart: start, payPeriodEnd: end },
         paranoid: false,
         transaction,
       });
@@ -589,8 +760,10 @@ export const generateMonthlySalary = async (req, res) => {
     await transaction.commit();
     return res.status(200).json({
       message: 'Salary generated successfully',
-      salaryMonth,
-      salaryYear,
+      salaryMonth: resolvedSalaryMonth,
+      salaryYear: resolvedSalaryYear,
+      payPeriodStart: start,
+      payPeriodEnd: end,
       generatedCount: generatedRecords.length,
       records: generatedRecords,
     });
@@ -611,13 +784,35 @@ export const downloadSalaryGenerationSpreadsheet = async (req, res) => {
     const companyId = toInt(req.query.companyId);
     const salaryMonth = toInt(req.query.salaryMonth);
     const salaryYear = toInt(req.query.salaryYear);
+    const fromDate = req.query.fromDate;
+    const toDate = req.query.toDate;
 
-    if (!companyId || !salaryMonth || !salaryYear) {
-      return res.status(400).json({ error: 'companyId, salaryMonth and salaryYear are required' });
+    if (!companyId) {
+      return res.status(400).json({ error: 'companyId is required' });
+    }
+
+    const where = { companyId };
+    let filePeriodLabel = '';
+    if (fromDate || toDate) {
+      const start = toDateOnly(fromDate);
+      const end = toDateOnly(toDate);
+      if (!start || !end) {
+        return res.status(400).json({ error: 'Both valid fromDate and toDate are required' });
+      }
+      where.payPeriodStart = start;
+      where.payPeriodEnd = end;
+      filePeriodLabel = `${start}-to-${end}`;
+    } else {
+      if (!salaryMonth || !salaryYear) {
+        return res.status(400).json({ error: 'Either fromDate/toDate or salaryMonth/salaryYear is required' });
+      }
+      where.salaryMonth = salaryMonth;
+      where.salaryYear = salaryYear;
+      filePeriodLabel = `${salaryYear}-${String(salaryMonth).padStart(2, '0')}`;
     }
 
     const records = await SalaryGeneration.findAll({
-      where: { companyId, salaryMonth, salaryYear },
+      where,
       include: [
         { model: Employee, as: 'employee' },
         { model: db.Company, as: 'company' },
@@ -626,7 +821,7 @@ export const downloadSalaryGenerationSpreadsheet = async (req, res) => {
     });
 
     if (!records.length) {
-      return res.status(404).json({ message: 'No salary generation records found for the selected month' });
+      return res.status(404).json({ message: 'No salary generation records found for the selected period' });
     }
 
     const workbook = new ExcelJS.Workbook();
@@ -688,11 +883,131 @@ export const downloadSalaryGenerationSpreadsheet = async (req, res) => {
       });
     }
 
-    const fileName = `salary-generation-${salaryYear}-${String(salaryMonth).padStart(2, '0')}.xlsx`;
+    const fileName = `salary-generation-${filePeriodLabel}.xlsx`;
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
     await workbook.xlsx.write(res);
     return res.end();
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const downloadSalaryGenerationPdf = async (req, res) => {
+  try {
+    const companyId = toInt(req.query.companyId);
+    const salaryMonth = toInt(req.query.salaryMonth);
+    const salaryYear = toInt(req.query.salaryYear);
+    const fromDate = req.query.fromDate;
+    const toDate = req.query.toDate;
+
+    if (!companyId) {
+      return res.status(400).json({ error: 'companyId is required' });
+    }
+
+    const where = { companyId };
+    let periodLabel = '';
+    let filePeriodLabel = '';
+    if (fromDate || toDate) {
+      const start = toDateOnly(fromDate);
+      const end = toDateOnly(toDate);
+      if (!start || !end) {
+        return res.status(400).json({ error: 'Both valid fromDate and toDate are required' });
+      }
+      where.payPeriodStart = start;
+      where.payPeriodEnd = end;
+      periodLabel = `${start} to ${end}`;
+      filePeriodLabel = `${start}-to-${end}`;
+    } else {
+      if (!salaryMonth || !salaryYear) {
+        return res.status(400).json({ error: 'Either fromDate/toDate or salaryMonth/salaryYear is required' });
+      }
+      where.salaryMonth = salaryMonth;
+      where.salaryYear = salaryYear;
+      periodLabel = `${salaryYear}-${String(salaryMonth).padStart(2, '0')}`;
+      filePeriodLabel = periodLabel;
+    }
+
+    const records = await SalaryGeneration.findAll({
+      where,
+      include: [{ model: Employee, as: 'employee' }],
+      order: [[{ model: Employee, as: 'employee' }, 'staffNumber', 'ASC']],
+    });
+
+    if (!records.length) {
+      return res.status(404).json({ message: 'No salary generation records found for the selected period' });
+    }
+
+    const fileName = `salary-generation-${filePeriodLabel}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
+
+    const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 30 });
+    doc.pipe(res);
+
+    doc.fontSize(16).text('Salary Generation Report', { align: 'center' });
+    doc.moveDown(0.5);
+    doc.fontSize(10).text(`Period: ${periodLabel}`);
+    doc.text(`Company ID: ${companyId}`);
+    doc.moveDown(0.8);
+
+    const columns = [
+      { title: 'Staff No', key: 'staffNumber', width: 70 },
+      { title: 'Employee Name', key: 'employeeName', width: 160 },
+      { title: 'Present', key: 'presentDays', width: 55 },
+      { title: 'Paid Leave', key: 'paidLeaveDays', width: 65 },
+      { title: 'Unpaid Leave', key: 'unpaidLeaveDays', width: 75 },
+      { title: 'Gross', key: 'grossSalary', width: 80 },
+      { title: 'Net', key: 'netSalary', width: 80 },
+      { title: 'Status', key: 'status', width: 70 },
+    ];
+
+    const drawHeader = (y) => {
+      let x = doc.page.margins.left;
+      doc.font('Helvetica-Bold').fontSize(9);
+      columns.forEach((col) => {
+        doc.rect(x, y, col.width, 20).stroke();
+        doc.text(col.title, x + 4, y + 6, { width: col.width - 8, ellipsis: true });
+        x += col.width;
+      });
+    };
+
+    let y = doc.y;
+    drawHeader(y);
+    y += 20;
+
+    const rowHeight = 18;
+    doc.font('Helvetica').fontSize(9);
+    for (const record of records) {
+      if (y + rowHeight > doc.page.height - doc.page.margins.bottom) {
+        doc.addPage();
+        y = doc.page.margins.top;
+        drawHeader(y);
+        y += 20;
+        doc.font('Helvetica').fontSize(9);
+      }
+
+      const row = {
+        staffNumber: record.employee?.staffNumber || record.staffId,
+        employeeName: `${record.employee?.firstName || ''} ${record.employee?.lastName || ''}`.trim(),
+        presentDays: Number(record.presentDays || 0).toFixed(2),
+        paidLeaveDays: Number(record.paidLeaveDays || 0).toFixed(2),
+        unpaidLeaveDays: Number(record.unpaidLeaveDays || 0).toFixed(2),
+        grossSalary: Number(record.grossSalary || 0).toFixed(2),
+        netSalary: Number(record.netSalary || 0).toFixed(2),
+        status: record.status || '',
+      };
+
+      let x = doc.page.margins.left;
+      columns.forEach((col) => {
+        doc.rect(x, y, col.width, rowHeight).stroke();
+        doc.text(String(row[col.key] ?? ''), x + 4, y + 5, { width: col.width - 8, ellipsis: true });
+        x += col.width;
+      });
+      y += rowHeight;
+    }
+
+    doc.end();
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

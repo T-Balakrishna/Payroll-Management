@@ -2,6 +2,7 @@ import db from '../models/index.js';
 
 const { EmployeeSalaryComponent, SalaryComponent } = db;
 const primaryKey = EmployeeSalaryComponent.primaryKeyAttribute || 'employeeSalaryComponentid';
+const PROFESSIONAL_TAX_FORMULA = '(isProfessionalTaxMonth == 1) ? (sixMonthGrossAverage <= 20000 ? 0 : sixMonthGrossAverage <= 30000 ? 135 : sixMonthGrossAverage <= 45000 ? 315 : sixMonthGrossAverage <= 60000 ? 690 : sixMonthGrossAverage <= 75000 ? 1025 : 1250) : 0';
 
 const toNonNegativeNumber = (value, fieldName) => {
   const parsed = Number.parseFloat(String(value));
@@ -12,6 +13,17 @@ const toNonNegativeNumber = (value, fieldName) => {
 };
 
 const hasValue = (value) => value !== null && value !== undefined && String(value).trim() !== '';
+const isProfessionalTaxComponent = (salaryComponent) => {
+  const code = String(salaryComponent?.code || '').trim().toUpperCase();
+  const name = String(salaryComponent?.name || '').trim().toLowerCase();
+  return salaryComponent?.type === 'Deduction' && (
+    code === 'PT' ||
+    code === 'PTAX' ||
+    code === 'PROFESSIONAL_TAX' ||
+    code === 'PROFESSIONALTAX' ||
+    name === 'professional tax'
+  );
+};
 
 const buildAssignmentPayload = async ({ body, existingRecord = null }) => {
   const componentId = body?.componentId ?? existingRecord?.componentId;
@@ -89,7 +101,10 @@ const buildAssignmentPayload = async ({ body, existingRecord = null }) => {
         : Number((calculatedAmount * 12).toFixed(2));
     }
   } else if (salaryComponent.type === 'Deduction') {
-    if (!salaryComponent.formula || !String(salaryComponent.formula).trim()) {
+    const formulaExpression = isProfessionalTaxComponent(salaryComponent)
+      ? PROFESSIONAL_TAX_FORMULA
+      : salaryComponent.formula;
+    if (!formulaExpression || !String(formulaExpression).trim()) {
       throw new Error('Deduction component must have formula at component level');
     }
 
@@ -102,7 +117,7 @@ const buildAssignmentPayload = async ({ body, existingRecord = null }) => {
     payload.percentageValue = null;
     payload.percentageBase = null;
     payload.formulaId = body?.formulaId ?? existingRecord?.formulaId ?? null;
-    payload.formulaExpression = salaryComponent.formula;
+    payload.formulaExpression = formulaExpression;
     payload.calculatedAmount = calculatedAmount;
     payload.annualAmount = hasValue(body?.annualAmount)
       ? toNonNegativeNumber(body.annualAmount, 'annualAmount')

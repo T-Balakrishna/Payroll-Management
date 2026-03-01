@@ -6,6 +6,7 @@ import * as salaryGenerationController from '../controllers/salaryGenerationCont
 router.get('/', salaryGenerationController.getAllSalaryGenerations);
 router.post('/generate-monthly', salaryGenerationController.generateMonthlySalary);
 router.get('/download-spreadsheet', salaryGenerationController.downloadSalaryGenerationSpreadsheet);
+router.get('/download-pdf', salaryGenerationController.downloadSalaryGenerationPdf);
 router.get('/:id', salaryGenerationController.getSalaryGenerationById);
 router.post('/', salaryGenerationController.createSalaryGeneration);
 router.put('/:id', salaryGenerationController.updateSalaryGeneration);

@@ -59,6 +59,7 @@ const MONTH_NAMES = [
   'November',
   'December',
 ];
+const PROFESSIONAL_TAX_FORMULA = '(isProfessionalTaxMonth == 1) ? (sixMonthGrossAverage <= 20000 ? 0 : sixMonthGrossAverage <= 30000 ? 135 : sixMonthGrossAverage <= 45000 ? 315 : sixMonthGrossAverage <= 60000 ? 690 : sixMonthGrossAverage <= 75000 ? 1025 : 1250) : 0';
 
 const toDateOnlyString = (value) => {
   if (!value) return null;
@@ -90,6 +91,38 @@ const buildDefaultPayPeriod = (baseDateValue) => {
     payPeriodStart: toDateOnlyString(start),
     payPeriodEnd: toDateOnlyString(end),
   };
+};
+
+const getMonthsInRange = (startDateOnly, endDateOnly) => {
+  const start = new Date(`${startDateOnly}T00:00:00Z`);
+  const end = new Date(`${endDateOnly}T00:00:00Z`);
+  const seen = new Set();
+  const months = [];
+  const cursor = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1));
+  const finish = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), 1));
+  while (cursor <= finish) {
+    const month = cursor.getUTCMonth() + 1;
+    const year = cursor.getUTCFullYear();
+    const key = `${year}-${String(month).padStart(2, '0')}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      months.push({ year, month, key });
+    }
+    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  }
+  return months;
+};
+
+const isProfessionalTaxComponent = (component) => {
+  const code = String(component?.code || '').trim().toUpperCase();
+  const name = String(component?.name || '').trim().toLowerCase();
+  return component?.type === 'Deduction' && (
+    code === 'PT' ||
+    code === 'PTAX' ||
+    code === 'PROFESSIONAL_TAX' ||
+    code === 'PROFESSIONALTAX' ||
+    name === 'professional tax'
+  );
 };
 
 const setContextValue = (context, key, value) => {
@@ -188,6 +221,26 @@ const buildFormulaContext = async ({
   context.payPeriodEnd = resolvedPayPeriodEnd;
   context.periodStart = resolvedPayPeriodStart;
   context.periodEnd = resolvedPayPeriodEnd;
+  const monthsInRange = getMonthsInRange(resolvedPayPeriodStart, resolvedPayPeriodEnd);
+  const periodMonthNumbers = monthsInRange.map((m) => m.month);
+  const periodMonthKeys = monthsInRange.map((m) => m.key);
+  const isProfessionalTaxMonth = periodMonthNumbers.includes(2) || periodMonthNumbers.includes(9);
+  context.periodMonths = monthsInRange.length;
+  context.payPeriodMonths = monthsInRange.length;
+  context.monthsInPeriod = monthsInRange.length;
+  context.payMonths = periodMonthNumbers.join(',');
+  context.payMonthKeys = periodMonthKeys.join(',');
+  context.periodDays = Math.max(
+    1,
+    Math.floor((new Date(`${resolvedPayPeriodEnd}T00:00:00Z`) - new Date(`${resolvedPayPeriodStart}T00:00:00Z`)) / (24 * 60 * 60 * 1000)) + 1
+  );
+  context.isProfessionalTaxMonth = isProfessionalTaxMonth ? 1 : 0;
+  context.ptApplicableMonth = context.isProfessionalTaxMonth;
+  context.sixMonthGross = 0;
+  context.sixMonthGrossTotal = 0;
+  context.sixMonthGrossAverage = 0;
+  context.gross6Month = 0;
+  context.avgGross6Month = 0;
 
   let presentDays = toOptionalNonNegativeNumber(presentDaysOverride, 'presentDays');
   let leaveDays = toOptionalNonNegativeNumber(leaveDaysOverride, 'leaveDays');
@@ -368,7 +421,9 @@ const syncFormulaComponentsForSalaryMaster = async ({
   }
 
   for (const component of formulaComponents) {
-    const formula = String(component.formula || '').trim();
+    const formula = isProfessionalTaxComponent(component)
+      ? PROFESSIONAL_TAX_FORMULA
+      : String(component.formula || '').trim();
     if (!formula) {
       throw new Error(`Formula missing for component "${component.name}"`);
     }
