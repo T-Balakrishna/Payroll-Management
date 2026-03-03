@@ -3,6 +3,10 @@
 node_modules/
 **/node_modules/
 **/scripts/
+!scripts/
+scripts/*
+!scripts/dailyReportService.js
+!scripts/celebrationMailService.js
 
 # Logs
 npm-debug.log*

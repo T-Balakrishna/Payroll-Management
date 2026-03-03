@@ -9,8 +9,10 @@ import dotenv from 'dotenv';
 dotenv.config();
 import db from './models/index.js';
 import mountRoutes from './routes/mountRoutes.js';
-import { startAttendanceScheduler } from './services/processAttendance.js';
+import { startAttendanceScheduler } from './scripts/processAttendance.js';
 import { seedInitialUser } from './services/seedInitialUser.js';
+import { startDailyReportScheduler } from './scripts/dailyReportService.js';
+import { startCelebrationMailScheduler } from './scripts/celebrationMailService.js';
 const app = express();
 const PORT = process.env.PORT || 5000;
 const shouldSync = process.env.DB_SYNC === "true";
@@ -55,20 +57,14 @@ db.sequelize.authenticate()
       console.log('DB sync disabled (DB_SYNC != "true").');
     }
 
-    if (String(process.env.SEED_INITIAL_USER || "true").toLowerCase() === "true") {
-      await seedInitialUser(db);
-    } else {
-      console.log('Initial user seed disabled (SEED_INITIAL_USER != true).');
-    }
+    // await seedInitialUser(db);
 
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
       console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-      // if (String(process.env.ATTENDANCE_CRON_ENABLED || "true").toLowerCase() === "true") {
-        // startAttendanceScheduler();
-      // } else {
-      //   console.log("Attendance cron disabled (ATTENDANCE_CRON_ENABLED != true).");
-      // }
+      // startAttendanceScheduler();
+      // startDailyReportScheduler();
+      // startCelebrationMailScheduler();
     });
   })
   .catch(err => {

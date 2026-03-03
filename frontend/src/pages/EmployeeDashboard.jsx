@@ -41,6 +41,18 @@ export default function EmployeeDashboard() {
     });
   };
 
+  const formatLeaveDays = (value) => {
+    const days = Number(value);
+    if (!Number.isFinite(days) || days <= 0) return "0";
+    if (days === 0.5) return "1/2";
+    if (Number.isInteger(days)) return String(days);
+    if (Math.abs(days % 1 - 0.5) < 0.0001) {
+      const whole = Math.floor(days);
+      return whole > 0 ? `${whole} 1/2` : "1/2";
+    }
+    return String(days).replace(/\.0+$/, "");
+  };
+
   useEffect(() => {
     const fetchEmployeeData = async () => {
       if (!user?.id) return;
@@ -126,10 +138,12 @@ export default function EmployeeDashboard() {
         const leaveData = res.data.map((l) => ({
           from_date: l.startDate ? formatDate(l.startDate) : "N/A",
           to_date: l.endDate ? formatDate(l.endDate) : "N/A",
+          leave_days: formatLeaveDays(l.totalDays),
+          raw_start_date: l.startDate || null,
           description: l.reason || "N/A",
           status: l.status || "Pending",
         }));
-        setLeaves(leaveData.sort((a, b) => new Date(b.from_date) - new Date(a.from_date)));
+        setLeaves(leaveData.sort((a, b) => new Date(b.raw_start_date || 0) - new Date(a.raw_start_date || 0)));
       } catch (err) {
         console.error("Error fetching leaves:", err);
         toast.error("Failed to load leave history");
@@ -215,6 +229,7 @@ export default function EmployeeDashboard() {
                 <tr className="border-b border-gray-100 bg-gray-50">
                   <th className="text-left py-3.5 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider">From Date</th>
                   <th className="text-left py-3.5 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider">To Date</th>
+                  <th className="text-left py-3.5 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider">No. of Days</th>
                   <th className="text-left py-3.5 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider">Reason</th>
                   <th className="text-left py-3.5 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
                 </tr>
@@ -225,13 +240,14 @@ export default function EmployeeDashboard() {
                     <tr key={idx} className="border-b border-gray-50 hover:bg-gray-50 transition-colors duration-150">
                       <td className="py-4 px-6 text-sm text-gray-700">{row.from_date}</td>
                       <td className="py-4 px-6 text-sm text-gray-700">{row.to_date}</td>
+                      <td className="py-4 px-6 text-sm text-gray-700">{row.leave_days}</td>
                       <td className="py-4 px-6 text-sm text-gray-500 max-w-xs truncate">{row.description}</td>
                       <td className="py-4 px-6">{getStatusBadge(row.status)}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="4" className="text-center py-12 text-gray-400 text-sm">No leave records found</td>
+                    <td colSpan="5" className="text-center py-12 text-gray-400 text-sm">No leave records found</td>
                   </tr>
                 )}
               </tbody>

@@ -19,11 +19,12 @@ export default function DepartmentForm({
   const normalizeRole = (role) => String(role || "").replace(/\s+/g, "").toLowerCase();
   const isSuperAdmin = normalizeRole(userRole) === "superadmin";
   const currentUserId = user?.userId ?? user?.id ?? null;
+  const effectiveAdminCompanyId = selectedCompanyId || user?.companyId || "";
 
   const [departmentName, setDepartmentName] = useState(editData?.departmentName || "");
   const [departmentAcr, setDepartmentAcr] = useState(editData?.departmentAcr || "");
   const [companyId, setCompanyId] = useState(
-    editData?.companyId || (!isSuperAdmin ? selectedCompanyId : "")
+    editData?.companyId || (!isSuperAdmin ? effectiveAdminCompanyId : "")
   );
   const [companies, setCompanies] = useState([]);
 
@@ -31,10 +32,10 @@ export default function DepartmentForm({
     const id = setTimeout(() => {
       setDepartmentName(editData?.departmentName || "");
       setDepartmentAcr(editData?.departmentAcr || "");
-      setCompanyId(editData?.companyId || (!isSuperAdmin ? selectedCompanyId : ""));
+      setCompanyId(editData?.companyId || (!isSuperAdmin ? effectiveAdminCompanyId : ""));
     }, 0);
     return () => clearTimeout(id);
-  }, [editData, isSuperAdmin, selectedCompanyId]);
+  }, [editData, isSuperAdmin, effectiveAdminCompanyId]);
 
   useEffect(() => {
     if (!isSuperAdmin && (selectedCompanyName || !selectedCompanyId)) {
@@ -66,11 +67,11 @@ export default function DepartmentForm({
 
   const adminCompanyName = useMemo(() => {
     if (selectedCompanyName) return selectedCompanyName;
-    if (!selectedCompanyId) return "No company selected";
+    if (!effectiveAdminCompanyId) return "No company selected";
 
-    const match = companies.find((c) => String(c.companyId) === String(selectedCompanyId));
-    return match?.companyName || `Company #${selectedCompanyId}`;
-  }, [selectedCompanyId, selectedCompanyName, companies]);
+    const match = companies.find((c) => String(c.companyId) === String(effectiveAdminCompanyId));
+    return match?.companyName || `Company #${effectiveAdminCompanyId}`;
+  }, [effectiveAdminCompanyId, selectedCompanyName, companies]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -78,6 +79,9 @@ export default function DepartmentForm({
     if (!departmentName.trim()) return toast.error("Department Name is required");
     if (!departmentAcr.trim()) return toast.error("Acronym is required");
     if (isSuperAdmin && !companyId) return toast.error("Please select a company");
+    if (!isSuperAdmin && !effectiveAdminCompanyId) {
+      return toast.error("Company is not resolved for current user");
+    }
 
     const normalizeStatus = (rawStatus) => {
       const value = String(rawStatus || "").trim().toLowerCase();
@@ -90,7 +94,7 @@ export default function DepartmentForm({
       departmentName: departmentName.trim(),
       departmentAcr: departmentAcr.trim().toUpperCase(),
       status: normalizeStatus(editData?.status),
-      companyId: companyId || selectedCompanyId,
+      companyId: companyId || effectiveAdminCompanyId,
       createdBy: editData?.createdBy || currentUserId,
       updatedBy: currentUserId,
     };

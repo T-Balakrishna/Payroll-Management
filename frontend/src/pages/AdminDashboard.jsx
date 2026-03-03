@@ -204,8 +204,20 @@ const AdminDashboard = () => {
 
     const currentRole = user.role || '';
     setRole(currentRole);
+    const normalizedRole = normalizeRole(currentRole);
 
-    if (normalizeRole(currentRole) === 'superadmin') {
+    if (normalizedRole !== 'superadmin') {
+      const fallbackCompanyId = user.companyId || user.company?.companyId || null;
+      const fallbackCompanyName = user.companyName || user.company?.companyName || '';
+      if (fallbackCompanyId) {
+        setCompanyId((prev) => prev || fallbackCompanyId);
+      }
+      if (fallbackCompanyName) {
+        setCompanyName((prev) => prev || fallbackCompanyName);
+      }
+    }
+
+    if (normalizedRole === 'superadmin') {
       fetchCompanies();
     }
 
@@ -219,7 +231,7 @@ const AdminDashboard = () => {
         })
         .catch(() => {});
 
-      if (normalizeRole(currentRole) === 'departmentadmin') {
+      if (normalizedRole === 'departmentadmin') {
         API.get(`/users/getDepartment/${user.userNumber}`)
           .then((res) => {
             if (res?.data) {
