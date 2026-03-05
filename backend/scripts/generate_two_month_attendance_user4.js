@@ -595,6 +595,7 @@ async function seedUsersAndEmployees({ company, roles, departments, designations
       personalEmail: user.userMail,
       officialEmail: user.userMail,
       departmentId: user.departmentId,
+      roleId: user.roleId || seed.roleId || null,
       designationId,
       dateOfJoining: "2025-06-01",
       status: "Active",
@@ -793,6 +794,7 @@ async function assignEmployeeProfiles({
     await employee.update({
       biometricNumber: employee.biometricNumber || `BIO${employee.staffNumber}`,
       companyId: company.companyId,
+      roleId: seed.roleId || employee.roleId || null,
       designationId: designation?.designationId || employee.designationId,
       employeeGradeId: grade?.employeeGradeId || employee.employeeGradeId,
       shiftTypeId: shiftType?.shiftTypeId || employee.shiftTypeId,

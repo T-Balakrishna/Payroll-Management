@@ -7,6 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon server.js",
     "dev": "nodemon server.js",
+    "daily-report:run-once": "node scripts/dailyReportService.js",
+    "celebration-mail:run-once": "node scripts/celebrationMailService.js",
     "migrate:add-staff-roleid": "node scripts/addRoleIdToStaffDetails.js",
     "db:sync:alter": "node scripts/syncModelsAlter.js",
     "db:sync:alter:models": "node scripts/syncModelsAlter.js --models="
