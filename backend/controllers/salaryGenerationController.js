@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
+import { readFile } from 'fs/promises';
 import formulaEvaluator from './formulaEvaluator.js';
 import db from '../models/index.js';
 
@@ -12,6 +13,7 @@ const {
   SalaryComponent,
   Attendance,
   LeaveType,
+  Company,
 } = db;
 
 const toInt = (value) => {
@@ -153,6 +155,58 @@ const parseLeaveTypeFromStatus = (status = '') => {
 };
 
 const normalize = (value = '') => String(value || '').trim().toLowerCase();
+const toFileSafeToken = (value = '') => String(value || '')
+  .trim()
+  .replace(/[<>:"/\\|?*\x00-\x1F]/g, '')
+  .replace(/\s+/g, '_')
+  .replace(/_+/g, '_')
+  .replace(/^_+|_+$/g, '');
+const formatCurrencyINR = (value) => `₹ ${Number(value || 0).toLocaleString('en-IN', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})}`;
+const formatDateDDMMYYYY = (value) => {
+  const dateText = String(value || '').trim();
+  if (!dateText) return '-';
+  const parts = dateText.split('-');
+  if (parts.length !== 3) return dateText;
+  return `${parts[2]}-${parts[1]}-${parts[0]}`;
+};
+const NUMBER_WORDS_SMALL = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+  'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+const NUMBER_WORDS_TENS = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+const numberToWords = (num) => {
+  const n = Number.parseInt(String(num), 10);
+  if (!Number.isFinite(n) || n < 0) return 'Zero';
+  if (n < 20) return NUMBER_WORDS_SMALL[n];
+  if (n < 100) {
+    const tens = Math.floor(n / 10);
+    const rem = n % 10;
+    return `${NUMBER_WORDS_TENS[tens]}${rem ? ` ${NUMBER_WORDS_SMALL[rem]}` : ''}`;
+  }
+  if (n < 1000) {
+    const hundreds = Math.floor(n / 100);
+    const rem = n % 100;
+    return `${NUMBER_WORDS_SMALL[hundreds]} Hundred${rem ? ` ${numberToWords(rem)}` : ''}`;
+  }
+  if (n < 100000) {
+    const thousands = Math.floor(n / 1000);
+    const rem = n % 1000;
+    return `${numberToWords(thousands)} Thousand${rem ? ` ${numberToWords(rem)}` : ''}`;
+  }
+  if (n < 10000000) {
+    const lakhs = Math.floor(n / 100000);
+    const rem = n % 100000;
+    return `${numberToWords(lakhs)} Lakh${rem ? ` ${numberToWords(rem)}` : ''}`;
+  }
+  const crores = Math.floor(n / 10000000);
+  const rem = n % 10000000;
+  return `${numberToWords(crores)} Crore${rem ? ` ${numberToWords(rem)}` : ''}`;
+};
+const amountToWordsINR = (amount) => {
+  const rounded = Math.round(Number(amount || 0));
+  return `INR ${numberToWords(rounded)} only.`;
+};
 
 const parseRemarksJson = (remarks) => {
   if (!remarks) return {};
@@ -900,9 +954,16 @@ export const downloadSalaryGenerationPdf = async (req, res) => {
     const salaryYear = toInt(req.query.salaryYear);
     const fromDate = req.query.fromDate;
     const toDate = req.query.toDate;
+    const requestedStaffId = req.query.staffId;
+    const staffId = requestedStaffId !== undefined && requestedStaffId !== null && String(requestedStaffId).trim() !== ''
+      ? toInt(requestedStaffId)
+      : null;
 
     if (!companyId) {
       return res.status(400).json({ error: 'companyId is required' });
+    }
+    if ((requestedStaffId !== undefined && requestedStaffId !== null && String(requestedStaffId).trim() !== '') && !staffId) {
+      return res.status(400).json({ error: 'staffId must be a valid number' });
     }
 
     const where = { companyId };
@@ -926,6 +987,221 @@ export const downloadSalaryGenerationPdf = async (req, res) => {
       where.salaryYear = salaryYear;
       periodLabel = `${salaryYear}-${String(salaryMonth).padStart(2, '0')}`;
       filePeriodLabel = periodLabel;
+    }
+    if (staffId) {
+      where.staffId = staffId;
+    }
+
+    if (staffId) {
+      const record = await SalaryGeneration.findOne({
+        where,
+        include: [
+          {
+            model: Employee,
+            as: 'employee',
+            include: [
+              { model: db.Department, as: 'department', required: false },
+              { model: db.Designation, as: 'designation', required: false },
+            ],
+          },
+          { model: Company, as: 'company' },
+          { model: SalaryGenerationDetail, as: 'salaryGenerationDetails' },
+        ],
+        order: [[{ model: SalaryGenerationDetail, as: 'salaryGenerationDetails' }, 'componentName', 'ASC']],
+      });
+
+      if (!record) {
+        return res.status(404).json({ message: 'No salary generation record found for the selected employee and period' });
+      }
+
+      const employeeName = `${record.employee?.firstName || ''} ${record.employee?.lastName || ''}`.trim() || 'Employee';
+      const staffNumber = String(record.employee?.staffNumber || record.staffId || '').trim() || 'Staff';
+      const safeEmployeeName = toFileSafeToken(employeeName) || 'Employee';
+      const safeStaffNumber = toFileSafeToken(staffNumber) || 'Staff';
+      const fileName = `${safeEmployeeName}_${safeStaffNumber}.pdf`;
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
+
+      const doc = new PDFDocument({ size: 'A4', margin: 40 });
+      doc.pipe(res);
+
+      const allDetails = Array.isArray(record.salaryGenerationDetails) ? record.salaryGenerationDetails : [];
+      const earnings = allDetails
+        .filter((item) => String(item.componentType || '').toLowerCase() === 'earning')
+        .sort((a, b) => String(a.componentName || '').localeCompare(String(b.componentName || '')));
+      const deductions = allDetails
+        .filter((item) => String(item.componentType || '').toLowerCase() === 'deduction')
+        .sort((a, b) => String(a.componentName || '').localeCompare(String(b.componentName || '')));
+      const startDate = record.payPeriodStart || where.payPeriodStart || toDateOnly(fromDate);
+      const endDate = record.payPeriodEnd || where.payPeriodEnd || toDateOnly(toDate);
+      const workingDays = Number(record.workingDays || (
+        startDate && endDate ? daysBetweenInclusive(startDate, endDate) : 0
+      ));
+      const leaveWithoutPay = Number(record.unpaidLeaveDays || 0);
+      const absentDays = Number(record.absentDays || 0);
+      const paymentDays = Math.max(0, Number((workingDays - leaveWithoutPay - absentDays).toFixed(2)));
+      const companyName = String(record.company?.companyName || 'NATIONAL ENGINEERING COLLEGE').trim();
+      const deptName = record.employee?.department?.departmentName || '-';
+      const designationName = record.employee?.designation?.designationName || '-';
+      const bankAccountNo = record.employee?.bankAccountNumber || '-';
+      const salarySlipNo = `SAL SLIP/XXXXXXXXXX/${String(record.salaryGenerationId).padStart(5, '0')}`;
+
+      const loadLogoBuffer = async () => {
+        try {
+          const localLogoUrl = new URL('../../frontend/src/assets/neclogo.png', import.meta.url);
+          return await readFile(localLogoUrl);
+        } catch (error) {
+          return null;
+        }
+      };
+      const logoBuffer = await loadLogoBuffer();
+
+      const blue = '#1f3d97';
+      const dark = '#111111';
+      const grey = '#666666';
+      let fontRegular = 'Helvetica';
+      let fontBold = 'Helvetica-Bold';
+      try {
+        doc.registerFont('SlipRegular', 'C:\\Windows\\Fonts\\arial.ttf');
+        doc.registerFont('SlipBold', 'C:\\Windows\\Fonts\\arialbd.ttf');
+        fontRegular = 'SlipRegular';
+        fontBold = 'SlipBold';
+      } catch (error) {
+        // Keep built-in fonts when Arial is unavailable.
+      }
+      doc.rect(0, 0, doc.page.width, doc.page.height).fill('#ffffff');
+      doc.fillColor(dark);
+
+      let y = 28;
+      if (logoBuffer) {
+        doc.image(logoBuffer, 45, y + 1, { width: 60, height: 60 });
+      } else {
+        doc.circle(76, y + 26, 26).lineWidth(1).stroke(blue);
+        doc.font(fontBold).fontSize(10).fillColor(blue).text('NEC', 62, y + 21);
+      }
+
+      doc.fillColor(dark).font(fontBold).fontSize(20).text('NATIONAL ENGINEERING COLLEGE', 115, y + 5);
+      doc.fillColor(blue).font(fontRegular).fontSize(10).text('(An Autonomous Institution Affiliated to Anna University, Chennai)', 115, y + 33);
+      doc.fillColor(blue).font(fontBold).fontSize(14).text('K.R.Nagar, Kovilpatti - 628 503.', 115, y + 48);
+
+      doc.fillColor(dark).font(fontBold).fontSize(18).text('SALARY SLIP', 0, y + 83, { align: 'right' });
+      doc.fillColor(grey).font(fontRegular).fontSize(11).text(salarySlipNo, 0, y + 118, { align: 'right' });
+
+      const dividerY = y + 128;
+      doc.moveTo(40, dividerY).lineTo(doc.page.width - 40, dividerY).lineWidth(1.5).stroke(blue);
+
+      const leftX = 40;
+      const rightX = 348;
+      const leftLabelW = 132;
+      const leftValueW = 168;
+      const rightLabelW = 126;
+      const rightValueW = 74;
+      const rowH = 24;
+      let infoY = dividerY + 14;
+      const leftRows = [
+        ['Employee:', staffNumber],
+        ['Company:', companyName.toUpperCase()],
+        ['Employee Name:', employeeName],
+        ['Department:', deptName.toUpperCase()],
+        ['Designation:', designationName],
+        ['Bank Account No.:', bankAccountNo],
+      ];
+      const rightRows = [
+        ['Start Date:', startDate ? formatDateDDMMYYYY(startDate) : '-'],
+        ['End Date:', endDate ? formatDateDDMMYYYY(endDate) : '-'],
+        ['Working Days:', Number(workingDays || 0).toFixed(0)],
+        ['Payment Days:', Number(paymentDays || 0).toFixed(0)],
+        ['Leave Without Pay:', Number(leaveWithoutPay || 0).toFixed(0)],
+        ['Absent Days:', Number(absentDays || 0).toFixed(0)],
+      ];
+
+      leftRows.forEach((row, idx) => {
+        const yy = infoY + (idx * rowH);
+        doc.font(fontBold).fontSize(10).fillColor(dark).text(row[0], leftX, yy, { width: leftLabelW });
+        doc.font(fontRegular).fontSize(10).text(row[1], leftX + leftLabelW, yy, {
+          width: leftValueW,
+          ellipsis: true,
+          lineBreak: false,
+        });
+      });
+      rightRows.forEach((row, idx) => {
+        const yy = infoY + (idx * rowH);
+        doc.font(fontBold).fontSize(10).fillColor(dark).text(row[0], rightX, yy, { width: rightLabelW });
+        doc.font(fontRegular).fontSize(10).text(row[1], rightX + rightLabelW, yy, {
+          width: rightValueW,
+          align: 'right',
+          ellipsis: true,
+          lineBreak: false,
+        });
+      });
+
+      const tableTop = infoY + (leftRows.length * rowH) + 16;
+      const contentW = doc.page.width - (doc.page.margins.left + doc.page.margins.right);
+      const tableGap = 22;
+      const tableW = Math.floor((contentW - tableGap) / 2);
+      const srW = 36;
+      const amtW = 95;
+      const compW = tableW - srW - amtW;
+      const leftTableX = doc.page.margins.left;
+      const rightTableX = leftTableX + tableW + tableGap;
+      const headH = 24;
+      const bodyH = 27;
+
+      const drawTable = (x, top, rows) => {
+        doc.rect(x, top, tableW, headH).fill(blue);
+        doc.fillColor('#ffffff').font(fontBold).fontSize(10);
+        doc.text('Sr', x + 6, top + 7, { width: srW - 12 });
+        doc.text('Component', x + srW + 6, top + 7, { width: compW - 12 });
+        doc.text('Amount', x + srW + compW + 6, top + 7, { width: amtW - 12, align: 'right' });
+
+        let yy = top + headH;
+        const renderRows = rows.length > 0 ? rows : [{ componentName: '-', calculatedAmount: 0 }];
+        renderRows.forEach((item, idx) => {
+          const amount = Number(item?.calculatedAmount ?? item?.proratedAmount ?? item?.baseAmount ?? 0);
+          doc.rect(x, yy, srW, bodyH).fillAndStroke('#ffffff', '#c6ccd6');
+          doc.rect(x + srW, yy, compW, bodyH).fillAndStroke('#ffffff', '#c6ccd6');
+          doc.rect(x + srW + compW, yy, amtW, bodyH).fillAndStroke('#ffffff', '#c6ccd6');
+          doc.fillColor(dark).font(fontRegular).fontSize(9);
+          doc.text(String(idx + 1), x + 6, yy + 8, { width: srW - 12 });
+          doc.text(String(item.componentName || '-'), x + srW + 6, yy + 8, {
+            width: compW - 12,
+            ellipsis: true,
+            lineBreak: false,
+          });
+          doc.text(formatCurrencyINR(amount), x + srW + compW + 6, yy + 8, { width: amtW - 12, align: 'right' });
+          yy += bodyH;
+        });
+        return yy;
+      };
+
+      const leftEndY = drawTable(leftTableX, tableTop, earnings);
+      const rightEndY = drawTable(rightTableX, tableTop, deductions);
+      const baseY = Math.max(leftEndY, rightEndY) + 24;
+
+      const totalsX = rightTableX - 22;
+      const totalsLabelW = 130;
+      const totalsValueW = 160;
+      const netAmount = Number(record.netSalary || 0);
+      const roundedTotal = Math.round(netAmount);
+      const totals = [
+        ['Gross Pay:', formatCurrencyINR(record.grossSalary || 0), false],
+        ['Total Deduction:', formatCurrencyINR(record.totalDeductions || 0), false],
+        ['Net Pay:', formatCurrencyINR(netAmount), false],
+        ['Rounded Total:', formatCurrencyINR(roundedTotal), true],
+        ['Total in words:', amountToWordsINR(roundedTotal), false],
+      ];
+
+      totals.forEach((row, idx) => {
+        const yy = baseY + (idx * 24);
+        doc.font(fontBold).fontSize(10).fillColor(dark).text(row[0], totalsX, yy, { width: totalsLabelW });
+        doc.font(row[2] ? fontBold : fontRegular).fontSize(row[2] ? 13 : 10).text(row[1], totalsX + totalsLabelW + 6, yy, {
+          width: totalsValueW,
+          align: row[0] === 'Total in words:' ? 'left' : 'right',
+        });
+      });
+      doc.end();
+      return;
     }
 
     const records = await SalaryGeneration.findAll({

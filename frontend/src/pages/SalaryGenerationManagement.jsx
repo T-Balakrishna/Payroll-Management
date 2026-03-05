@@ -199,6 +199,51 @@ export default function SalaryGenerationManagement({ selectedCompanyId }) {
     }
   };
 
+  const handleDownloadEmployeeSlip = async (row) => {
+    if (!companyId || !fromDate || !toDate || !row?.staffId) {
+      toast.error('Missing company, date range, or employee');
+      return;
+    }
+    try {
+      const res = await API.get('/salaryGenerations/download-pdf', {
+        params: {
+          companyId,
+          fromDate,
+          toDate,
+          staffId: row.staffId,
+        },
+        responseType: 'blob',
+      });
+      const contentType = String(res?.headers?.['content-type'] || '').toLowerCase();
+      if (contentType.includes('application/json')) {
+        const text = await res.data.text();
+        let parsed = {};
+        try {
+          parsed = JSON.parse(text);
+        } catch (jsonErr) {
+          parsed = {};
+        }
+        throw new Error(parsed.error || parsed.message || 'Failed to download salary slip');
+      }
+
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const contentDisposition = String(res?.headers?.['content-disposition'] || '');
+      const nameMatch = /filename="?([^"]+)"?/i.exec(contentDisposition);
+      const employeeName = `${row.employee?.firstName || ''} ${row.employee?.lastName || ''}`.trim().replace(/\s+/g, '_');
+      const employeeNo = String(row.employee?.staffNumber || row.staffId || '').trim();
+      link.download = nameMatch?.[1] || `${employeeName || 'Employee'}_${employeeNo || 'Staff'}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      toast.error(error?.message || 'Failed to download salary slip');
+    }
+  };
+
   return (
     <div className="h-full flex flex-col gap-4 px-6">
       <div className="bg-white border rounded-lg p-4 flex flex-wrap items-end gap-3">
@@ -253,12 +298,13 @@ export default function SalaryGenerationManagement({ selectedCompanyId }) {
           'Unpaid Leave',
           'Gross',
           'Net',
+          'Slip',
         ]}
         loading={loading}
       >
         {rows.length === 0 ? (
           <tr>
-            <td className="py-4 px-4 text-center text-gray-500" colSpan={9}>No generated records</td>
+            <td className="py-4 px-4 text-center text-gray-500" colSpan={10}>No generated records</td>
           </tr>
         ) : (
           rows.map((row) => (
@@ -276,6 +322,11 @@ export default function SalaryGenerationManagement({ selectedCompanyId }) {
               <td className="py-3 px-4">{row.unpaidLeaveDays}</td>
               <td className="py-3 px-4">{row.grossSalary}</td>
               <td className="py-3 px-4">{row.netSalary}</td>
+              <td className="py-3 px-4">
+                <Button type="button" variant="secondary" onClick={() => handleDownloadEmployeeSlip(row)}>
+                  Download Slip
+                </Button>
+              </td>
             </tr>
           ))
         )}

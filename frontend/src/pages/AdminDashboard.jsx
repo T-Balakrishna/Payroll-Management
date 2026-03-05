@@ -44,9 +44,9 @@ import AllotedLeaveMaster from './AllotedLeaveMaster.jsx';
 // import LeaveRequestManagement from './LeaveRequestManagement.jsx';
 import LeaveApproval from './LeaveApproval.jsx';
 import LeaveHistory from './LeaveHistory.jsx';
-import SalaryComponentManagement from './SalaryComponentMaster.jsx';
+import SalaryComponentMaster from './SalaryComponentMaster.jsx';
 import SalaryAssignmentMaster from './SalaryAssignmentMaster.jsx';
-// import SalaryGenerationManagement from './SalaryGenerationManagement.jsx';
+import SalaryGenerationManagement from './SalaryGenerationManagement.jsx';
 // import SalaryRevisionHistory from './SalaryRevisionHistory.jsx';
 // import EmployeeLoanManagement from './EmployeeLoanManagement.jsx';
 // import StatutoryReports from './StatutoryReports.jsx';
@@ -265,9 +265,9 @@ const AdminDashboard = () => {
       { id: 'leaveHistory', label: t('requestHistory'), icon: History, color: 'text-slate-400', category: 'Leave' },
       { id: 'holidayPlan', label: t('Holiday Master'), icon: Calendar, color: 'text-yellow-600', category: 'Leave' },
 
-      { id: 'salaryComponent', label: t('Salary Component Master'), icon: HandCoins, color: 'text-emerald-500', category: 'Organization' },
+      { id: 'salaryComponent', label: t('Salary Component Master'), icon: HandCoins, color: 'text-emerald-500', category: 'Payroll' },
       { id: 'salaryMaster', label: t('Salary Assignment Master'), icon: Landmark, color: 'text-emerald-700', category: 'Payroll' },
-      { id: 'salaryGeneration', label: t('processPayroll'), icon: Receipt, color: 'text-blue-600', category: 'Payroll' },
+      { id: 'salaryGeneration', label: t('Salary Generation'), icon: Receipt, color: 'text-blue-600', category: 'Payroll' },
       { id: 'salaryRevision', label: t('revisionHistory'), icon: History, color: 'text-slate-500', category: 'Payroll' },
       { id: 'employeeLoan', label: t('loansAdvances'), icon: HandCoins, color: 'text-amber-600', category: 'Payroll' },
 
@@ -464,14 +464,14 @@ const AdminDashboard = () => {
       case "leavePolicy": return <LeavePolicyManagement {...common} />;
       case "leaveAllocation": return <LeaveAllocation {...common} />;
       case "allotedLeave": return <AllotedLeaveMaster {...common} />;
-      // case "leaveRequest": return <LeaveRequestManagement {...common} />;
+      case "leaveRequest": return <LeaveRequestManagement {...common} />;
       case "leaveApproval": return <LeaveApproval {...common} />;
       case "leaveHistory": return <LeaveHistory {...common} />;
-      case "salaryComponent": return <SalaryComponentManagement {...common} />;
+      case "salaryComponent": return <SalaryComponentMaster {...common} />;
       case "salaryMaster": return <SalaryAssignmentMaster {...common} />;
-      // case "salaryGeneration": return <SalaryGenerationManagement {...common} />;
-      // case "salaryRevision": return <SalaryRevisionHistory {...common} />;
-      // case "employeeLoan": return <EmployeeLoanManagement {...common} />;
+      case "salaryGeneration": return <SalaryGenerationManagement {...common} />;
+      case "salaryRevision": return <SalaryRevisionHistory {...common} />;
+      case "employeeLoan": return <EmployeeLoanManagement {...common} />;
       // case "reportgenerator": return <ReportGenerator {...common} />;
       // case "statutory": return <StatutoryReports {...common} />;
       default: return renderDashboard();
