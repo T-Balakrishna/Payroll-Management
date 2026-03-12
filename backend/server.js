@@ -9,6 +9,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 import db from './models/index.js';
 import mountRoutes from './routes/mountRoutes.js';
+import { csrfProtection, csrfTokenHandler } from './middleware/csrfProtection.js';
 import { startAttendanceScheduler } from './scripts/processAttendance.js';
 import { seedInitialUser } from './services/seedInitialUser.js';
 import { startDailyReportScheduler } from './scripts/dailyReportService.js';
@@ -20,14 +21,20 @@ const shouldAlter = process.env.DB_SYNC_ALTER === "true";
 
 // Middleware
 app.use(helmet());
+const frontendPort = process.env.FRONTEND_PORT || 5173;
+const frontendOrigin = process.env.FRONTEND_ORIGIN || `http://localhost:${frontendPort}`;
 app.use(cors({
-  origin: "http://localhost:5173",
-  credentials: true
+  origin: frontendOrigin,
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-XSRF-TOKEN']
 }));
 app.use(morgan('combined'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use(csrfProtection);
+
+app.get('/api/csrf', csrfTokenHandler);
 
 // Health & root endpoints
 app.get('/', (req, res) => {

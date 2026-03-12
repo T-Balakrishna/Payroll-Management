@@ -35,6 +35,7 @@ export default function SalaryGenerationManagement({ selectedCompanyId }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [sendingMail, setSendingMail] = useState(false);
   const [absentEmployees, setAbsentEmployees] = useState([]);
   const selectedMonth = useMemo(() => Number.parseInt(String(fromDate || '').slice(5, 7), 10) || 0, [fromDate]);
   const selectedYear = useMemo(() => Number.parseInt(String(fromDate || '').slice(0, 4), 10) || 0, [fromDate]);
@@ -244,6 +245,31 @@ export default function SalaryGenerationManagement({ selectedCompanyId }) {
     }
   };
 
+  const handleSendMail = async () => {
+    if (!companyId || !fromDate || !toDate) {
+      toast.error('Select company and date range first');
+      return;
+    }
+    if (fromDate > toDate) {
+      toast.error('From date must be before or equal to To date');
+      return;
+    }
+    setSendingMail(true);
+    try {
+      const res = await API.post('/salaryGenerations/send-mail', {
+        companyId,
+        fromDate,
+        toDate,
+      });
+      const data = res?.data || {};
+      toast.success(`Mail sent: ${data.sent || 0} sent, ${data.skippedNoEmail || 0} skipped, ${data.failed || 0} failed`);
+    } catch (error) {
+      toast.error(error?.response?.data?.error || error?.message || 'Failed to send mail');
+    } finally {
+      setSendingMail(false);
+    }
+  };
+
   return (
     <div className="h-full flex flex-col gap-4 px-6">
       <div className="bg-white border rounded-lg p-4 flex flex-wrap items-end gap-3">
@@ -273,6 +299,9 @@ export default function SalaryGenerationManagement({ selectedCompanyId }) {
         </Button>
         <Button type="button" variant="secondary" onClick={handleDownloadPdf} disabled={loading || rows.length === 0}>
           Download PDF
+        </Button>
+        <Button type="button" variant="secondary" onClick={handleSendMail} disabled={sendingMail || loading || rows.length === 0}>
+          {sendingMail ? 'Sending...' : 'Send Mail'}
         </Button>
       </div>
 

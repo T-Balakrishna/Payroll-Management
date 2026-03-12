@@ -1,8 +1,41 @@
 import axios from "axios";
 
+const backendPort = Number(import.meta.env.VITE_BACKEND_PORT) || 5000;
+const baseURL = `http://localhost:${backendPort}/api`;
+
 const API = axios.create({
-  baseURL: "http://localhost:5000/api",
-  withCredentials: true
+  baseURL,
+  withCredentials: true,
+});
+
+const CSRF_API = axios.create({
+  baseURL,
+  withCredentials: true,
+});
+
+let csrfTokenCache = null;
+const UNSAFE_METHODS = new Set(['post', 'put', 'patch', 'delete']);
+
+const ensureCsrfToken = async () => {
+  if (csrfTokenCache) return csrfTokenCache;
+  const res = await CSRF_API.get('/csrf');
+  const token = res?.data?.csrfToken;
+  if (token) {
+    csrfTokenCache = token;
+  }
+  return csrfTokenCache;
+};
+
+API.interceptors.request.use(async (config) => {
+  const method = String(config?.method || 'get').toLowerCase();
+  if (UNSAFE_METHODS.has(method)) {
+    const token = await ensureCsrfToken();
+    if (token) {
+      config.headers = config.headers || {};
+      config.headers['X-XSRF-TOKEN'] = token;
+    }
+  }
+  return config;
 });
 
 const DEFAULT_NAME_FIELDS = ["companyName", "departmentName", "designationName"];
