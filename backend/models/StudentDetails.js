@@ -57,6 +57,11 @@ export default (sequelize) => {
     city: { type: DataTypes.STRING(255) }, // Changed to text field
     pincode: { type: DataTypes.STRING(6), validate: { is: /^[0-9]{6}$/ } },
     personalPhone: { type: DataTypes.STRING(10), validate: { is: /^[6-9]\d{9}$/ } },
+    status: {
+      type: DataTypes.ENUM('Active', 'Inactive'),
+      allowNull: false,
+      defaultValue: 'Active',
+    },
     pending: {
       type: DataTypes.BOOLEAN,
       defaultValue: true

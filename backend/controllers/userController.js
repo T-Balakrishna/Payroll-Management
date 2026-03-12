@@ -14,6 +14,33 @@ const splitNameParts = (fullName = '') => {
   return { firstName: parts[0], lastName: parts.slice(1).join(' ') };
 };
 
+const getEmployeeSyncPayload = (user, fallbackUserNumber) => {
+  const { firstName, lastName } = splitNameParts(user.userName || user.userNumber || fallbackUserNumber);
+  return {
+    staffNumber: user.userNumber || fallbackUserNumber,
+    companyId: user.companyId,
+    departmentId: user.departmentId,
+    roleId: user.roleId,
+    firstName: firstName || user.userNumber || fallbackUserNumber,
+    lastName: lastName || null,
+    personalEmail: user.userMail,
+    officialEmail: user.userMail,
+    status: user.status,
+    employmentStatus: user.status === 'Inactive' ? 'Terminated' : 'Active',
+    updatedBy: user.updatedBy || null,
+  };
+};
+
+const getStudentSyncPayload = (user, fallbackUserNumber) => ({
+  studentName: user.userName || user.userNumber || fallbackUserNumber,
+  registerNumber: user.userNumber || fallbackUserNumber,
+  departmentId: user.departmentId || null,
+  companyId: user.companyId,
+  personalEmail: user.userMail,
+  status: user.status,
+  updatedBy: user.updatedBy || null,
+});
+
 // Get all users
 // In real usage: filter by companyId, role, status, departmentId, etc.
 export const getAllUsers = async (req, res) => {
@@ -151,6 +178,7 @@ export const createUser = async (req, res) => {
           registerNumber: user.userNumber,
           departmentId: user.departmentId || null,
           companyId: effectiveCompanyId,
+          status: user.status,
           staffId: employee?.staffId || null,
           createdBy: user.createdBy || null,
           updatedBy: user.updatedBy || null,
@@ -179,10 +207,12 @@ export const createUser = async (req, res) => {
 
 // Update user
 export const updateUser = async (req, res) => {
+  const transaction = await db.sequelize.transaction();
   try {
     const payload = { ...req.body };
-    const userExists = await User.findByPk(req.params.id);
+    const userExists = await User.findByPk(req.params.id, { transaction });
     if (!userExists) {
+      await transaction.rollback();
       return res.status(404).json({ message: 'User not found' });
     }
 
@@ -192,12 +222,14 @@ export const updateUser = async (req, res) => {
       payloadCompanyId: hasCompanyIdInPayload ? payload.companyId : undefined,
     });
     if (!companyContext.ok) {
+      await transaction.rollback();
       return res.status(companyContext.status).json({ error: companyContext.message });
     }
 
     if (companyContext.actor && !companyContext.isSuperAdmin) {
       payload.companyId = companyContext.effectiveCompanyId;
     } else if (hasCompanyIdInPayload && !companyContext.requestedCompanyId) {
+      await transaction.rollback();
       return res.status(400).json({ error: 'companyId must be a positive integer when provided' });
     }
 
@@ -209,25 +241,39 @@ export const updateUser = async (req, res) => {
       }
     }
 
+    const previousUserNumber = userExists.userNumber;
+
     const [updated] = await User.update(payload, {
-      where: { userId: req.params.id }
+      where: { userId: req.params.id },
+      transaction,
     });
 
     if (!updated) {
+      await transaction.rollback();
       return res.status(404).json({ message: 'User not found' });
     }
 
-    const user = await User.findByPk(req.params.id);
+    const user = await User.findByPk(req.params.id, { transaction });
 
     if (user) {
+      const employeeWhere = { staffNumber: previousUserNumber };
+      const studentWhere = { registerNumber: previousUserNumber };
+
       await Employee.update(
-        { roleId: user.roleId },
-        { where: { staffNumber: user.userNumber } }
+        getEmployeeSyncPayload(user, previousUserNumber),
+        { where: employeeWhere, transaction }
+      );
+
+      await StudentDetails.update(
+        getStudentSyncPayload(user, previousUserNumber),
+        { where: studentWhere, transaction }
       );
     }
 
+    await transaction.commit();
     res.json(user);
   } catch (error) {
+    await transaction.rollback();
     res.status(400).json({ error: error.message });
   }
 };
@@ -264,6 +310,7 @@ export const deleteUser = async (req, res) => {
         : {};
       await student.update(
         {
+          status: 'Inactive',
           pending: true,
           updatedBy: req.body?.updatedBy || user.updatedBy || null,
           messages: {

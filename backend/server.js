@@ -9,7 +9,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 import db from './models/index.js';
 import mountRoutes from './routes/mountRoutes.js';
-import { startAttendanceScheduler } from './scripts/processAttendance.js';
+// import { startAttendanceScheduler } from './scripts/processAttendance.js';
 import { seedInitialUser } from './services/seedInitialUser.js';
 import { startDailyReportScheduler } from './scripts/dailyReportService.js';
 import { startCelebrationMailScheduler } from './scripts/celebrationMailService.js';
