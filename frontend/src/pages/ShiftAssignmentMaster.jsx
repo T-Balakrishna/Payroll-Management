@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Calendar, ChevronDown, Pencil, Save, Search, Trash2, Users, X } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Pencil, Save, Search, Trash2, Users } from "lucide-react";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import API from "../api";
@@ -56,6 +56,27 @@ const matchesExperienceBand = (years, band) => {
   if (band === "5plus") return years >= 5;
   return true;
 };
+const toggleValue = (values, value) => {
+  const key = String(value);
+  return values.includes(key) ? values.filter((v) => v !== key) : [...values, key];
+};
+const buildQueryParams = (params) => {
+  const search = new URLSearchParams();
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value === null || value === undefined) return;
+    if (Array.isArray(value)) {
+      value
+        .map((v) => String(v))
+        .filter((v) => v !== "")
+        .forEach((v) => search.append(key, v));
+      return;
+    }
+    const text = String(value).trim();
+    if (!text) return;
+    search.append(key, text);
+  });
+  return search;
+};
 
 export default function ShiftAssignmentMaster({ userRole, selectedCompanyId, selectedCompanyName }) {
   const { user } = useAuth();
@@ -72,39 +93,52 @@ export default function ShiftAssignmentMaster({ userRole, selectedCompanyId, sel
   const [assignments, setAssignments] = useState([]);
 
   const [selectedDepts, setSelectedDepts] = useState([]);
+  const [appliedDepts, setAppliedDepts] = useState([]);
   const [selectedEmps, setSelectedEmps] = useState([]);
   const [allocatedShifts, setAllocatedShifts] = useState({});
   const [existingAssignments, setExistingAssignments] = useState({});
-  const [showDeptDropdown, setShowDeptDropdown] = useState(false);
   const [bulkShiftTypeId, setBulkShiftTypeId] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
-  const [gradeFilter, setGradeFilter] = useState("");
-  const [designationFilter, setDesignationFilter] = useState("");
-  const [experienceFilter, setExperienceFilter] = useState("");
+  const [roleFilters, setRoleFilters] = useState([]);
+  const [gradeFilters, setGradeFilters] = useState([]);
+  const [designationFilters, setDesignationFilters] = useState([]);
+  const [experienceFilters, setExperienceFilters] = useState([]);
+  const [appliedFilters, setAppliedFilters] = useState({
+    roleFilters: [],
+    gradeFilters: [],
+    designationFilters: [],
+    experienceFilters: [],
+  });
   const [status] = useState("Active");
   const [notes, setNotes] = useState("");
   const [search, setSearch] = useState("");
-  const dropdownRef = useRef(null);
 
   useEffect(() => {
     setSelectedDepts([]);
+    setAppliedDepts([]);
     setSelectedEmps([]);
     setAllocatedShifts({});
     setExistingAssignments({});
     setBulkShiftTypeId("");
-    setRoleFilter("");
-    setGradeFilter("");
-    setDesignationFilter("");
-    setExperienceFilter("");
+    setRoleFilters([]);
+    setGradeFilters([]);
+    setDesignationFilters([]);
+    setExperienceFilters([]);
+    setAppliedFilters({
+      roleFilters: [],
+      gradeFilters: [],
+      designationFilters: [],
+      experienceFilters: [],
+    });
     setSearch("");
+    setEmployees([]);
+    setAssignments([]);
   }, [selectedCompanyId]);
 
   const fetchLookups = useCallback(async () => {
-    const [deptResult, employeeResult, shiftTypeResult, gradeResult, designationResult, roleResult, userResult] = await Promise.allSettled([
+    const [deptResult, shiftTypeResult, gradeResult, designationResult, roleResult, userResult] = await Promise.allSettled([
       API.get("/departments", {
         params: selectedCompanyId ? { companyId: selectedCompanyId } : {},
       }),
-      API.get("/employees"),
       API.get("/shiftTypes", {
         params: selectedCompanyId ? { companyId: selectedCompanyId } : {},
       }),
@@ -119,13 +153,6 @@ export default function ShiftAssignmentMaster({ userRole, selectedCompanyId, sel
     ]);
 
     if (deptResult.status === "fulfilled") setDepartments(deptResult.value.data || []);
-    if (employeeResult.status === "fulfilled") {
-      setEmployees(employeeResult.value.data || []);
-    } else {
-      console.error("Error fetching employees:", employeeResult.reason);
-      toast.error("Could not load employees");
-      setEmployees([]);
-    }
     if (shiftTypeResult.status === "fulfilled") {
       const data = shiftTypeResult.value.data || [];
       const filtered = selectedCompanyId
@@ -147,6 +174,27 @@ export default function ShiftAssignmentMaster({ userRole, selectedCompanyId, sel
     }
   }, [selectedCompanyId]);
 
+  const fetchEmployees = useCallback(
+    async (nextDepts = selectedDepts, nextFilters = appliedFilters) => {
+      try {
+        const params = buildQueryParams({
+          ...(selectedCompanyId ? { companyId: selectedCompanyId } : {}),
+          departmentId: nextDepts,
+          designationId: nextFilters.designationFilters,
+          employeeGradeId: nextFilters.gradeFilters,
+          status,
+        });
+        const res = await API.get("/employees", { params });
+        setEmployees(res.data || []);
+      } catch (error) {
+        console.error("Error fetching employees:", error);
+        toast.error("Could not load employees");
+        setEmployees([]);
+      }
+    },
+    [appliedFilters, selectedCompanyId, selectedDepts, status]
+  );
+
   const fetchAssignments = useCallback(async () => {
     try {
       const res = await API.get("/shiftAssignments", {
@@ -167,26 +215,12 @@ export default function ShiftAssignmentMaster({ userRole, selectedCompanyId, sel
   }, [fetchLookups]);
 
   useEffect(() => {
-    fetchAssignments();
-  }, [fetchAssignments]);
-
-  useEffect(() => {
     const next = {};
     assignments.forEach((a) => {
       next[String(a.staffId)] = a;
     });
     setExistingAssignments(next);
   }, [assignments]);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setShowDeptDropdown(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const availableEmployees = useMemo(() => {
     const byCompany = selectedCompanyId
@@ -202,14 +236,14 @@ export default function ShiftAssignmentMaster({ userRole, selectedCompanyId, sel
       return !statusValue || statusValue === "active";
     });
 
-    const selectedDeptSet = new Set(selectedDepts.map((id) => String(id)));
+    const selectedDeptSet = new Set(appliedDepts.map((id) => String(id)));
     const byDept =
       selectedDeptSet.size > 0
         ? activeOnly.filter((emp) => selectedDeptSet.has(String(getEmployeeDepartmentId(emp))))
         : activeOnly;
 
     return byDept;
-  }, [employees, selectedCompanyId, selectedDepts]);
+  }, [employees, selectedCompanyId, appliedDepts]);
 
   const roleNameById = useMemo(
     () => new Map((roles || []).map((r) => [String(r.roleId || ""), String(r.roleName || "")])),
@@ -245,18 +279,32 @@ export default function ShiftAssignmentMaster({ userRole, selectedCompanyId, sel
     return availableEmployees.filter((emp) => {
       const roleName = getEmployeeRoleName(emp);
       const experienceYears = getExperienceYears(emp.dateOfJoining);
-      const gradeOk = !gradeFilter || String(emp.employeeGradeId || "") === String(gradeFilter);
+      const gradeOk =
+        appliedFilters.gradeFilters.length === 0 ||
+        appliedFilters.gradeFilters.includes(String(emp.employeeGradeId || ""));
       const designationOk =
-        !designationFilter || String(emp.designationId || "") === String(designationFilter);
-      const roleOk = !roleFilter || roleName === roleFilter;
-      const experienceOk = matchesExperienceBand(experienceYears, experienceFilter);
+        appliedFilters.designationFilters.length === 0 ||
+        appliedFilters.designationFilters.includes(String(emp.designationId || ""));
+      const roleOk =
+        appliedFilters.roleFilters.length === 0 || appliedFilters.roleFilters.includes(roleName);
+      const experienceOk =
+        appliedFilters.experienceFilters.length === 0 ||
+        appliedFilters.experienceFilters.some((band) => matchesExperienceBand(experienceYears, band));
       if (!gradeOk || !designationOk || !roleOk || !experienceOk) return false;
       if (!q) return true;
       const name = getEmployeeName(emp).toLowerCase();
       const number = String(emp.staffNumber || emp.staffId || "").toLowerCase();
       return name.includes(q) || number.includes(q);
     });
-  }, [availableEmployees, designationFilter, experienceFilter, getEmployeeRoleName, gradeFilter, roleFilter, search]);
+  }, [
+    availableEmployees,
+    appliedFilters.designationFilters,
+    appliedFilters.experienceFilters,
+    appliedFilters.gradeFilters,
+    appliedFilters.roleFilters,
+    getEmployeeRoleName,
+    search,
+  ]);
 
   const roleOptions = useMemo(() => {
     const fromRoles = (roles || [])
@@ -305,6 +353,45 @@ export default function ShiftAssignmentMaster({ userRole, selectedCompanyId, sel
       ...prev,
       [staffId]: getPersistedShiftTypeId(staffId, existingAssignments, employees),
     }));
+  };
+
+  const handleApplyFilters = async () => {
+    const nextApplied = {
+      roleFilters,
+      gradeFilters,
+      designationFilters,
+      experienceFilters,
+    };
+    setAppliedDepts(selectedDepts);
+    setAppliedFilters(nextApplied);
+    setSelectedEmps([]);
+    setAllocatedShifts({});
+    setBulkShiftTypeId("");
+    await fetchEmployees(selectedDepts, nextApplied);
+    await fetchAssignments();
+  };
+
+  const handleResetFilters = () => {
+    setSelectedDepts([]);
+    setRoleFilters([]);
+    setGradeFilters([]);
+    setDesignationFilters([]);
+    setExperienceFilters([]);
+  };
+
+  const handleSelectAllEmployees = () => {
+    const allIds = sortedEmployees.map((emp) => emp.staffId);
+    setSelectedEmps(allIds);
+    const mapped = {};
+    allIds.forEach((staffId) => {
+      mapped[staffId] = getPersistedShiftTypeId(staffId, existingAssignments, employees);
+    });
+    setAllocatedShifts(mapped);
+  };
+
+  const handleClearAllEmployees = () => {
+    setSelectedEmps([]);
+    setAllocatedShifts({});
   };
 
   const applyBulkShifts = () => {
@@ -428,62 +515,72 @@ export default function ShiftAssignmentMaster({ userRole, selectedCompanyId, sel
           <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Role</label>
-              <select
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                className="w-full border-2 border-slate-200 rounded-lg px-3 py-2 focus:border-indigo-400 focus:outline-none bg-white"
-              >
-                <option value="">All Roles</option>
+              <div className="flex flex-wrap gap-2">
                 {roleOptions.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
+                  <label key={name} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                      checked={roleFilters.includes(name)}
+                      onChange={() => setRoleFilters((prev) => toggleValue(prev, name))}
+                    />
+                    <span>{name}</span>
+                  </label>
                 ))}
-              </select>
+              </div>
             </div>
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Grade</label>
-              <select
-                value={gradeFilter}
-                onChange={(e) => setGradeFilter(e.target.value)}
-                className="w-full border-2 border-slate-200 rounded-lg px-3 py-2 focus:border-indigo-400 focus:outline-none bg-white"
-              >
-                <option value="">All Grades</option>
+              <div className="flex flex-wrap gap-2">
                 {grades.map((g) => (
-                  <option key={g.employeeGradeId} value={g.employeeGradeId}>
-                    {g.employeeGradeName}
-                  </option>
+                  <label key={g.employeeGradeId} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                      checked={gradeFilters.includes(String(g.employeeGradeId))}
+                      onChange={() => setGradeFilters((prev) => toggleValue(prev, String(g.employeeGradeId)))}
+                    />
+                    <span>{g.employeeGradeName}</span>
+                  </label>
                 ))}
-              </select>
+              </div>
             </div>
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Designation</label>
-              <select
-                value={designationFilter}
-                onChange={(e) => setDesignationFilter(e.target.value)}
-                className="w-full border-2 border-slate-200 rounded-lg px-3 py-2 focus:border-indigo-400 focus:outline-none bg-white"
-              >
-                <option value="">All Designations</option>
+              <div className="flex flex-wrap gap-2">
                 {designations.map((d) => (
-                  <option key={d.designationId} value={d.designationId}>
-                    {d.designationName}
-                  </option>
+                  <label key={d.designationId} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                      checked={designationFilters.includes(String(d.designationId))}
+                      onChange={() => setDesignationFilters((prev) => toggleValue(prev, String(d.designationId)))}
+                    />
+                    <span>{d.designationName}</span>
+                  </label>
                 ))}
-              </select>
+              </div>
             </div>
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Experience</label>
-              <select
-                value={experienceFilter}
-                onChange={(e) => setExperienceFilter(e.target.value)}
-                className="w-full border-2 border-slate-200 rounded-lg px-3 py-2 focus:border-indigo-400 focus:outline-none bg-white"
-              >
-                <option value="">All Experience</option>
-                <option value="lt1">Below 1 Year</option>
-                <option value="1to3">1 to 3 Years</option>
-                <option value="3to5">3 to 5 Years</option>
-                <option value="5plus">5+ Years</option>
-              </select>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { value: "lt1", label: "Below 1 Year" },
+                  { value: "1to3", label: "1 to 3 Years" },
+                  { value: "3to5", label: "3 to 5 Years" },
+                  { value: "5plus", label: "5+ Years" },
+                ].map((band) => (
+                  <label key={band.value} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                      checked={experienceFilters.includes(band.value)}
+                      onChange={() => setExperienceFilters((prev) => toggleValue(prev, band.value))}
+                    />
+                    <span>{band.label}</span>
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -492,83 +589,51 @@ export default function ShiftAssignmentMaster({ userRole, selectedCompanyId, sel
               <Users size={18} />
               Select Departments
             </label>
-            <div className="relative" ref={dropdownRef}>
-              <button
-                type="button"
-                className="w-full bg-white border-2 border-slate-200 rounded-lg p-3 cursor-pointer flex justify-between items-center hover:border-indigo-400 transition-colors"
-                onClick={() => setShowDeptDropdown((prev) => !prev)}
-              >
-                <span className="text-slate-700 font-medium">
-                  {selectedDepts.length > 0
-                    ? `${selectedDepts.length} department${selectedDepts.length > 1 ? "s" : ""} selected`
-                    : "Choose departments to view employees"}
-                </span>
-                <ChevronDown
-                  className={`text-slate-400 transition-transform ${showDeptDropdown ? "rotate-180" : ""}`}
-                  size={20}
+            <div className="flex flex-wrap gap-3">
+              <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                  checked={selectedDepts.length === visibleDepartments.length && visibleDepartments.length > 0}
+                  onChange={() =>
+                    setSelectedDepts(
+                      selectedDepts.length === visibleDepartments.length
+                        ? []
+                        : visibleDepartments.map((d) => d.departmentId)
+                    )
+                  }
                 />
-              </button>
-
-              {showDeptDropdown && (
-                <div className="absolute bg-white border-2 border-slate-200 rounded-lg mt-2 w-full max-h-64 overflow-y-auto z-20 shadow-xl">
-                  <div className="sticky top-0 bg-slate-50 p-3 border-b-2 border-slate-200">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                        checked={
-                          selectedDepts.length === visibleDepartments.length && visibleDepartments.length > 0
-                        }
-                        onChange={() =>
-                          setSelectedDepts(
-                            selectedDepts.length === visibleDepartments.length
-                              ? []
-                              : visibleDepartments.map((d) => d.departmentId)
-                          )
-                        }
-                      />
-                      <span className="font-semibold text-slate-700">Select All Departments</span>
-                    </label>
-                  </div>
-                  {visibleDepartments.map((dept) => (
-                    <div key={dept.departmentId} className="p-3 hover:bg-slate-50 transition-colors">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                          checked={selectedDepts.includes(dept.departmentId)}
-                          onChange={() => toggleDept(dept.departmentId)}
-                        />
-                        <span className="text-slate-700">{dept.departmentName}</span>
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              )}
+                <span>Select All Departments</span>
+              </label>
+              {visibleDepartments.map((dept) => (
+                <label key={dept.departmentId} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                    checked={selectedDepts.includes(dept.departmentId)}
+                    onChange={() => toggleDept(dept.departmentId)}
+                  />
+                  <span>{dept.departmentName}</span>
+                </label>
+              ))}
             </div>
+          </div>
 
-            {selectedDepts.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-3">
-                {selectedDepts.map((deptId) => {
-                  const dept = visibleDepartments.find((d) => Number(d.departmentId) === Number(deptId));
-                  return (
-                    <span
-                      key={deptId}
-                      className="inline-flex items-center gap-1 bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-medium"
-                    >
-                      {dept?.departmentName}
-                      <button
-                        type="button"
-                        onClick={() => toggleDept(deptId)}
-                        className="hover:bg-indigo-200 rounded-full p-0.5"
-                      >
-                        <X size={14} />
-                      </button>
-                    </span>
-                  );
-                })}
-              </div>
-            )}
+          <div className="mb-6 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm text-slate-700"
+            >
+              Reset
+            </button>
+            <button
+              type="button"
+              onClick={handleApplyFilters}
+              className="h-10 rounded-lg bg-indigo-600 px-4 text-sm text-white"
+            >
+              Apply Filters
+            </button>
           </div>
 
           <div className="mb-6">
@@ -583,6 +648,14 @@ export default function ShiftAssignmentMaster({ userRole, selectedCompanyId, sel
                   className="w-full pl-10 pr-4 py-3 border-2 border-slate-200 rounded-lg focus:border-indigo-400 focus:outline-none transition-colors"
                 />
               </div>
+
+              <button
+                type="button"
+                onClick={handleSelectAllEmployees}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap"
+              >
+                Select All Employees
+              </button>
 
               {selectedEmps.length > 0 && (
                 <div className="flex gap-3 items-center bg-slate-50 p-3 rounded-lg border border-slate-200">
@@ -628,24 +701,13 @@ export default function ShiftAssignmentMaster({ userRole, selectedCompanyId, sel
                         <input
                           type="checkbox"
                           className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                          checked={selectedEmps.length === sortedEmployees.length && sortedEmployees.length > 0}
-                          onChange={(e) => {
+                        checked={selectedEmps.length === sortedEmployees.length && sortedEmployees.length > 0}
+                        onChange={(e) => {
                             if (e.target.checked) {
-                              const allIds = sortedEmployees.map((emp) => emp.staffId);
-                              setSelectedEmps(allIds);
-                              const mapped = {};
-                              allIds.forEach((staffId) => {
-                                mapped[staffId] = getPersistedShiftTypeId(
-                                  staffId,
-                                  existingAssignments,
-                                  employees
-                                );
-                              });
-                              setAllocatedShifts(mapped);
+                              handleSelectAllEmployees();
                               return;
                             }
-                            setSelectedEmps([]);
-                            setAllocatedShifts({});
+                            handleClearAllEmployees();
                           }}
                         />
                       </th>

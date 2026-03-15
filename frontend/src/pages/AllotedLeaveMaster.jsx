@@ -22,13 +22,34 @@ const toDateOnly = (value) => {
 };
 const isInRange = (dateOnly, startDate, endDate) =>
   Boolean(dateOnly && startDate && endDate && dateOnly >= startDate && dateOnly <= endDate);
+const toggleValue = (values, value) => {
+  const key = String(value);
+  return values.includes(key) ? values.filter((v) => v !== key) : [...values, key];
+};
+const buildQueryParams = (params) => {
+  const search = new URLSearchParams();
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value === null || value === undefined) return;
+    if (Array.isArray(value)) {
+      value
+        .map((v) => String(v))
+        .filter((v) => v !== '')
+        .forEach((v) => search.append(key, v));
+      return;
+    }
+    const text = String(value).trim();
+    if (!text) return;
+    search.append(key, text);
+  });
+  return search;
+};
 
 const defaultFilters = {
-  designationId: '',
-  employeeGradeId: '',
-  leaveTypeId: '',
-  leavePolicyId: '',
-  status: '',
+  designationIds: [],
+  employeeGradeIds: [],
+  leaveTypeIds: [],
+  leavePolicyIds: [],
+  statuses: [],
 };
 
 export default function AllotedLeaveMaster({ userRole, selectedCompanyId }) {
@@ -38,6 +59,7 @@ export default function AllotedLeaveMaster({ userRole, selectedCompanyId }) {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState(defaultFilters);
+  const [appliedFilters, setAppliedFilters] = useState(defaultFilters);
 
   const [designations, setDesignations] = useState([]);
   const [employeeGrades, setEmployeeGrades] = useState([]);
@@ -126,15 +148,15 @@ export default function AllotedLeaveMaster({ userRole, selectedCompanyId }) {
     }
   };
 
-  const loadAllocations = async () => {
+  const loadAllocations = async (nextFilters = appliedFilters) => {
     try {
       setLoading(true);
-      const params = {
+      const params = buildQueryParams({
         ...(effectiveCompanyId ? { companyId: effectiveCompanyId } : {}),
-        ...(filters.leaveTypeId ? { leaveTypeId: filters.leaveTypeId } : {}),
-        ...(filters.leavePolicyId ? { leavePolicyId: filters.leavePolicyId } : {}),
-        ...(filters.status ? { status: filters.status } : {}),
-      };
+        leaveTypeId: nextFilters.leaveTypeIds,
+        leavePolicyId: nextFilters.leavePolicyIds,
+        status: nextFilters.statuses,
+      });
       const res = await API.get('/leaveAllocations', { params });
       setAllocations(res.data || []);
     } catch (err) {
@@ -147,6 +169,8 @@ export default function AllotedLeaveMaster({ userRole, selectedCompanyId }) {
 
   useEffect(() => {
     setFilters(defaultFilters);
+    setAppliedFilters(defaultFilters);
+    setAllocations([]);
   }, [effectiveCompanyId]);
 
   useEffect(() => {
@@ -156,10 +180,6 @@ export default function AllotedLeaveMaster({ userRole, selectedCompanyId }) {
     loadLeavePolicies();
     loadLeavePeriods();
   }, [effectiveCompanyId]);
-
-  useEffect(() => {
-    loadAllocations();
-  }, [effectiveCompanyId, filters.leaveTypeId, filters.leavePolicyId, filters.status]);
 
   const filteredAllocations = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -176,8 +196,8 @@ export default function AllotedLeaveMaster({ userRole, selectedCompanyId }) {
         return false;
       }
 
-      if (filters.designationId && designationId !== String(filters.designationId)) return false;
-      if (filters.employeeGradeId && gradeId !== String(filters.employeeGradeId)) return false;
+      if (appliedFilters.designationIds.length > 0 && !appliedFilters.designationIds.includes(designationId)) return false;
+      if (appliedFilters.employeeGradeIds.length > 0 && !appliedFilters.employeeGradeIds.includes(gradeId)) return false;
 
       if (!q) return true;
       const available = toNumber(row.carryForwardFromPrevious) + toNumber(row.totalAccruedTillDate) - toNumber(row.usedLeaves);
@@ -194,74 +214,155 @@ export default function AllotedLeaveMaster({ userRole, selectedCompanyId }) {
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q));
     });
-  }, [allocations, filters.designationId, filters.employeeGradeId, search, designationMap, gradeMap, activeLeavePeriod, hasActiveLeavePeriod]);
+  }, [allocations, appliedFilters.designationIds, appliedFilters.employeeGradeIds, search, designationMap, gradeMap, activeLeavePeriod, hasActiveLeavePeriod]);
+
+  const handleApplyFilters = async () => {
+    setAppliedFilters(filters);
+    await loadAllocations(filters);
+  };
 
   return (
     <div className="h-full flex flex-col px-6">
       <MasterHeader
         search={search}
         setSearch={setSearch}
-        onAddNew={loadAllocations}
+        onAddNew={handleApplyFilters}
         placeholder="Search allocated leaves..."
-        buttonText="Refresh"
+        buttonText="Apply Filters"
         actions={(
-          <div className="flex flex-wrap items-center gap-2 max-w-full">
-            <select
-              value={filters.designationId}
-              onChange={(e) => setFilters((p) => ({ ...p, designationId: e.target.value }))}
-              className="h-10 w-40 max-w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
-            >
-              <option value="">All designations</option>
-              {designations.map((d) => (
-                <option key={d.designationId} value={d.designationId}>{d.designationName}</option>
-              ))}
-            </select>
-
-            <select
-              value={filters.employeeGradeId}
-              onChange={(e) => setFilters((p) => ({ ...p, employeeGradeId: e.target.value }))}
-              className="h-10 w-40 max-w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
-            >
-              <option value="">All grades</option>
-              {employeeGrades.map((g) => (
-                <option key={g.employeeGradeId} value={g.employeeGradeId}>{g.employeeGradeName}</option>
-              ))}
-            </select>
-
-            <select
-              value={filters.leaveTypeId}
-              onChange={(e) => setFilters((p) => ({ ...p, leaveTypeId: e.target.value, leavePolicyId: '' }))}
-              className="h-10 w-40 max-w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
-            >
-              <option value="">All leave types</option>
-              {leaveTypes.map((lt) => (
-                <option key={lt.leaveTypeId} value={lt.leaveTypeId}>{lt.leaveTypeName || lt.name}</option>
-              ))}
-            </select>
-
-            <select
-              value={filters.leavePolicyId}
-              onChange={(e) => setFilters((p) => ({ ...p, leavePolicyId: e.target.value }))}
-              className="h-10 w-40 max-w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
-            >
-              <option value="">All policies</option>
-              {leavePolicies
-                .filter((p) => !filters.leaveTypeId || String(p.leaveTypeId) === String(filters.leaveTypeId))
-                .map((p) => (
-                  <option key={p.leavePolicyId} value={p.leavePolicyId}>{p.name}</option>
+          <div className="flex flex-col gap-3">
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">Designation</div>
+              <div className="flex flex-wrap gap-2">
+                {designations.map((d) => (
+                  <label key={d.designationId} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                      checked={filters.designationIds.includes(String(d.designationId))}
+                      onChange={() =>
+                        setFilters((p) => ({
+                          ...p,
+                          designationIds: toggleValue(p.designationIds, String(d.designationId)),
+                        }))
+                      }
+                    />
+                    <span>{d.designationName}</span>
+                  </label>
                 ))}
-            </select>
+              </div>
+            </div>
 
-            <select
-              value={filters.status}
-              onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))}
-              className="h-10 w-36 max-w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
-            >
-              <option value="">All status</option>
-              <option value="Active">Active</option>
-              <option value="Expired">Expired</option>
-              <option value="Cancelled">Cancelled</option>
-            </select>
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">Grade</div>
+              <div className="flex flex-wrap gap-2">
+                {employeeGrades.map((g) => (
+                  <label key={g.employeeGradeId} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                      checked={filters.employeeGradeIds.includes(String(g.employeeGradeId))}
+                      onChange={() =>
+                        setFilters((p) => ({
+                          ...p,
+                          employeeGradeIds: toggleValue(p.employeeGradeIds, String(g.employeeGradeId)),
+                        }))
+                      }
+                    />
+                    <span>{g.employeeGradeName}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">Leave Type</div>
+              <div className="flex flex-wrap gap-2">
+                {leaveTypes.map((lt) => (
+                  <label key={lt.leaveTypeId} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                      checked={filters.leaveTypeIds.includes(String(lt.leaveTypeId))}
+                      onChange={() =>
+                        setFilters((p) => ({
+                          ...p,
+                          leaveTypeIds: toggleValue(p.leaveTypeIds, String(lt.leaveTypeId)),
+                          leavePolicyIds: [],
+                        }))
+                      }
+                    />
+                    <span>{lt.leaveTypeName || lt.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">Leave Policy</div>
+              <div className="flex flex-wrap gap-2">
+                {leavePolicies
+                  .filter((p) =>
+                    filters.leaveTypeIds.length === 0 ||
+                    filters.leaveTypeIds.includes(String(p.leaveTypeId))
+                  )
+                  .map((p) => (
+                    <label key={p.leavePolicyId} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                        checked={filters.leavePolicyIds.includes(String(p.leavePolicyId))}
+                        onChange={() =>
+                          setFilters((prev) => ({
+                            ...prev,
+                            leavePolicyIds: toggleValue(prev.leavePolicyIds, String(p.leavePolicyId)),
+                          }))
+                        }
+                      />
+                      <span>{p.name}</span>
+                    </label>
+                  ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">Status</div>
+              <div className="flex flex-wrap gap-2">
+                {["Active", "Expired", "Cancelled"].map((status) => (
+                  <label key={status} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                      checked={filters.statuses.includes(status)}
+                      onChange={() =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          statuses: toggleValue(prev.statuses, status),
+                        }))
+                      }
+                    />
+                    <span>{status}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setFilters(defaultFilters)}
+                className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700"
+              >
+                Reset
+              </button>
+              <button
+                type="button"
+                onClick={handleApplyFilters}
+                className="h-9 rounded-lg bg-indigo-600 px-3 text-sm text-white"
+              >
+                Apply
+              </button>
+            </div>
           </div>
         )}
       />

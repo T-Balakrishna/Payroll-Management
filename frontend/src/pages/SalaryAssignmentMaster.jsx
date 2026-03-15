@@ -4,7 +4,6 @@ import { HandCoins, Pencil } from "lucide-react";
 import API from "../api";
 import { useAuth } from "../auth/AuthContext";
 import MasterTable from "../components/common/MasterTable";
-import Select from "../components/ui/Select";
 import Input from "../components/ui/Input";
 import Button from "../components/ui/Button";
 import Modal from "../components/ui/Modal";
@@ -78,6 +77,33 @@ const parseJsonObject = (value) => {
     return {};
   }
 };
+const defaultFilters = {
+  departmentIds: [],
+  designationIds: [],
+  employeeGradeIds: [],
+  statuses: ["Active"],
+};
+const toggleValue = (values, value) => {
+  const key = String(value);
+  return values.includes(key) ? values.filter((v) => v !== key) : [...values, key];
+};
+const buildQueryParams = (params) => {
+  const search = new URLSearchParams();
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value === null || value === undefined) return;
+    if (Array.isArray(value)) {
+      value
+        .map((v) => String(v))
+        .filter((v) => v !== "")
+        .forEach((v) => search.append(key, v));
+      return;
+    }
+    const text = String(value).trim();
+    if (!text) return;
+    search.append(key, text);
+  });
+  return search;
+};
 
 export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) {
   const { user } = useAuth();
@@ -94,12 +120,8 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
   const [earningComponents, setEarningComponents] = useState([]);
   const [deductionComponents, setDeductionComponents] = useState([]);
 
-  const [filters, setFilters] = useState({
-    departmentId: "",
-    designationId: "",
-    employeeGradeId: "",
-    status: "Active",
-  });
+  const [filters, setFilters] = useState(defaultFilters);
+  const [appliedFilters, setAppliedFilters] = useState(defaultFilters);
 
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [activeSalaryMaster, setActiveSalaryMaster] = useState(null);
@@ -143,18 +165,17 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
     }
   };
 
-  const fetchEmployees = async () => {
+  const fetchEmployees = async (nextFilters = appliedFilters) => {
     if (!companyId) return;
 
     try {
-      const params = {
+      const params = buildQueryParams({
         companyId,
-        status: filters.status,
-      };
-      if (filters.departmentId) params.departmentId = filters.departmentId;
-      if (filters.designationId) params.designationId = filters.designationId;
-      if (filters.employeeGradeId) params.employeeGradeId = filters.employeeGradeId;
-
+        status: nextFilters.statuses,
+        departmentId: nextFilters.departmentIds,
+        designationId: nextFilters.designationIds,
+        employeeGradeId: nextFilters.employeeGradeIds,
+      });
       const res = await API.get("/employees", { params });
       const allEmployees = Array.isArray(res.data) ? res.data : [];
       const salaryAssignableEmployees = allEmployees.filter((emp) => {
@@ -249,8 +270,10 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
   }, [companyId]);
 
   useEffect(() => {
-    fetchEmployees();
-  }, [companyId, filters.departmentId, filters.designationId, filters.employeeGradeId, filters.status]);
+    setEmployees([]);
+    setFilters(defaultFilters);
+    setAppliedFilters(defaultFilters);
+  }, [companyId]);
 
   useEffect(() => {
     if (!selectedEmployee?.staffId) return;
@@ -270,6 +293,15 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
       );
     });
   }, [employees, search]);
+
+  const handleApplyFilters = async () => {
+    setAppliedFilters(filters);
+    await fetchEmployees(filters);
+  };
+
+  const handleResetFilters = () => {
+    setFilters(defaultFilters);
+  };
 
   const grossSalary = useMemo(() => {
     const fromMaster =
@@ -459,30 +491,98 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
   return (
     <div className="h-full flex flex-col gap-4 px-6">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-white border rounded-lg p-4">
-        <Select
-          label="Department"
-          value={filters.departmentId}
-          onChange={(e) => setFilters((prev) => ({ ...prev, departmentId: e.target.value }))}
-          options={[{ value: "", label: "All" }, ...departments.map((d) => ({ value: d.departmentId, label: d.departmentName }))]}
-        />
-        <Select
-          label="Designation"
-          value={filters.designationId}
-          onChange={(e) => setFilters((prev) => ({ ...prev, designationId: e.target.value }))}
-          options={[{ value: "", label: "All" }, ...designations.map((d) => ({ value: d.designationId, label: d.designationName }))]}
-        />
-        <Select
-          label="Grade"
-          value={filters.employeeGradeId}
-          onChange={(e) => setFilters((prev) => ({ ...prev, employeeGradeId: e.target.value }))}
-          options={[{ value: "", label: "All" }, ...grades.map((g) => ({ value: g.employeeGradeId, label: g.employeeGradeName }))]}
-        />
-        <Select
-          label="Status"
-          value={filters.status}
-          onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
-          options={[{ value: "Active", label: "Active" }, { value: "Inactive", label: "Inactive" }]}
-        />
+        <div>
+          <label className="block text-sm font-semibold text-slate-700 mb-2">Department</label>
+          <div className="flex flex-wrap gap-2">
+            {departments.map((d) => (
+              <label key={d.departmentId} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                  checked={filters.departmentIds.includes(String(d.departmentId))}
+                  onChange={() =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      departmentIds: toggleValue(prev.departmentIds, String(d.departmentId)),
+                    }))
+                  }
+                />
+                <span>{d.departmentName}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-slate-700 mb-2">Designation</label>
+          <div className="flex flex-wrap gap-2">
+            {designations.map((d) => (
+              <label key={d.designationId} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                  checked={filters.designationIds.includes(String(d.designationId))}
+                  onChange={() =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      designationIds: toggleValue(prev.designationIds, String(d.designationId)),
+                    }))
+                  }
+                />
+                <span>{d.designationName}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-slate-700 mb-2">Grade</label>
+          <div className="flex flex-wrap gap-2">
+            {grades.map((g) => (
+              <label key={g.employeeGradeId} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                  checked={filters.employeeGradeIds.includes(String(g.employeeGradeId))}
+                  onChange={() =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      employeeGradeIds: toggleValue(prev.employeeGradeIds, String(g.employeeGradeId)),
+                    }))
+                  }
+                />
+                <span>{g.employeeGradeName}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-slate-700 mb-2">Status</label>
+          <div className="flex flex-wrap gap-2">
+            {["Active", "Inactive"].map((status) => (
+              <label key={status} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                  checked={filters.statuses.includes(status)}
+                  onChange={() =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      statuses: toggleValue(prev.statuses, status),
+                    }))
+                  }
+                />
+                <span>{status}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-end gap-2 md:col-span-4">
+          <Button type="button" variant="secondary" onClick={handleResetFilters}>
+            Reset
+          </Button>
+          <Button type="button" onClick={handleApplyFilters}>
+            Apply Filters
+          </Button>
+        </div>
         <div className="flex items-end gap-2 md:col-span-4">
           <input
             ref={fileInputRef}

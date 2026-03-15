@@ -2,6 +2,7 @@
 import express from "express";
 const router = express.Router();
 import requireAuth from "../middleware/requireAuth.js";
+import { checkLoginRateLimit } from "../middleware/loginRateLimit.js";
 import {
   login,
   googleLogin,
@@ -11,7 +12,7 @@ import {
   resetPassword,      // ← new
 } from "../controllers/authController.js";
 // Public routes
-router.post("/login", login);
+router.post("/login", checkLoginRateLimit, login);
 router.post("/google-login", googleLogin);
 router.post("/forgot-password", forgotPassword);     // ← new
 router.post("/reset-password/:token", resetPassword); // ← new
