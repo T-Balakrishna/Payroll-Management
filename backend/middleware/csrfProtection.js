@@ -10,15 +10,7 @@ const resolveCookieOptions = () => {
   const isProd = process.env.NODE_ENV === 'production';
   return {
     httpOnly: true,
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    sameSite: isProd?'none':'lax',
-=======
-    sameSite: 'none',
->>>>>>> Stashed changes
-=======
-    sameSite: 'none',
->>>>>>> Stashed changes
+    sameSite: isProd ? 'none' : 'lax',
     secure: isProd,
     path: '/',
   };
