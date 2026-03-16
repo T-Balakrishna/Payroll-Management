@@ -47,6 +47,7 @@ import LeaveHistory from './LeaveHistory.jsx';
 import SalaryComponentMaster from './SalaryComponentMaster.jsx';
 import SalaryAssignmentMaster from './SalaryAssignmentMaster.jsx';
 import SalaryGenerationManagement from './SalaryGenerationManagement.jsx';
+import ReportGenerator from './ReportGenerator.jsx';
 // import SalaryRevisionHistory from './SalaryRevisionHistory.jsx';
 // import EmployeeLoanManagement from './EmployeeLoanManagement.jsx';
 // import StatutoryReports from './StatutoryReports.jsx';
@@ -76,7 +77,7 @@ const AdminDashboard = () => {
   const [companyName, setCompanyName] = useState('');
   const [departmentName, setDepartmentName] = useState('');
   const [companies, setCompanies] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
 
   const [dashboardData, setDashboardData] = useState({
     totalActiveEmployees: { maleCount: 0, femaleCount: 0, totalCount: 0 },
@@ -484,7 +485,7 @@ const AdminDashboard = () => {
       case "salaryGeneration": return <SalaryGenerationManagement {...common} />;
       case "salaryRevision": return <SalaryRevisionHistory {...common} />;
       case "employeeLoan": return <EmployeeLoanManagement {...common} />;
-      // case "reportgenerator": return <ReportGenerator {...common} />;
+      case "reportgenerator": return <ReportGenerator {...common} />;
       // case "statutory": return <StatutoryReports {...common} />;
       default: return renderDashboard();
     }
@@ -506,7 +507,7 @@ const AdminDashboard = () => {
               <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md shadow-blue-200">
                 <Home className="w-5 h-5 text-white" />
               </div>
-              <span className="font-bold text-lg text-gray-900">{t('adminPanel') || 'Admin Panel'}</span>
+              <span className="font-bold text-lg text-gray-900">{t('Admin Panel') || 'Admin Panel'}</span>
             </div>
           )}
           {sidebarCollapsed && (

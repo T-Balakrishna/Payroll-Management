@@ -5,6 +5,7 @@ import * as salaryGenerationController from '../controllers/salaryGenerationCont
 // Frontend should call: /api/salaryGenerations
 router.get('/', salaryGenerationController.getAllSalaryGenerations);
 router.post('/generate-monthly', salaryGenerationController.generateMonthlySalary);
+router.post('/send-mail', salaryGenerationController.sendSalarySlipEmails);
 router.get('/download-spreadsheet', salaryGenerationController.downloadSalaryGenerationSpreadsheet);
 router.get('/download-pdf', salaryGenerationController.downloadSalaryGenerationPdf);
 router.get('/:id', salaryGenerationController.getSalaryGenerationById);

@@ -11,13 +11,14 @@ const transporter=nodemailer.createTransport({
     }
 });
 
-const sendMail=async({to,subject,text,html})=>{
+const sendMail=async({to,subject,text,html,attachments,from})=>{
     await transporter.sendMail({
-        from:process.env.MAIL_USER,
+        from: from || process.env.MAIL_USER,
         to,
         subject,
         text,
-        html
+        html,
+        attachments
     });
 };
 

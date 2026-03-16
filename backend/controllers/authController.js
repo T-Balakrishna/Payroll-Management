@@ -5,6 +5,7 @@ import { sendMail } from "../services/mailService.js";
 import crypto from "crypto";
 import { Op } from "sequelize";
 import { hashPassword, verifyPassword } from "../utils/password.js";
+import { recordLoginFailure, recordLoginSuccess } from "../middleware/loginRateLimit.js";
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClient = googleClientId ? new OAuth2Client(googleClientId) : null;
 
@@ -38,6 +39,7 @@ export const login = async (req, res) => {
     const { identifier, password } = req.body;
 
     if (!identifier || !password) {
+      recordLoginFailure(req);
       return res.status(400).json({ msg: "Missing credentials" });
     }
 
@@ -58,15 +60,18 @@ export const login = async (req, res) => {
     });
 
     if (!user) {
+      recordLoginFailure(req);
       return res.status(401).json({ msg: "Invalid credentials" });
     }
 
     if (user.status && user.status !== "Active") {
+      recordLoginFailure(req);
       return res.status(403).json({ msg: "User is inactive" });
     }
 
     const passwordOk = await verifyPassword(password, user.password);
     if (!passwordOk) {
+      recordLoginFailure(req);
       return res.status(401).json({ msg: "Invalid credentials" });
     }
 
@@ -79,6 +84,7 @@ export const login = async (req, res) => {
     });
 
     setTokenCookie(res, token);
+    recordLoginSuccess(req);
 
     res.json({
       message: "Login success",

@@ -16,11 +16,11 @@ const getEmployeeUserNumber = (emp) =>
   normalizeLookupKey(emp?.staffNumber || emp?.user?.userNumber || emp?.userNumber || '');
 
 const defaultFilters = {
-  departmentId: '',
-  designationId: '',
-  employeeGradeId: '',
-  roleName: '',
-  experienceBand: '',
+  departmentIds: [],
+  designationIds: [],
+  employeeGradeIds: [],
+  roleNames: [],
+  experienceBands: [],
 };
 
 const defaultForm = {
@@ -102,6 +102,27 @@ const csvValue = (value) => {
   if (/[",\n]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
   return text;
 };
+const toggleValue = (values, value) => {
+  const key = String(value);
+  return values.includes(key) ? values.filter((v) => v !== key) : [...values, key];
+};
+const buildQueryParams = (params) => {
+  const search = new URLSearchParams();
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value === null || value === undefined) return;
+    if (Array.isArray(value)) {
+      value
+        .map((v) => String(v))
+        .filter((v) => v !== '')
+        .forEach((v) => search.append(key, v));
+      return;
+    }
+    const text = String(value).trim();
+    if (!text) return;
+    search.append(key, text);
+  });
+  return search;
+};
 
 export default function LeaveAllocation({ userRole, selectedCompanyId }) {
   const { user } = useAuth();
@@ -111,6 +132,7 @@ export default function LeaveAllocation({ userRole, selectedCompanyId }) {
   const [companyScope, setCompanyScope] = useState(selectedCompanyId || user?.companyId || '');
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState(defaultFilters);
+  const [appliedFilters, setAppliedFilters] = useState(defaultFilters);
 
   const [companies, setCompanies] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -231,12 +253,15 @@ export default function LeaveAllocation({ userRole, selectedCompanyId }) {
     }
   };
 
-  const loadEmployees = async () => {
+  const loadEmployees = async (nextFilters = appliedFilters) => {
     try {
-      const params = {
+      const params = buildQueryParams({
         status: 'Active',
         ...(effectiveCompanyId ? { companyId: effectiveCompanyId } : {}),
-      };
+        departmentId: nextFilters.departmentIds,
+        designationId: nextFilters.designationIds,
+        employeeGradeId: nextFilters.employeeGradeIds,
+      });
       const res = await API.get('/employees', { params });
       setEmployees(res.data || []);
     } catch (err) {
@@ -299,7 +324,9 @@ export default function LeaveAllocation({ userRole, selectedCompanyId }) {
 
   useEffect(() => {
     setFilters(defaultFilters);
+    setAppliedFilters(defaultFilters);
     setSelectedEmployeeIds([]);
+    setEmployees([]);
     setForm(defaultForm);
   }, [effectiveCompanyId]);
 
@@ -313,27 +340,41 @@ export default function LeaveAllocation({ userRole, selectedCompanyId }) {
     loadUsers();
   }, [effectiveCompanyId]);
 
-  useEffect(() => {
-    loadEmployees();
-  }, [effectiveCompanyId]);
-
   const filteredEmployees = useMemo(() => {
     const q = search.trim().toLowerCase();
     return employees.filter((emp) => {
       const roleName = getEmployeeRoleName(emp);
       const experienceYears = getExperienceYears(emp.dateOfJoining);
-      const designationOk = !filters.designationId || String(emp.designationId || '') === String(filters.designationId);
-      const gradeOk = !filters.employeeGradeId || String(emp.employeeGradeId || '') === String(filters.employeeGradeId);
-      const deptOk = !filters.departmentId || String(emp.departmentId || emp.department?.departmentId || '') === String(filters.departmentId);
-      const roleOk = !filters.roleName || roleName === filters.roleName;
-      const experienceOk = matchesExperienceBand(experienceYears, filters.experienceBand);
+      const designationOk =
+        appliedFilters.designationIds.length === 0 ||
+        appliedFilters.designationIds.includes(String(emp.designationId || ''));
+      const gradeOk =
+        appliedFilters.employeeGradeIds.length === 0 ||
+        appliedFilters.employeeGradeIds.includes(String(emp.employeeGradeId || ''));
+      const deptOk =
+        appliedFilters.departmentIds.length === 0 ||
+        appliedFilters.departmentIds.includes(String(emp.departmentId || emp.department?.departmentId || ''));
+      const roleOk = appliedFilters.roleNames.length === 0 || appliedFilters.roleNames.includes(roleName);
+      const experienceOk =
+        appliedFilters.experienceBands.length === 0 ||
+        appliedFilters.experienceBands.some((band) => matchesExperienceBand(experienceYears, band));
       if (!designationOk || !gradeOk || !deptOk || !roleOk || !experienceOk) return false;
       if (!q) return true;
       return [employeeName(emp), emp.staffNumber, emp.personalEmail, emp.mobileNumber]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q));
     });
-  }, [employees, filters.departmentId, filters.designationId, filters.employeeGradeId, filters.experienceBand, filters.roleName, roleMap, roleNameById, search]);
+  }, [
+    employees,
+    appliedFilters.departmentIds,
+    appliedFilters.designationIds,
+    appliedFilters.employeeGradeIds,
+    appliedFilters.experienceBands,
+    appliedFilters.roleNames,
+    roleMap,
+    roleNameById,
+    search,
+  ]);
 
   const roleOptions = useMemo(() => {
     const fromRoles = (roles || [])
@@ -376,6 +417,17 @@ export default function LeaveAllocation({ userRole, selectedCompanyId }) {
 
   const handleToggleOne = (staffId) => {
     setSelectedEmployeeIds((prev) => (prev.includes(staffId) ? prev.filter((id) => id !== staffId) : [...prev, staffId]));
+  };
+
+  const handleSelectAllVisible = () => {
+    const ids = filteredEmployees.map((emp) => emp.staffId);
+    setSelectedEmployeeIds(ids);
+  };
+
+  const handleApplyFilters = async () => {
+    setAppliedFilters(filters);
+    setSelectedEmployeeIds([]);
+    await loadEmployees(filters);
   };
 
   const openAllocation = () => {
@@ -662,7 +714,7 @@ export default function LeaveAllocation({ userRole, selectedCompanyId }) {
         search={search}
         setSearch={setSearch}
         onAddNew={openAllocation}
-        onRefresh={loadEmployees}
+        onRefresh={handleApplyFilters}
         placeholder="Search by name, staff number, email or mobile..."
         buttonText={`Allocate (${selectedEmployeeIds.length})`}
         actions={
@@ -696,99 +748,164 @@ export default function LeaveAllocation({ userRole, selectedCompanyId }) {
         {isSuperAdmin && (
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">Company</label>
-            <select
-              value={companyScope}
-              onChange={(e) => setCompanyScope(e.target.value)}
-              className="w-full border-2 border-slate-200 rounded-lg px-3 py-2 focus:border-indigo-400 focus:outline-none bg-white"
-            >
-              <option value="">All companies</option>
+            <div className="flex flex-wrap gap-3">
               {companies.map((company) => (
-                <option key={company.companyId} value={company.companyId}>
-                  {company.companyName}
-                </option>
+                <label key={company.companyId} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                    checked={String(companyScope) === String(company.companyId)}
+                    onChange={() =>
+                      setCompanyScope((prev) =>
+                        String(prev) === String(company.companyId) ? '' : String(company.companyId)
+                      )
+                    }
+                  />
+                  <span>{company.companyName}</span>
+                </label>
               ))}
-            </select>
+            </div>
           </div>
         )}
 
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-2">Department</label>
-          <select
-            value={filters.departmentId}
-            onChange={(e) => setFilters((p) => ({ ...p, departmentId: e.target.value }))}
-            className="w-full border-2 border-slate-200 rounded-lg px-3 py-2 focus:border-indigo-400 focus:outline-none bg-white"
-          >
-            <option value="">All Departments</option>
+          <div className="flex flex-wrap gap-2">
             {departments.map((d) => (
-              <option key={d.departmentId} value={d.departmentId}>
-                {d.departmentName}
-              </option>
+              <label key={d.departmentId} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                  checked={filters.departmentIds.includes(String(d.departmentId))}
+                  onChange={() =>
+                    setFilters((p) => ({
+                      ...p,
+                      departmentIds: toggleValue(p.departmentIds, String(d.departmentId)),
+                    }))
+                  }
+                />
+                <span>{d.departmentName}</span>
+              </label>
             ))}
-          </select>
+          </div>
         </div>
 
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-2">Role</label>
-          <select
-            value={filters.roleName}
-            onChange={(e) => setFilters((p) => ({ ...p, roleName: e.target.value }))}
-            className="w-full border-2 border-slate-200 rounded-lg px-3 py-2 focus:border-indigo-400 focus:outline-none bg-white"
-          >
-            <option value="">All Roles</option>
+          <div className="flex flex-wrap gap-2">
             {roleOptions.map((roleName) => (
-              <option key={roleName} value={roleName}>
-                {roleName}
-              </option>
+              <label key={roleName} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                  checked={filters.roleNames.includes(roleName)}
+                  onChange={() =>
+                    setFilters((p) => ({
+                      ...p,
+                      roleNames: toggleValue(p.roleNames, roleName),
+                    }))
+                  }
+                />
+                <span>{roleName}</span>
+              </label>
             ))}
-          </select>
+          </div>
         </div>
 
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-2">Grade</label>
-          <select
-            value={filters.employeeGradeId}
-            onChange={(e) => setFilters((p) => ({ ...p, employeeGradeId: e.target.value }))}
-            className="w-full border-2 border-slate-200 rounded-lg px-3 py-2 focus:border-indigo-400 focus:outline-none bg-white"
-          >
-            <option value="">All Grades</option>
+          <div className="flex flex-wrap gap-2">
             {employeeGrades.map((g) => (
-              <option key={g.employeeGradeId} value={g.employeeGradeId}>
-                {g.employeeGradeName}
-              </option>
+              <label key={g.employeeGradeId} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                  checked={filters.employeeGradeIds.includes(String(g.employeeGradeId))}
+                  onChange={() =>
+                    setFilters((p) => ({
+                      ...p,
+                      employeeGradeIds: toggleValue(p.employeeGradeIds, String(g.employeeGradeId)),
+                    }))
+                  }
+                />
+                <span>{g.employeeGradeName}</span>
+              </label>
             ))}
-          </select>
+          </div>
         </div>
 
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-2">Designation</label>
-          <select
-            value={filters.designationId}
-            onChange={(e) => setFilters((p) => ({ ...p, designationId: e.target.value }))}
-            className="w-full border-2 border-slate-200 rounded-lg px-3 py-2 focus:border-indigo-400 focus:outline-none bg-white"
-          >
-            <option value="">All Designations</option>
+          <div className="flex flex-wrap gap-2">
             {designations.map((d) => (
-              <option key={d.designationId} value={d.designationId}>
-                {d.designationName}
-              </option>
+              <label key={d.designationId} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                  checked={filters.designationIds.includes(String(d.designationId))}
+                  onChange={() =>
+                    setFilters((p) => ({
+                      ...p,
+                      designationIds: toggleValue(p.designationIds, String(d.designationId)),
+                    }))
+                  }
+                />
+                <span>{d.designationName}</span>
+              </label>
             ))}
-          </select>
+          </div>
         </div>
 
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-2">Experience</label>
-          <select
-            value={filters.experienceBand}
-            onChange={(e) => setFilters((p) => ({ ...p, experienceBand: e.target.value }))}
-            className="w-full border-2 border-slate-200 rounded-lg px-3 py-2 focus:border-indigo-400 focus:outline-none bg-white"
-          >
-            <option value="">All Experience</option>
-            <option value="lt1">Below 1 Year</option>
-            <option value="1to3">1 to 3 Years</option>
-            <option value="3to5">3 to 5 Years</option>
-            <option value="5plus">5+ Years</option>
-          </select>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { value: 'lt1', label: 'Below 1 Year' },
+              { value: '1to3', label: '1 to 3 Years' },
+              { value: '3to5', label: '3 to 5 Years' },
+              { value: '5plus', label: '5+ Years' },
+            ].map((band) => (
+              <label key={band.value} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                  checked={filters.experienceBands.includes(band.value)}
+                  onChange={() =>
+                    setFilters((p) => ({
+                      ...p,
+                      experienceBands: toggleValue(p.experienceBands, band.value),
+                    }))
+                  }
+                />
+                <span>{band.label}</span>
+              </label>
+            ))}
+          </div>
         </div>
+      </div>
+
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setFilters(defaultFilters)}
+          className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700"
+        >
+          Reset
+        </button>
+        <button
+          type="button"
+          onClick={handleApplyFilters}
+          className="h-9 rounded-lg bg-indigo-600 px-3 text-sm text-white"
+        >
+          Apply
+        </button>
+        <button
+          type="button"
+          onClick={handleSelectAllVisible}
+          className="h-9 rounded-lg bg-emerald-600 px-3 text-sm text-white"
+        >
+          Select All Employees
+        </button>
       </div>
 
       {selectedEmployeeIds.length > 0 && (

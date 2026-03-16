@@ -6,6 +6,28 @@ import API from "../api";
 import MasterHeader from "../components/common/MasterHeader";
 import MasterTable from "../components/common/MasterTable";
 
+const toggleValue = (values, value) => {
+  const key = String(value);
+  return values.includes(key) ? values.filter((v) => v !== key) : [...values, key];
+};
+const buildQueryParams = (params) => {
+  const search = new URLSearchParams();
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value === null || value === undefined) return;
+    if (Array.isArray(value)) {
+      value
+        .map((v) => String(v))
+        .filter((v) => v !== "")
+        .forEach((v) => search.append(key, v));
+      return;
+    }
+    const text = String(value).trim();
+    if (!text) return;
+    search.append(key, text);
+  });
+  return search;
+};
+
 export default function LeaveApproval({
   role,
   companyId,
@@ -23,11 +45,18 @@ export default function LeaveApproval({
   const [requests, setRequests] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [departments, setDepartments] = useState([]);
-  const [selectedCompany, setSelectedCompany] = useState(baseCompanyId ? String(baseCompanyId) : "");
-  const [selectedDepartment, setSelectedDepartment] = useState(
-    baseDepartmentId ? String(baseDepartmentId) : ""
+  const [selectedCompanyIds, setSelectedCompanyIds] = useState(
+    baseCompanyId ? [String(baseCompanyId)] : []
   );
-  const [statusFilter, setStatusFilter] = useState("Pending");
+  const [selectedDepartmentIds, setSelectedDepartmentIds] = useState(
+    baseDepartmentId ? [String(baseDepartmentId)] : []
+  );
+  const [statusFilters, setStatusFilters] = useState(["Pending"]);
+  const [appliedFilters, setAppliedFilters] = useState({
+    companyIds: baseCompanyId ? [String(baseCompanyId)] : [],
+    departmentIds: baseDepartmentId ? [String(baseDepartmentId)] : [],
+    statuses: ["Pending"],
+  });
   const [search, setSearch] = useState("");
 
   const canChooseCompany = String(effectiveRole).toLowerCase() === "super admin";
@@ -35,15 +64,22 @@ export default function LeaveApproval({
     String(effectiveRole).toLowerCase()
   );
 
-  const resolvedCompany = canChooseCompany ? selectedCompany : String(baseCompanyId || "");
-  const resolvedDepartment = canChooseDepartment
-    ? selectedDepartment
-    : String(baseDepartmentId || "");
+  const resolvedCompanyIds = canChooseCompany
+    ? selectedCompanyIds
+    : baseCompanyId
+    ? [String(baseCompanyId)]
+    : [];
+  const resolvedDepartmentIds = canChooseDepartment
+    ? selectedDepartmentIds
+    : baseDepartmentId
+    ? [String(baseDepartmentId)]
+    : [];
 
   const scopedDepartments = useMemo(() => {
-    if (!resolvedCompany) return departments;
-    return departments.filter((d) => Number(d.companyId) === Number(resolvedCompany));
-  }, [departments, resolvedCompany]);
+    if (resolvedCompanyIds.length === 0) return departments;
+    const scopeSet = new Set(resolvedCompanyIds.map(String));
+    return departments.filter((d) => scopeSet.has(String(d.companyId)));
+  }, [departments, resolvedCompanyIds]);
 
   const getApiErrorMessage = (error, fallback = "Something went wrong") => {
     const data = error?.response?.data;
@@ -81,14 +117,15 @@ export default function LeaveApproval({
     }
   };
 
-  const loadRequests = async () => {
-    if (!resolvedCompany) return;
+  const loadRequests = async (nextFilters = appliedFilters) => {
+    if (nextFilters.companyIds.length === 0) return;
     setLoading(true);
     try {
-      const params = { companyId: resolvedCompany };
-      if (resolvedDepartment) params.departmentId = resolvedDepartment;
-      if (statusFilter) params.status = statusFilter;
-
+      const params = buildQueryParams({
+        companyId: nextFilters.companyIds,
+        departmentId: nextFilters.departmentIds,
+        status: nextFilters.statuses,
+      });
       const res = await API.get("/leaveRequests", { params });
       setRequests(res.data || []);
     } catch (error) {
@@ -105,19 +142,15 @@ export default function LeaveApproval({
 
   useEffect(() => {
     if (!canChooseCompany && baseCompanyId) {
-      setSelectedCompany(String(baseCompanyId));
+      setSelectedCompanyIds([String(baseCompanyId)]);
     }
   }, [baseCompanyId, canChooseCompany]);
 
   useEffect(() => {
-    if (canChooseDepartment && baseDepartmentId && !selectedDepartment) {
-      setSelectedDepartment(String(baseDepartmentId));
+    if (canChooseDepartment && baseDepartmentId && selectedDepartmentIds.length === 0) {
+      setSelectedDepartmentIds([String(baseDepartmentId)]);
     }
-  }, [baseDepartmentId, canChooseDepartment, selectedDepartment]);
-
-  useEffect(() => {
-    loadRequests();
-  }, [resolvedCompany, resolvedDepartment, statusFilter]);
+  }, [baseDepartmentId, canChooseDepartment, selectedDepartmentIds.length]);
 
   const filteredRequests = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -144,6 +177,22 @@ export default function LeaveApproval({
         .some((value) => String(value).toLowerCase().includes(q));
     });
   }, [requests, search]);
+
+  const handleApplyFilters = async () => {
+    const nextFilters = {
+      companyIds: resolvedCompanyIds,
+      departmentIds: resolvedDepartmentIds,
+      statuses: statusFilters,
+    };
+    setAppliedFilters(nextFilters);
+    await loadRequests(nextFilters);
+  };
+
+  const handleResetFilters = () => {
+    setSelectedCompanyIds(baseCompanyId ? [String(baseCompanyId)] : []);
+    setSelectedDepartmentIds(baseDepartmentId ? [String(baseDepartmentId)] : []);
+    setStatusFilters(["Pending"]);
+  };
 
   const updateStatus = async (row, newStatus) => {
     setSavingId(row.leaveRequestId);
@@ -175,50 +224,67 @@ export default function LeaveApproval({
       <MasterHeader
         search={search}
         setSearch={setSearch}
-        onAddNew={loadRequests}
-        onRefresh={loadRequests}
+        onAddNew={handleApplyFilters}
+        onRefresh={handleApplyFilters}
         placeholder="Search by request id, staff, leave type or status..."
         buttonText="Apply Filters"
         actions={
           <>
-            <select
-              value={resolvedCompany}
-              onChange={(e) => canChooseCompany && setSelectedCompany(e.target.value)}
-              disabled={!canChooseCompany}
-              className="h-10 min-w-44 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 disabled:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">{canChooseCompany ? "Select company" : selectedCompanyName || "Company"}</option>
-              {companies.map((c) => (
-                <option key={c.companyId} value={c.companyId}>
-                  {c.companyName}
-                </option>
-              ))}
-            </select>
+            {canChooseCompany && (
+              <div className="flex flex-wrap items-center gap-2">
+                {companies.map((c) => (
+                  <label key={c.companyId} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                      checked={selectedCompanyIds.includes(String(c.companyId))}
+                      onChange={() => {
+                        setSelectedCompanyIds((prev) => toggleValue(prev, String(c.companyId)));
+                        setSelectedDepartmentIds([]);
+                      }}
+                    />
+                    <span>{c.companyName}</span>
+                  </label>
+                ))}
+              </div>
+            )}
 
-            <select
-              value={resolvedDepartment}
-              onChange={(e) => canChooseDepartment && setSelectedDepartment(e.target.value)}
-              disabled={!canChooseDepartment}
-              className="h-10 min-w-44 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 disabled:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All departments</option>
-              {scopedDepartments.map((d) => (
-                <option key={d.departmentId} value={d.departmentId}>
-                  {d.departmentName}
-                </option>
-              ))}
-            </select>
+            {canChooseDepartment && (
+              <div className="flex flex-wrap items-center gap-2">
+                {scopedDepartments.map((d) => (
+                  <label key={d.departmentId} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                      checked={selectedDepartmentIds.includes(String(d.departmentId))}
+                      onChange={() => setSelectedDepartmentIds((prev) => toggleValue(prev, String(d.departmentId)))}
+                    />
+                    <span>{d.departmentName}</span>
+                  </label>
+                ))}
+              </div>
+            )}
 
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-10 min-w-36 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="Pending">Pending</option>
-              <option value="Approved">Approved</option>
-              <option value="Rejected">Rejected</option>
-              <option value="">All</option>
-            </select>
+            <div className="flex flex-wrap items-center gap-2">
+              {["Pending", "Approved", "Rejected"].map((status) => (
+                <label key={status} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                    checked={statusFilters.includes(status)}
+                    onChange={() => setStatusFilters((prev) => toggleValue(prev, status))}
+                  />
+                  <span>{status}</span>
+                </label>
+              ))}
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700"
+              >
+                Reset
+              </button>
+            </div>
           </>
         }
       />

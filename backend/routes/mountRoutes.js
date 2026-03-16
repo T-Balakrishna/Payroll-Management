@@ -34,6 +34,7 @@ import employeeLoanRoutes from './employeeLoanRoutes.js';
 import formulaRoutes from './formulaRoutes.js';
 import permissionRoutes from './permissionRoutes.js';
 import statuaryReportsRoutes from './statutoryReportsRoutes.js';
+import reportGeneratorRoutes from './reportGeneratorRoutes.js';
 
 const mountRoutes = (app) => {
   // Core
@@ -109,6 +110,8 @@ const mountRoutes = (app) => {
   app.use('/api/permissions', permissionRoutes);
 
   app.use('/api/statuaryReports', statuaryReportsRoutes);
+
+  app.use('/api/reportGenerator', reportGeneratorRoutes);
 };
 
 export default mountRoutes;

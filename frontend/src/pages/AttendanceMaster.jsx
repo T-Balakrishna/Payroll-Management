@@ -3,12 +3,32 @@ import { toast } from "react-toastify";
 import API from "../api";
 import { useAuth } from "../auth/AuthContext";
 import MasterTable from "../components/common/MasterTable";
-import Select from "../components/ui/Select";
 import Input from "../components/ui/Input";
 import Button from "../components/ui/Button";
 
 const normalizeRole = (role) => String(role || "").replace(/\s+/g, "").toLowerCase();
 const formatDateTime = (value) => (value ? new Date(value).toLocaleString() : "-");
+const toggleValue = (values, value) => {
+  const key = String(value);
+  return values.includes(key) ? values.filter((v) => v !== key) : [...values, key];
+};
+const buildQueryParams = (params) => {
+  const search = new URLSearchParams();
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value === null || value === undefined) return;
+    if (Array.isArray(value)) {
+      value
+        .map((v) => String(v))
+        .filter((v) => v !== "")
+        .forEach((v) => search.append(key, v));
+      return;
+    }
+    const text = String(value).trim();
+    if (!text) return;
+    search.append(key, text);
+  });
+  return search;
+};
 
 export default function AttendanceMaster({ userRole, selectedCompanyId }) {
   const { user } = useAuth();
@@ -25,7 +45,7 @@ export default function AttendanceMaster({ userRole, selectedCompanyId }) {
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({
     companyId: selectedCompanyId || "",
-    status: "",
+    status: [],
     dateFrom: "",
     dateTo: "",
     q: "",
@@ -86,7 +106,7 @@ export default function AttendanceMaster({ userRole, selectedCompanyId }) {
     loadStatusDependencies();
   }, [effectiveCompanyId]);
 
-  const fetchAttendance = useCallback(async () => {
+  const fetchAttendance = useCallback(async (nextFilters = filters) => {
     if (!effectiveCompanyId) {
       setAttendances([]);
       return;
@@ -94,13 +114,13 @@ export default function AttendanceMaster({ userRole, selectedCompanyId }) {
 
     setLoading(true);
     try {
-      const params = {
+      const params = buildQueryParams({
         companyId: effectiveCompanyId,
-        status: filters.status || undefined,
-        dateFrom: filters.dateFrom || undefined,
-        dateTo: filters.dateTo || undefined,
-        q: filters.q?.trim() || undefined,
-      };
+        status: nextFilters.status,
+        dateFrom: nextFilters.dateFrom || undefined,
+        dateTo: nextFilters.dateTo || undefined,
+        q: nextFilters.q?.trim() || undefined,
+      });
 
       const res = await API.get("/attendances", { params });
       setAttendances(res.data || []);
@@ -110,14 +130,7 @@ export default function AttendanceMaster({ userRole, selectedCompanyId }) {
     } finally {
       setLoading(false);
     }
-  }, [effectiveCompanyId, filters.dateFrom, filters.dateTo, filters.q, filters.status]);
-
-  useEffect(() => {
-    const id = setTimeout(() => {
-      fetchAttendance();
-    }, 0);
-    return () => clearTimeout(id);
-  }, [fetchAttendance]);
+  }, [effectiveCompanyId, filters]);
 
   useEffect(() => {
     const next = {};
@@ -130,7 +143,7 @@ export default function AttendanceMaster({ userRole, selectedCompanyId }) {
   const resetFilters = () => {
     setFilters((prev) => ({
       companyId: prev.companyId || selectedCompanyId || "",
-      status: "",
+      status: [],
       dateFrom: "",
       dateTo: "",
       q: "",
@@ -217,34 +230,63 @@ export default function AttendanceMaster({ userRole, selectedCompanyId }) {
       <div className="bg-white border border-gray-200 rounded-lg p-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
           {isSuperAdmin && (
-            <Select
-              label="Company"
-              value={filters.companyId}
-              onChange={(e) => setFilters((p) => ({ ...p, companyId: e.target.value }))}
-              options={companies.map((c) => ({ value: c.companyId, label: c.companyName }))}
-              placeholder="Select Company"
-              allowPlaceholderSelection
-            />
+            <div className="lg:col-span-2">
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Company</label>
+              <div className="flex flex-wrap gap-3">
+                {companies.map((company) => (
+                  <label key={company.companyId} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                      checked={String(filters.companyId) === String(company.companyId)}
+                      onChange={() =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          companyId:
+                            String(prev.companyId) === String(company.companyId)
+                              ? ""
+                              : String(company.companyId),
+                        }))
+                      }
+                    />
+                    <span>{company.companyName}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
           )}
 
-          <Select
-            label="Status"
-            value={filters.status}
-            onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))}
-            options={[
-              { value: "Present", label: "Present" },
-              { value: "Absent", label: "Absent" },
-              { value: "Half-Day", label: "Half-Day" },
-              { value: "Late", label: "Late" },
-              { value: "Early Exit", label: "Early Exit" },
-              { value: "Leave", label: "Leave" },
-              { value: "Holiday", label: "Holiday" },
-              { value: "Week Off", label: "Week Off" },
-              { value: "Permission", label: "Permission" },
-            ]}
-            placeholder="All Status"
-            allowPlaceholderSelection
-          />
+          <div className="lg:col-span-2">
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Status</label>
+            <div className="flex flex-wrap gap-3">
+              {[
+                "Present",
+                "Absent",
+                "Half-Day",
+                "Late",
+                "Early Exit",
+                "Leave",
+                "Holiday",
+                "Week Off",
+                "Permission",
+              ].map((status) => (
+                <label key={status} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                    checked={filters.status.includes(status)}
+                    onChange={() =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        status: toggleValue(prev.status, status),
+                      }))
+                    }
+                  />
+                  <span>{status}</span>
+                </label>
+              ))}
+            </div>
+          </div>
 
           <Input
             label="Date From"
@@ -276,7 +318,7 @@ export default function AttendanceMaster({ userRole, selectedCompanyId }) {
             <Button variant="secondary" onClick={resetFilters}>
               Reset
             </Button>
-            <Button onClick={fetchAttendance}>Apply Filters</Button>
+            <Button onClick={() => fetchAttendance(filters)}>Apply Filters</Button>
           </div>
         </div>
 

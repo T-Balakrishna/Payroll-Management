@@ -3,6 +3,7 @@ import PDFDocument from 'pdfkit';
 import { readFile } from 'fs/promises';
 import formulaEvaluator from './formulaEvaluator.js';
 import db from '../models/index.js';
+import { sendMail } from '../services/mailService.js';
 
 const {
   SalaryGeneration,
@@ -207,6 +208,33 @@ const amountToWordsINR = (amount) => {
   const rounded = Math.round(Number(amount || 0));
   return `INR ${numberToWords(rounded)} only.`;
 };
+const getAttendanceDaySplit = (status = '') => {
+  const normalized = normalize(status);
+
+  if (
+    normalized === 'present' ||
+    normalized === 'late' ||
+    normalized === 'early exit' ||
+    normalized === 'permission' ||
+    normalized.startsWith('permission-')
+  ) {
+    return { present: 1, absent: 0 };
+  }
+
+  if (normalized === 'half-day' || normalized.startsWith('half-day-')) {
+    return { present: 0.5, absent: 0.5 };
+  }
+
+  if (normalized === 'absent-half') {
+    return { present: 0, absent: 0.5 };
+  }
+
+  if (normalized === 'absent' || normalized === 'absent-full') {
+    return { present: 0, absent: 1 };
+  }
+
+  return null;
+};
 
 const parseRemarksJson = (remarks) => {
   if (!remarks) return {};
@@ -226,6 +254,209 @@ const parseComponentRemarks = (remarks) => {
   } catch (error) {
     return {};
   }
+};
+
+const pickRecipientEmail = (employee) => {
+  const official = String(employee?.officialEmail || '').trim();
+  if (official) return official;
+  const personal = String(employee?.personalEmail || '').trim();
+  if (personal) return personal;
+  return null;
+};
+
+const createSalarySlipPdfBuffer = async ({ record, periodStart, periodEnd }) => {
+  const employeeName = `${record.employee?.firstName || ''} ${record.employee?.lastName || ''}`.trim() || 'Employee';
+  const staffNumber = String(record.employee?.staffNumber || record.staffId || '').trim() || 'Staff';
+  const safeEmployeeName = toFileSafeToken(employeeName) || 'Employee';
+  const safeStaffNumber = toFileSafeToken(staffNumber) || 'Staff';
+  const fileName = `${safeEmployeeName}_${safeStaffNumber}.pdf`;
+
+  const doc = new PDFDocument({ size: 'A4', margin: 40 });
+  const chunks = [];
+  const bufferPromise = new Promise((resolve, reject) => {
+    doc.on('data', (chunk) => chunks.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+  });
+
+  const allDetails = Array.isArray(record.salaryGenerationDetails) ? record.salaryGenerationDetails : [];
+  const earnings = allDetails
+    .filter((item) => String(item.componentType || '').toLowerCase() === 'earning')
+    .sort((a, b) => String(a.componentName || '').localeCompare(String(b.componentName || '')));
+  const deductions = allDetails
+    .filter((item) => String(item.componentType || '').toLowerCase() === 'deduction')
+    .sort((a, b) => String(a.componentName || '').localeCompare(String(b.componentName || '')));
+  const startDate = record.payPeriodStart || periodStart;
+  const endDate = record.payPeriodEnd || periodEnd;
+  const workingDays = Number(record.workingDays || (
+    startDate && endDate ? daysBetweenInclusive(startDate, endDate) : 0
+  ));
+  const leaveWithoutPay = Number(record.unpaidLeaveDays || 0);
+  const absentDays = Number(record.absentDays || 0);
+  const paymentDays = Math.max(0, Number((workingDays - leaveWithoutPay - absentDays).toFixed(2)));
+  const companyName = String(record.company?.companyName || 'NATIONAL ENGINEERING COLLEGE').trim();
+  const deptName = record.employee?.department?.departmentName || '-';
+  const designationName = record.employee?.designation?.designationName || '-';
+  const bankAccountNo = record.employee?.bankAccountNumber || '-';
+  const salarySlipNo = `SAL SLIP/XXXXXXXXXX/${String(record.salaryGenerationId).padStart(5, '0')}`;
+
+  const loadLogoBuffer = async () => {
+    try {
+      const localLogoUrl = new URL('../../frontend/src/assets/neclogo.png', import.meta.url);
+      return await readFile(localLogoUrl);
+    } catch (error) {
+      return null;
+    }
+  };
+  const logoBuffer = await loadLogoBuffer();
+
+  const blue = '#1f3d97';
+  const dark = '#111111';
+  const grey = '#666666';
+  let fontRegular = 'Helvetica';
+  let fontBold = 'Helvetica-Bold';
+  try {
+    doc.registerFont('SlipRegular', 'C:\\Windows\\Fonts\\arial.ttf');
+    doc.registerFont('SlipBold', 'C:\\Windows\\Fonts\\arialbd.ttf');
+    fontRegular = 'SlipRegular';
+    fontBold = 'SlipBold';
+  } catch (error) {
+    // Keep built-in fonts when Arial is unavailable.
+  }
+  doc.rect(0, 0, doc.page.width, doc.page.height).fill('#ffffff');
+  doc.fillColor(dark);
+
+  let y = 28;
+  if (logoBuffer) {
+    doc.image(logoBuffer, 45, y + 1, { width: 60, height: 60 });
+  } else {
+    doc.circle(76, y + 26, 26).lineWidth(1).stroke(blue);
+    doc.font(fontBold).fontSize(10).fillColor(blue).text('NEC', 62, y + 21);
+  }
+
+  doc.fillColor(dark).font(fontBold).fontSize(20).text('NATIONAL ENGINEERING COLLEGE', 115, y + 5);
+  doc.fillColor(blue).font(fontRegular).fontSize(10).text('(An Autonomous Institution Affiliated to Anna University, Chennai)', 115, y + 33);
+  doc.fillColor(blue).font(fontBold).fontSize(14).text('K.R.Nagar, Kovilpatti - 628 503.', 115, y + 48);
+
+  doc.fillColor(dark).font(fontBold).fontSize(18).text('SALARY SLIP', 0, y + 83, { align: 'right' });
+  doc.fillColor(grey).font(fontRegular).fontSize(11).text(salarySlipNo, 0, y + 118, { align: 'right' });
+
+  const dividerY = y + 128;
+  doc.moveTo(40, dividerY).lineTo(doc.page.width - 40, dividerY).lineWidth(1.5).stroke(blue);
+
+  const leftX = 40;
+  const rightX = 348;
+  const leftLabelW = 132;
+  const leftValueW = 168;
+  const rightLabelW = 126;
+  const rightValueW = 74;
+  const rowH = 24;
+  let infoY = dividerY + 14;
+  const leftRows = [
+    ['Employee:', staffNumber],
+    ['Company:', companyName.toUpperCase()],
+    ['Employee Name:', employeeName],
+    ['Department:', deptName.toUpperCase()],
+    ['Designation:', designationName],
+    ['Bank Account No.:', bankAccountNo],
+  ];
+  const rightRows = [
+    ['Start Date:', startDate ? formatDateDDMMYYYY(startDate) : '-'],
+    ['End Date:', endDate ? formatDateDDMMYYYY(endDate) : '-'],
+    ['Working Days:', Number(workingDays || 0).toFixed(0)],
+    ['Payment Days:', Number(paymentDays || 0).toFixed(0)],
+    ['Leave Without Pay:', Number(leaveWithoutPay || 0).toFixed(0)],
+    ['Absent Days:', Number(absentDays || 0).toFixed(0)],
+  ];
+
+  leftRows.forEach((row, idx) => {
+    const yy = infoY + (idx * rowH);
+    doc.font(fontBold).fontSize(10).fillColor(dark).text(row[0], leftX, yy, { width: leftLabelW });
+    doc.font(fontRegular).fontSize(10).text(row[1], leftX + leftLabelW, yy, {
+      width: leftValueW,
+      ellipsis: true,
+      lineBreak: false,
+    });
+  });
+  rightRows.forEach((row, idx) => {
+    const yy = infoY + (idx * rowH);
+    doc.font(fontBold).fontSize(10).fillColor(dark).text(row[0], rightX, yy, { width: rightLabelW });
+    doc.font(fontRegular).fontSize(10).text(row[1], rightX + rightLabelW, yy, {
+      width: rightValueW,
+      align: 'right',
+      ellipsis: true,
+      lineBreak: false,
+    });
+  });
+
+  const tableTop = infoY + (leftRows.length * rowH) + 16;
+  const contentW = doc.page.width - (doc.page.margins.left + doc.page.margins.right);
+  const tableGap = 22;
+  const tableW = Math.floor((contentW - tableGap) / 2);
+  const srW = 36;
+  const amtW = 95;
+  const compW = tableW - srW - amtW;
+  const leftTableX = doc.page.margins.left;
+  const rightTableX = leftTableX + tableW + tableGap;
+  const headH = 24;
+  const bodyH = 27;
+
+  const drawTable = (x, top, rows) => {
+    doc.rect(x, top, tableW, headH).fill(blue);
+    doc.fillColor('#ffffff').font(fontBold).fontSize(10);
+    doc.text('Sr', x + 6, top + 7, { width: srW - 12 });
+    doc.text('Component', x + srW + 6, top + 7, { width: compW - 12 });
+    doc.text('Amount', x + srW + compW + 6, top + 7, { width: amtW - 12, align: 'right' });
+
+    let yy = top + headH;
+    const renderRows = rows.length > 0 ? rows : [{ componentName: '-', calculatedAmount: 0 }];
+    renderRows.forEach((item, idx) => {
+      const amount = Number(item?.calculatedAmount ?? item?.proratedAmount ?? item?.baseAmount ?? 0);
+      doc.rect(x, yy, srW, bodyH).fillAndStroke('#ffffff', '#c6ccd6');
+      doc.rect(x + srW, yy, compW, bodyH).fillAndStroke('#ffffff', '#c6ccd6');
+      doc.rect(x + srW + compW, yy, amtW, bodyH).fillAndStroke('#ffffff', '#c6ccd6');
+      doc.fillColor(dark).font(fontRegular).fontSize(9);
+      doc.text(String(idx + 1), x + 6, yy + 8, { width: srW - 12 });
+      doc.text(String(item.componentName || '-'), x + srW + 6, yy + 8, {
+        width: compW - 12,
+        ellipsis: true,
+        lineBreak: false,
+      });
+      doc.text(formatCurrencyINR(amount), x + srW + compW + 6, yy + 8, { width: amtW - 12, align: 'right' });
+      yy += bodyH;
+    });
+    return yy;
+  };
+
+  const leftEndY = drawTable(leftTableX, tableTop, earnings);
+  const rightEndY = drawTable(rightTableX, tableTop, deductions);
+  const baseY = Math.max(leftEndY, rightEndY) + 24;
+
+  const totalsX = rightTableX - 22;
+  const totalsLabelW = 130;
+  const totalsValueW = 160;
+  const netAmount = Number(record.netSalary || 0);
+  const roundedTotal = Math.round(netAmount);
+  const totals = [
+    ['Gross Pay:', formatCurrencyINR(record.grossSalary || 0), false],
+    ['Total Deduction:', formatCurrencyINR(record.totalDeductions || 0), false],
+    ['Net Pay:', formatCurrencyINR(netAmount), false],
+    ['Rounded Total:', formatCurrencyINR(roundedTotal), true],
+    ['Total in words:', amountToWordsINR(roundedTotal), false],
+  ];
+
+  totals.forEach((row, idx) => {
+    const yy = baseY + (idx * 24);
+    doc.font(fontBold).fontSize(10).fillColor(dark).text(row[0], totalsX, yy, { width: totalsLabelW });
+    doc.font(row[2] ? fontBold : fontRegular).fontSize(row[2] ? 13 : 10).text(row[1], totalsX + totalsLabelW + 6, yy, {
+      width: totalsValueW,
+      align: row[0] === 'Total in words:' ? 'left' : 'right',
+    });
+  });
+  doc.end();
+
+  const buffer = await bufferPromise;
+  return { buffer, fileName };
 };
 
 const STANDARD_MONTH_DAYS = 30;
@@ -254,14 +485,11 @@ const buildAttendanceSummary = ({ attendanceRows, leaveTypeByName, daysInMonth }
 
   for (const row of attendanceRows) {
     const status = normalize(row.attendanceStatus);
+    const split = getAttendanceDaySplit(row.attendanceStatus);
 
-    if (status === 'present' || status === 'late' || status === 'early exit' || status === 'permission') {
-      presentDays += 1;
-      continue;
-    }
-    if (status === 'half-day') {
-      presentDays += 0.5;
-      absentDays += 0.5;
+    if (split) {
+      presentDays += split.present;
+      absentDays += split.absent;
       continue;
     }
     if (status === 'week off') {
@@ -272,11 +500,6 @@ const buildAttendanceSummary = ({ attendanceRows, leaveTypeByName, daysInMonth }
       holidayDays += 1;
       continue;
     }
-    if (status === 'absent' || status.includes('absent')) {
-      absentDays += 1;
-      continue;
-    }
-
     const leaveTypeName = parseLeaveTypeFromStatus(row.attendanceStatus);
     if (leaveTypeName) {
       const leaveType = leaveTypeByName.get(normalize(leaveTypeName));
@@ -1286,6 +1509,111 @@ export const downloadSalaryGenerationPdf = async (req, res) => {
     doc.end();
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+};
+
+export const sendSalarySlipEmails = async (req, res) => {
+  try {
+    const companyId = toInt(req.body.companyId);
+    const rawFromDate = String(req.body.fromDate || '').trim();
+    const rawToDate = String(req.body.toDate || '').trim();
+    const fromDate = toDateOnly(rawFromDate);
+    const toDate = toDateOnly(rawToDate);
+
+    if (!companyId) {
+      return res.status(400).json({ error: 'companyId is required' });
+    }
+    if (!fromDate || !toDate) {
+      return res.status(400).json({ error: 'Both valid fromDate and toDate are required' });
+    }
+    if (fromDate > toDate) {
+      return res.status(400).json({ error: 'fromDate must be before or equal to toDate' });
+    }
+
+    const records = await SalaryGeneration.findAll({
+      where: {
+        companyId,
+        payPeriodStart: fromDate,
+        payPeriodEnd: toDate,
+      },
+      include: [
+        {
+          model: Employee,
+          as: 'employee',
+          include: [
+            { model: db.Department, as: 'department', required: false },
+            { model: db.Designation, as: 'designation', required: false },
+          ],
+        },
+        { model: Company, as: 'company' },
+        { model: SalaryGenerationDetail, as: 'salaryGenerationDetails' },
+      ],
+      order: [[{ model: Employee, as: 'employee' }, 'staffNumber', 'ASC']],
+    });
+
+    if (!records.length) {
+      return res.status(404).json({ message: 'No salary generation records found for the selected period' });
+    }
+
+    const periodLabel = `${formatDateDDMMYYYY(fromDate)} to ${formatDateDDMMYYYY(toDate)}`;
+    let attempted = 0;
+    let sent = 0;
+    let skippedNoEmail = 0;
+    let failed = 0;
+    const failures = [];
+
+    for (const record of records) {
+      const recipientEmail = pickRecipientEmail(record.employee);
+      if (!recipientEmail) {
+        skippedNoEmail += 1;
+        continue;
+      }
+      attempted += 1;
+      try {
+        const { buffer, fileName } = await createSalarySlipPdfBuffer({
+          record,
+          periodStart: fromDate,
+          periodEnd: toDate,
+        });
+        const employeeName = `${record.employee?.firstName || ''} ${record.employee?.lastName || ''}`.trim() || 'Employee';
+        const subject = `Payslip for ${periodLabel}`;
+        const text = `Hello ${employeeName},\n\nPlease find your payslip for the period from ${periodLabel} attached.\n\nThis is an automated message from your HR system. Please do not reply to this email.`;
+        const html = `
+          <div style="font-family:Arial, sans-serif; color:#222;">
+            <p>Hello ${employeeName},</p>
+            <p>Please find your payslip for the period from <strong>${periodLabel}</strong> attached.</p>
+            <p style="font-size:12px;color:#888;">This is an automated message from your HR system. Please do not reply to this email.</p>
+          </div>
+        `;
+
+        await sendMail({
+          to: recipientEmail,
+          subject,
+          text,
+          html,
+          attachments: [{ filename: fileName, content: buffer }],
+        });
+        sent += 1;
+      } catch (error) {
+        failed += 1;
+        failures.push({
+          staffId: record.staffId,
+          email: recipientEmail,
+          error: error.message,
+        });
+      }
+    }
+
+    return res.json({
+      period: { fromDate, toDate },
+      attempted,
+      sent,
+      skippedNoEmail,
+      failed,
+      failures,
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
   }
 };
 
