@@ -16,6 +16,7 @@ const resolveCookieOptions = () => {
   };
 };
 
+
 export const csrfProtection = (req, res, next) => {
   const method = String(req.method || '').toUpperCase();
   const requestPath = String(req.path || '');

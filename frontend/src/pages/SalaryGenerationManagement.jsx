@@ -24,6 +24,27 @@ const getPreviousMonthRange = () => {
   };
 };
 
+const countMonthsInRange = (fromDate, toDate) => {
+  if (!fromDate || !toDate) return 0;
+  const start = new Date(fromDate);
+  const end = new Date(toDate);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+  return (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1;
+};
+
+const formatAmount = (value) => {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return '0';
+  return num.toFixed(2);
+};
+
+const buildAssignedEarningTotal = (details = []) => {
+  const earnings = details.filter((d) => String(d.componentType).toLowerCase() === 'earning');
+  if (earnings.length === 0) return '-';
+  const total = earnings.reduce((sum, e) => sum + Number(e.baseAmount ?? 0), 0);
+  return formatAmount(total);
+};
+
 export default function SalaryGenerationManagement({ selectedCompanyId }) {
   const { user } = useAuth();
   const companyId = selectedCompanyId || user?.companyId || user?.company?.companyId || '';
@@ -39,6 +60,7 @@ export default function SalaryGenerationManagement({ selectedCompanyId }) {
   const [absentEmployees, setAbsentEmployees] = useState([]);
   const selectedMonth = useMemo(() => Number.parseInt(String(fromDate || '').slice(5, 7), 10) || 0, [fromDate]);
   const selectedYear = useMemo(() => Number.parseInt(String(fromDate || '').slice(0, 4), 10) || 0, [fromDate]);
+  const monthsInPeriod = useMemo(() => countMonthsInRange(fromDate, toDate), [fromDate, toDate]);
 
   const fetchGenerated = async () => {
     if (!companyId || !fromDate || !toDate) return;
@@ -318,37 +340,34 @@ export default function SalaryGenerationManagement({ selectedCompanyId }) {
 
       <MasterTable
         columns={[
-          'Staff Number',
-          'Employee',
-          'Present',
-          'Week Off',
-          'Paid Leave',
-          'Paid Leave Types',
-          'Unpaid Leave',
+          'Staff / Earnings',
+          'Months',
+          'LOP Days',
           'Gross',
           'Net',
           'Slip',
         ]}
         loading={loading}
+        wrapHeaders
+        wrapCells
       >
         {rows.length === 0 ? (
           <tr>
-            <td className="py-4 px-4 text-center text-gray-500" colSpan={10}>No generated records</td>
+            <td className="py-4 px-4 text-center text-gray-500" colSpan={12}>No generated records</td>
           </tr>
         ) : (
           rows.map((row) => (
             <tr key={row.salaryGenerationId} className="border-t hover:bg-gray-50">
-              <td className="py-3 px-4">{row.employee?.staffNumber || row.staffId}</td>
-              <td className="py-3 px-4">{`${row.employee?.firstName || ''} ${row.employee?.lastName || ''}`.trim()}</td>
-              <td className="py-3 px-4">{row.presentDays}</td>
-              <td className="py-3 px-4">{row.weekOffDays}</td>
-              <td className="py-3 px-4">{row.paidLeaveDays}</td>
               <td className="py-3 px-4">
-                {Object.entries(row.paidLeaveTypeBreakdown || {}).length === 0
-                  ? '-'
-                  : Object.entries(row.paidLeaveTypeBreakdown || {}).map(([name, count]) => `${name}: ${count}`).join(', ')}
+                <div className="font-medium text-slate-800">
+                  {row.employee?.staffNumber || row.staffId || '-'}
+                </div>
+                <div className="text-xs text-slate-600 mt-1">
+                  Earnings (Assigned): {buildAssignedEarningTotal(row.salaryGenerationDetails || [])}
+                </div>
               </td>
-              <td className="py-3 px-4">{row.unpaidLeaveDays}</td>
+              <td className="py-3 px-4">{monthsInPeriod}</td>
+              <td className="py-3 px-4">{Number(row.absentDays || 0) + Number(row.unpaidLeaveDays || 0)}</td>
               <td className="py-3 px-4">{row.grossSalary}</td>
               <td className="py-3 px-4">{row.netSalary}</td>
               <td className="py-3 px-4">

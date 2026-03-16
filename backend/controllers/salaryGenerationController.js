@@ -162,7 +162,7 @@ const toFileSafeToken = (value = '') => String(value || '')
   .replace(/\s+/g, '_')
   .replace(/_+/g, '_')
   .replace(/^_+|_+$/g, '');
-const formatCurrencyINR = (value) => `₹ ${Number(value || 0).toLocaleString('en-IN', {
+const formatCurrencyINR = (value) => `INR ${Number(value || 0).toLocaleString('en-IN', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 })}`;
@@ -479,6 +479,7 @@ const buildAttendanceSummary = ({ attendanceRows, leaveTypeByName, daysInMonth }
   let unpaidLeaveDays = 0;
   let weekOffDays = 0;
   let holidayDays = 0;
+  let halfDayCount = 0;
 
   const paidLeaveTypeBreakdown = {};
   const unpaidLeaveTypeBreakdown = {};
@@ -490,8 +491,12 @@ const buildAttendanceSummary = ({ attendanceRows, leaveTypeByName, daysInMonth }
     if (split) {
       presentDays += split.present;
       absentDays += split.absent;
+      if (status === 'half-day' || status.startsWith('half-day-')) {
+        halfDayCount += 1;
+      }
       continue;
     }
+
     if (status === 'week off') {
       weekOffDays += 1;
       continue;
@@ -500,6 +505,11 @@ const buildAttendanceSummary = ({ attendanceRows, leaveTypeByName, daysInMonth }
       holidayDays += 1;
       continue;
     }
+    if (status.includes('absent')) {
+      absentDays += 1;
+      continue;
+    }
+
     const leaveTypeName = parseLeaveTypeFromStatus(row.attendanceStatus);
     if (leaveTypeName) {
       const leaveType = leaveTypeByName.get(normalize(leaveTypeName));
@@ -528,6 +538,7 @@ const buildAttendanceSummary = ({ attendanceRows, leaveTypeByName, daysInMonth }
     unpaidLeaveDays: Number(unpaidLeaveDays.toFixed(2)),
     weekOffDays: Number(weekOffDays.toFixed(2)),
     holidayDays: Number(holidayDays.toFixed(2)),
+    halfDayCount: Number(halfDayCount.toFixed(2)),
     paidLeaveTypeBreakdown,
     unpaidLeaveTypeBreakdown,
   };
@@ -540,6 +551,7 @@ const toPlainWithMeta = (record) => {
     ...plain,
     paidLeaveTypeBreakdown: meta.paidLeaveTypeBreakdown || {},
     unpaidLeaveTypeBreakdown: meta.unpaidLeaveTypeBreakdown || {},
+    halfDayCount: Number(meta.halfDayCount || 0),
   };
 };
 
@@ -574,17 +586,26 @@ export const getAllSalaryGenerations = async (req, res) => {
     const salaryGenerations = await SalaryGeneration.findAll({
       where,
       include: [
-        { model: db.Employee, as: 'employee' },
+        {
+          model: db.Employee,
+          as: 'employee',
+          include: [
+            { model: db.Department, as: 'department' },
+            { model: db.Designation, as: 'designation' },
+          ],
+        },
         { model: db.EmployeeSalaryMaster, as: 'employeeSalaryMaster' },
         { model: db.Company, as: 'company' },
         { model: db.User, as: 'generator' },
         { model: db.User, as: 'approver' },
         { model: db.User, as: 'payer' },
+        { model: db.SalaryGenerationDetail, as: 'salaryGenerationDetails' },
       ],
       order: [
         ['salaryYear', 'DESC'],
         ['salaryMonth', 'DESC'],
         ['salaryGenerationId', 'DESC'],
+        [{ model: db.SalaryGenerationDetail, as: 'salaryGenerationDetails' }, 'componentName', 'ASC'],
       ],
     });
     res.json(salaryGenerations.map(toPlainWithMeta));
@@ -597,7 +618,14 @@ export const getSalaryGenerationById = async (req, res) => {
   try {
     const salaryGeneration = await SalaryGeneration.findByPk(req.params.id, {
       include: [
-        { model: db.Employee, as: 'employee' },
+        {
+          model: db.Employee,
+          as: 'employee',
+          include: [
+            { model: db.Department, as: 'department' },
+            { model: db.Designation, as: 'designation' },
+          ],
+        },
         { model: db.EmployeeSalaryMaster, as: 'employeeSalaryMaster' },
         { model: db.Company, as: 'company' },
         { model: db.User, as: 'generator' },
@@ -948,6 +976,7 @@ export const generateMonthlySalary = async (req, res) => {
       const remarksJson = JSON.stringify({
         paidLeaveTypeBreakdown: summary.paidLeaveTypeBreakdown,
         unpaidLeaveTypeBreakdown: summary.unpaidLeaveTypeBreakdown,
+        halfDayCount: summary.halfDayCount,
       });
 
       const recordPayload = {
@@ -1091,8 +1120,16 @@ export const downloadSalaryGenerationSpreadsheet = async (req, res) => {
     const records = await SalaryGeneration.findAll({
       where,
       include: [
-        { model: Employee, as: 'employee' },
+        {
+          model: Employee,
+          as: 'employee',
+          include: [
+            { model: db.Department, as: 'department', required: false },
+            { model: db.Designation, as: 'designation', required: false },
+          ],
+        },
         { model: db.Company, as: 'company' },
+        { model: SalaryGenerationDetail, as: 'salaryGenerationDetails' },
       ],
       order: [[{ model: Employee, as: 'employee' }, 'staffNumber', 'ASC']],
     });
@@ -1106,19 +1143,13 @@ export const downloadSalaryGenerationSpreadsheet = async (req, res) => {
 
     worksheet.columns = [
       { header: 'Staff Number', key: 'staffNumber', width: 16 },
-      { header: 'Employee Name', key: 'employeeName', width: 26 },
+      { header: 'Employee Details', key: 'employeeDetails', width: 60 },
       { header: 'Pay Period Start', key: 'payPeriodStart', width: 14 },
       { header: 'Pay Period End', key: 'payPeriodEnd', width: 14 },
+      { header: 'Total Days', key: 'totalDays', width: 12 },
       { header: 'Working Days', key: 'workingDays', width: 12 },
-      { header: 'Present Days', key: 'presentDays', width: 12 },
-      { header: 'Week Off Days', key: 'weekOffDays', width: 12 },
-      { header: 'Holiday Days', key: 'holidayDays', width: 12 },
       { header: 'Paid Leave Days', key: 'paidLeaveDays', width: 12 },
-      { header: 'Paid Leave Types', key: 'paidLeaveTypes', width: 30 },
       { header: 'Unpaid Leave Days', key: 'unpaidLeaveDays', width: 14 },
-      { header: 'Basic Salary', key: 'basicSalary', width: 14 },
-      { header: 'Total Earnings', key: 'totalEarnings', width: 14 },
-      { header: 'Total Deductions', key: 'totalDeductions', width: 14 },
       { header: 'Gross Salary', key: 'grossSalary', width: 14 },
       { header: 'Net Salary', key: 'netSalary', width: 14 },
       { header: 'Status', key: 'status', width: 12 },
@@ -1126,26 +1157,40 @@ export const downloadSalaryGenerationSpreadsheet = async (req, res) => {
 
     records.forEach((record) => {
       const meta = parseRemarksJson(record.remarks);
-      const paidLeaveTypeBreakdown = meta.paidLeaveTypeBreakdown || {};
-      const paidLeaveTypes = Object.entries(paidLeaveTypeBreakdown)
-        .map(([name, count]) => `${name}: ${count}`)
-        .join(', ');
+      const periodStart = record.payPeriodStart || toDateOnly(fromDate);
+      const periodEnd = record.payPeriodEnd || toDateOnly(toDate);
+      const totalDays = periodStart && periodEnd ? daysBetweenInclusive(periodStart, periodEnd) : 0;
+      const weekOffDays = Number(record.weekOffDays || 0);
+      const holidayDays = Number(record.holidayDays || 0);
+      const workingDays = Math.max(0, totalDays - weekOffDays - holidayDays);
+      const details = Array.isArray(record.salaryGenerationDetails) ? record.salaryGenerationDetails : [];
+      const earnings = details
+        .filter((item) => String(item.componentType || '').toLowerCase() === 'earning')
+        .sort((a, b) => String(a.componentName || '').localeCompare(String(b.componentName || '')));
+      const earningParts = earnings.map((item) => {
+        const amount = Number(item.baseAmount ?? 0);
+        return Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
+      });
+      const employeeName = `${record.employee?.firstName || ''} ${record.employee?.lastName || ''}`.trim() || '-';
+      const designationName = record.employee?.designation?.designationName || '-';
+      const departmentName = record.employee?.department?.departmentName || '-';
+      const earningsText = earningParts.length > 0 ? earningParts.join(' + ') : '-';
+      const employeeDetailsParts = [
+        employeeName,
+        designationName,
+        departmentName,
+        `Earnings: ${earningsText}`,
+      ];
 
       worksheet.addRow({
         staffNumber: record.employee?.staffNumber || record.staffId,
-        employeeName: `${record.employee?.firstName || ''} ${record.employee?.lastName || ''}`.trim(),
-        payPeriodStart: record.payPeriodStart,
-        payPeriodEnd: record.payPeriodEnd,
-        workingDays: Number(record.workingDays || 0),
-        presentDays: Number(record.presentDays || 0),
-        weekOffDays: Number(record.weekOffDays || 0),
-        holidayDays: Number(record.holidayDays || 0),
+        employeeDetails: employeeDetailsParts.join(', '),
+        payPeriodStart: periodStart,
+        payPeriodEnd: periodEnd,
+        totalDays,
+        workingDays,
         paidLeaveDays: Number(record.paidLeaveDays || 0),
-        paidLeaveTypes: paidLeaveTypes || '-',
         unpaidLeaveDays: Number(record.unpaidLeaveDays || 0),
-        basicSalary: Number(record.basicSalary || 0),
-        totalEarnings: Number(record.totalEarnings || 0),
-        totalDeductions: Number(record.totalDeductions || 0),
         grossSalary: Number(record.grossSalary || 0),
         netSalary: Number(record.netSalary || 0),
         status: record.status || '',
@@ -1154,7 +1199,7 @@ export const downloadSalaryGenerationSpreadsheet = async (req, res) => {
 
     worksheet.getRow(1).font = { bold: true };
 
-    for (let i = 12; i <= 16; i += 1) {
+    for (let i = 10; i <= 11; i += 1) {
       worksheet.eachRow((row, rowNumber) => {
         if (rowNumber > 1) row.getCell(i).numFmt = '0.00';
       });

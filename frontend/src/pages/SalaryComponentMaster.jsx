@@ -12,6 +12,17 @@ import ActionButtons from "../components/common/ActionButton";
 import SalaryComponentForm from "../components/features/masters/SalaryComponentForm";
 
 const normalizeRole = (role) => String(role || "").replace(/\s+/g, "").toLowerCase();
+const isProfessionalTaxComponent = (component) => {
+  const normalizedCode = String(component?.code || "").trim().toUpperCase();
+  const normalizedName = String(component?.name || "").trim().toLowerCase();
+  const normalizedType = String(component?.type || "").trim();
+  const codeMatch = normalizedCode === "PT" ||
+    normalizedCode === "PTAX" ||
+    normalizedCode === "PROFESSIONAL_TAX" ||
+    normalizedCode === "PROFESSIONALTAX";
+  const nameMatch = normalizedName === "professional tax";
+  return (codeMatch || nameMatch) && (!normalizedType || normalizedType === "Deduction");
+};
 
 export default function SalaryComponentMaster({ userRole, selectedCompanyId, selectedCompanyName }) {
   const { user } = useAuth();
@@ -82,10 +93,17 @@ export default function SalaryComponentMaster({ userRole, selectedCompanyId, sel
     companies.find((c) => String(c.companyId) === String(id))?.companyAcr || "";
 
   const getValuePreview = (component) => {
+    if (isProfessionalTaxComponent(component)) return "Professional Tax Formula (Feb/Sep)";
     if (component.type === "Earning" && component.calculationType === "Fixed") return "Assigned per employee";
     if (component.type === "Earning" && component.calculationType === "Formula") return "Formula";
     if (component.calculationType === "Formula") return "Formula";
     return "-";
+  };
+
+  const getFormulaPreview = (component) => {
+    if (component.calculationType !== "Formula") return "-";
+    if (isProfessionalTaxComponent(component)) return "professional_tax_formula";
+    return String(component.formula || "").trim() || "Formula";
   };
 
   const handleSave = async (payload, salaryComponentId) => {
@@ -175,6 +193,7 @@ export default function SalaryComponentMaster({ userRole, selectedCompanyId, sel
           "Code",
           "Type",
           "Calculation",
+          "Formula",
           "Value",
           "Display Order",
           ...(!effectiveSelectedCompanyId ? ["Company"] : []),
@@ -187,6 +206,7 @@ export default function SalaryComponentMaster({ userRole, selectedCompanyId, sel
             <td className="py-3 px-4">{c.code}</td>
             <td className="py-3 px-4">{c.type}</td>
             <td className="py-3 px-4">{c.calculationType}</td>
+            <td className="py-3 px-4">{getFormulaPreview(c)}</td>
             <td className="py-3 px-4">{getValuePreview(c)}</td>
             <td className="py-3 px-4">{c.displayOrder}</td>
             {!effectiveSelectedCompanyId && (
@@ -204,7 +224,7 @@ export default function SalaryComponentMaster({ userRole, selectedCompanyId, sel
         {filteredData.length === 0 && (
           <tr>
             <td
-              colSpan={effectiveSelectedCompanyId ? 7 : 8}
+              colSpan={effectiveSelectedCompanyId ? 8 : 9}
               className="text-center py-4 text-gray-500"
             >
               No salary components found
