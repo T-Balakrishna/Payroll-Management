@@ -139,7 +139,7 @@ export default (sequelize) => {
         'Withdrawn'
       ),
       allowNull: false,
-      defaultValue: 'Draft',
+      defaultValue: 'Pending',
     },
 
     currentApprovalLevel: {
@@ -160,7 +160,7 @@ export default (sequelize) => {
     appliedDate: {
       type: DataTypes.DATE,
       allowNull: true,
-      comment: 'Date when leave was submitted (not draft)',
+      comment: 'Date when leave was submitted',
     },
 
     submittedBy: {
@@ -291,8 +291,7 @@ export default (sequelize) => {
           request.totalDays = 0.5;
         }
 
-        // Set applied date when moving from Draft → Pending
-        if (request.changed('status') && request.status === 'Pending' && !request.appliedDate) {
+        if ((request.isNewRecord || request.changed('status')) && request.status === 'Pending' && !request.appliedDate) {
           request.appliedDate = new Date();
         }
       },
@@ -305,7 +304,7 @@ export default (sequelize) => {
   };
 
   LeaveRequest.prototype.canBeEdited = function () {
-    return this.status === 'Draft';
+    return this.status === 'Pending';
   };
 
   LeaveRequest.prototype.isPendingApproval = function () {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Calendar, FileText, Loader2, Plus, Save, User, Briefcase, AlertCircle, TrendingDown } from "lucide-react";
+import { Calendar, FileText, Loader2, Plus, User, Briefcase, AlertCircle, TrendingDown } from "lucide-react";
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
 import API from "../api";
@@ -35,8 +35,6 @@ export default function TakeLeavePage({ empId, companyId }) {
   const [leaveBalances, setLeaveBalances] = useState([]);
   const [totalLeavesAvailed, setTotalLeavesAvailed] = useState(0);
   const [formData, setFormData] = useState(initialFormState);
-  const [currentDraftId, setCurrentDraftId] = useState(null);
-  const [autoDraftLoaded, setAutoDraftLoaded] = useState(false);
 
   const resolvedStaffId = useMemo(
     () => empId || user?.staffId || user?.employeeId || null,
@@ -47,25 +45,6 @@ export default function TakeLeavePage({ empId, companyId }) {
     [companyId, user?.companyId]
   );
   const totalDays = useMemo(() => calculateTotalDays(formData), [formData]);
-
-  useEffect(() => {
-    setAutoDraftLoaded(false);
-    setCurrentDraftId(null);
-  }, [resolvedStaffId, resolvedCompanyId]);
-
-  const mapDraftToForm = (row) => ({
-    leaveTypeId: row?.leaveTypeId ? String(row.leaveTypeId) : "",
-    startDate: row?.startDate || "",
-    endDate: row?.endDate || "",
-    leaveCategory: row?.leaveCategory || "Full Day",
-    halfDayType: row?.halfDayType || "",
-    reason: row?.reason || "",
-    contactDuringLeave: row?.contactDuringLeave || "",
-    addressDuringLeave: row?.addressDuringLeave || "",
-    hasDocuments: Boolean(row?.hasDocuments),
-    documentPathsInput: Array.isArray(row?.documentPaths) ? row.documentPaths.join("\n") : "",
-    notes: row?.notes || "",
-  });
 
   const loadLeaveData = async () => {
     if (!resolvedStaffId || !resolvedCompanyId) return;
@@ -127,31 +106,8 @@ export default function TakeLeavePage({ empId, companyId }) {
     }
   };
 
-  const loadDrafts = async () => {
-    if (!resolvedStaffId || !resolvedCompanyId) return;
-    try {
-      const res = await API.get("/leaveRequests", {
-        params: { companyId: resolvedCompanyId, staffId: resolvedStaffId, status: "Draft" },
-      });
-      const rows = res.data || [];
-      if (!autoDraftLoaded && rows.length > 0) {
-        const latest = rows[0];
-        const mapped = mapDraftToForm(latest);
-        setCurrentDraftId(latest.leaveRequestId);
-        setFormData(mapped);
-        setAutoDraftLoaded(true);
-        toast.info("Latest draft loaded");
-      } else if (!autoDraftLoaded && rows.length === 0) {
-        setAutoDraftLoaded(true);
-      }
-    } catch (error) {
-      showErrorAlert(getApiErrorMessage(error, "Failed to load drafts"));
-    }
-  };
-
   useEffect(() => {
     loadLeaveData();
-    loadDrafts();
   }, [resolvedStaffId, resolvedCompanyId]);
 
   const onChange = (e) => {
@@ -205,20 +161,17 @@ export default function TakeLeavePage({ empId, companyId }) {
       return false;
     }
 
-    const isSubmit = targetStatus === "Pending";
     if (!skipConfirm) {
       const confirm = await Swal.fire({
-        title: isSubmit ? "Submit Leave Request?" : "Save as Draft?",
-        html: isSubmit
-          ? `<p style="color:#64748b;font-size:14px;">Your request for <strong style="color:#1e293b">${totalDays} day(s)</strong> will be sent for approval.</p>`
-          : `<p style="color:#64748b;font-size:14px;">Your leave request will be saved as a draft.</p>`,
-        icon: isSubmit ? "question" : "info",
+        title: "Submit Leave Request?",
+        html: `<p style="color:#64748b;font-size:14px;">Your request for <strong style="color:#1e293b">${totalDays} day(s)</strong> will be sent for approval.</p>`,
+        icon: "question",
         showCancelButton: true,
-        confirmButtonText: isSubmit ? "Yes, submit" : "Save draft",
+        confirmButtonText: "Yes, submit",
         cancelButtonText: "Cancel",
         background: "#ffffff",
         color: "#1e293b",
-        confirmButtonColor: isSubmit ? "#6366f1" : "#f59e0b",
+        confirmButtonColor: "#6366f1",
         cancelButtonColor: "#e2e8f0",
       });
       if (!confirm.isConfirmed) return false;
@@ -242,18 +195,12 @@ export default function TakeLeavePage({ empId, companyId }) {
 
     setSubmittingType(targetStatus);
     try {
-      let savedId = currentDraftId;
-      if (currentDraftId) {
-        await API.put(`/leaveRequests/${currentDraftId}`, payload);
-      } else {
-        const { data } = await API.post("/leaveRequests", payload);
-        savedId = data?.leaveRequestId || null;
-      }
+      await API.post("/leaveRequests", payload);
 
       if (!skipSuccessPopup) {
         await Swal.fire({
-          title: isSubmit ? "Request Submitted!" : "Draft Saved!",
-          text: isSubmit ? "Your leave request has been submitted for approval." : "Your draft has been saved.",
+          title: "Request Submitted!",
+          text: "Your leave request has been submitted for approval.",
           icon: "success",
           background: "#ffffff",
           color: "#1e293b",
@@ -264,15 +211,9 @@ export default function TakeLeavePage({ empId, companyId }) {
         });
       }
 
-      toast.success(isSubmit ? "Leave request submitted" : "Draft saved");
-      if (targetStatus === "Pending") {
-        setFormData(initialFormState);
-        setCurrentDraftId(null);
-      } else {
-        setCurrentDraftId(savedId || null);
-      }
+      toast.success("Leave request submitted");
+      setFormData(initialFormState);
       await loadLeaveData();
-      await loadDrafts();
       return true;
     } catch (error) {
       const apiMessage = getApiErrorMessage(error, "Failed to save leave request");
@@ -477,16 +418,6 @@ export default function TakeLeavePage({ empId, companyId }) {
 
             {/* Action buttons */}
             <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => submitRequest("Draft")}
-                disabled={Boolean(submittingType)}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-200 bg-white hover:bg-amber-50 hover:border-amber-300 text-gray-500 hover:text-amber-600 font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-              >
-                {submittingType === "Draft" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                Save Draft
-              </button>
-
               <button
                 type="submit"
                 disabled={Boolean(submittingType)}

@@ -1095,8 +1095,8 @@ export const startAttendanceScheduler = () => {
       isAttendanceJobRunning = true;
 
       try {
-        const result = await processAttendanceForDate(new Date());
-        // const result = await processAttendanceForDate(new Date(2026, 1, 27));
+        // const result = await processAttendanceForDate(new Date());
+        const result = await processAttendanceForDate(new Date(2026, 2, 14));
         console.log("[attendance-cron] completed", result);
       } catch (error) {
         console.error("[attendance-cron] failed:", error.message);

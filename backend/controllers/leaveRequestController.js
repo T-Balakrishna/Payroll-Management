@@ -9,6 +9,7 @@ const calculateAvailableFromAllocation = (allocation) => {
   const used = Number(allocation?.usedLeaves || 0);
   return carried + accrued - used;
 };
+const DISALLOWED_LEAVE_REQUEST_STATUSES = new Set(['Draft']);
 
 const normalizeStatus = (value) => String(value || '').trim().toLowerCase();
 
@@ -201,6 +202,11 @@ export const createLeaveRequest = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const payload = { ...req.body };
+    const requestedStatus = String(payload.status || 'Pending').trim() || 'Pending';
+    if (DISALLOWED_LEAVE_REQUEST_STATUSES.has(requestedStatus)) {
+      throw new Error('Draft leave requests are no longer supported');
+    }
+    payload.status = requestedStatus;
 
     if (!payload.leaveAllocationId && payload.staffId && payload.leaveTypeId && payload.companyId) {
       const matchedAllocation = await LeaveAllocation.findOne({
@@ -272,7 +278,7 @@ export const createLeaveRequest = async (req, res) => {
             leaveRequestId: leaveRequest.leaveRequestId,
             action: 'Submitted',
             actionBy: actionByStaffId,
-            oldStatus: 'Draft',
+            oldStatus: null,
             newStatus: 'Pending',
             comments: payload.notes || 'Leave request submitted',
             actionContext: {
@@ -309,6 +315,10 @@ export const updateLeaveRequest = async (req, res) => {
     }
 
     const nextStatus = req.body.status ?? existing.status;
+    if (DISALLOWED_LEAVE_REQUEST_STATUSES.has(String(nextStatus || '').trim())) {
+      await transaction.rollback();
+      return res.status(400).json({ error: 'Draft leave requests are no longer supported' });
+    }
     const nextTotalDays = Number(req.body.totalDays ?? existing.totalDays ?? 0);
     const nextLeaveTypeId = req.body.leaveTypeId ?? existing.leaveTypeId;
     const nextCompanyId = req.body.companyId ?? existing.companyId;
