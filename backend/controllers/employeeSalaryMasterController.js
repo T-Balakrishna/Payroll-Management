@@ -10,6 +10,33 @@ const parseLeaveTypeFromStatus = (status = '') => {
   if (!/^leave\s*-/i.test(text)) return null;
   return text.replace(/^leave\s*-\s*/i, '').trim();
 };
+const getAttendanceDaySplit = (status = '') => {
+  const normalized = normalizeText(status);
+
+  if (
+    normalized === 'present' ||
+    normalized === 'late' ||
+    normalized === 'early exit' ||
+    normalized === 'permission' ||
+    normalized.startsWith('permission-')
+  ) {
+    return { present: 1, absent: 0 };
+  }
+
+  if (normalized === 'half-day' || normalized.startsWith('half-day-')) {
+    return { present: 0.5, absent: 0.5 };
+  }
+
+  if (normalized === 'absent-half') {
+    return { present: 0, absent: 0.5 };
+  }
+
+  if (normalized === 'absent' || normalized === 'absent-full') {
+    return { present: 0, absent: 1 };
+  }
+
+  return null;
+};
 
 const toNonNegativeNumber = (value, fieldName) => {
   const parsed = Number.parseFloat(String(value));
@@ -288,19 +315,14 @@ const buildFormulaContext = async ({
     for (const row of attendanceRows) {
       const statusRaw = String(row.attendanceStatus || '').trim();
       const status = normalizeText(statusRaw);
-      if (status === 'present') {
-        computedPresent += 1;
-      } else if (status === 'late' || status === 'early exit' || status === 'permission') {
-        computedPresent += 1;
-      } else if (status === 'half-day') {
-        computedPresent += 0.5;
-        computedAbsent += 0.5;
+      const split = getAttendanceDaySplit(statusRaw);
+      if (split) {
+        computedPresent += split.present;
+        computedAbsent += split.absent;
       } else if (status === 'week off') {
         computedWeekOffDays += 1;
       } else if (status === 'holiday') {
         computedHolidayDays += 1;
-      } else if (status === 'absent') {
-        computedAbsent += 1;
       } else if (status.startsWith('leave')) {
         computedLeave += 1;
         const leaveTypeName = parseLeaveTypeFromStatus(statusRaw);

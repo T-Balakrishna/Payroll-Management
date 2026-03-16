@@ -1,13 +1,136 @@
 import db from '../models/index.js';
 const { Op } = db.Sequelize;
 
-const { LeaveRequest, LeaveRequestHistory, LeaveAllocation, sequelize } = db;
+const { LeaveRequest, LeaveRequestHistory, LeaveAllocation, Attendance, sequelize } = db;
 
 const calculateAvailableFromAllocation = (allocation) => {
   const carried = Number(allocation?.carryForwardFromPrevious || 0);
   const accrued = Number(allocation?.totalAccruedTillDate || 0);
   const used = Number(allocation?.usedLeaves || 0);
   return carried + accrued - used;
+};
+
+const normalizeStatus = (value) => String(value || '').trim().toLowerCase();
+
+const toDateOnlyString = (value) => {
+  if (!value) return null;
+  const dt = new Date(value);
+  if (Number.isNaN(dt.getTime())) return null;
+  const year = dt.getFullYear();
+  const month = String(dt.getMonth() + 1).padStart(2, '0');
+  const day = String(dt.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getDateRange = (startDate, endDate) => {
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  const dates = [];
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+    return dates;
+  }
+
+  const cursor = new Date(start);
+  while (cursor <= end) {
+    dates.push(toDateOnlyString(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return dates;
+};
+
+const getLeaveUnitsForDate = (leaveRequest, dateOnly) => {
+  if (!leaveRequest || !dateOnly) return 0;
+  if (String(leaveRequest.leaveCategory) === 'Half Day') return 0.5;
+  if (leaveRequest.startDate === leaveRequest.endDate) {
+    const totalDays = Number(leaveRequest.totalDays || 1);
+    return totalDays > 0 ? totalDays : 1;
+  }
+  return 1;
+};
+
+const getAbsentUnitsFromAttendanceStatus = (attendanceStatus) => {
+  const status = normalizeStatus(attendanceStatus);
+  if (!status.includes('absent')) return 0;
+  if (status.includes('absent-half')) return 0.5;
+  return 1;
+};
+
+const getHalfDayCode = (halfDayType) =>
+  String(halfDayType || '').toLowerCase().includes('second') ? 'AN' : 'FN';
+
+const buildApprovedAttendanceStatus = (leaveRequest) => {
+  const leaveUnits = getLeaveUnitsForDate(leaveRequest, leaveRequest.startDate);
+  if (leaveUnits === 0.5) {
+    return `Half-day-${getHalfDayCode(leaveRequest.halfDayType)}`;
+  }
+
+  const leaveName =
+    leaveRequest.leaveType?.name || leaveRequest.leaveType?.leaveTypeName || 'Leave';
+  return `Leave - ${leaveName}`;
+};
+
+const appendAttendanceRemark = (remarks, addition) => {
+  const base = String(remarks || '').trim();
+  return base ? `${base}; ${addition}` : addition;
+};
+
+const reconcileApprovedLeaveAttendance = async ({ leaveRequest, transaction, updatedBy }) => {
+  const reconciliation = {
+    checkedDates: 0,
+    updatedAttendances: 0,
+    skippedAttendances: 0,
+  };
+
+  const dateRange = getDateRange(leaveRequest.startDate, leaveRequest.endDate);
+  if (dateRange.length === 0) return reconciliation;
+
+  for (const dateOnly of dateRange) {
+    reconciliation.checkedDates += 1;
+
+    const attendance = await Attendance.findOne({
+      where: {
+        staffId: leaveRequest.staffId,
+        companyId: leaveRequest.companyId,
+        attendanceDate: dateOnly,
+      },
+      transaction,
+    });
+
+    if (!attendance) continue;
+
+    const leaveUnits = getLeaveUnitsForDate(leaveRequest, dateOnly);
+    const absentUnits = getAbsentUnitsFromAttendanceStatus(attendance.attendanceStatus);
+
+    if (!absentUnits || Number(absentUnits.toFixed(2)) !== Number(leaveUnits.toFixed(2))) {
+      reconciliation.skippedAttendances += 1;
+      continue;
+    }
+
+    const nextStatus =
+      leaveUnits === 0.5
+        ? `Half-day-${getHalfDayCode(leaveRequest.halfDayType)}`
+        : buildApprovedAttendanceStatus(leaveRequest);
+
+    const nextRemarks = appendAttendanceRemark(
+      attendance.remarks,
+      `leaveApprovalReconciled=${attendance.attendanceStatus}->${nextStatus}; leaveRequestId=${leaveRequest.leaveRequestId}`
+    );
+
+    await attendance.update(
+      {
+        attendanceStatus: nextStatus,
+        remarks: nextRemarks,
+        updatedBy: updatedBy ?? attendance.updatedBy ?? null,
+      },
+      { transaction }
+    );
+
+    reconciliation.updatedAttendances += 1;
+  }
+
+  return reconciliation;
 };
 
 const buildWhere = (query = {}) => {
@@ -246,6 +369,12 @@ export const updateLeaveRequest = async (req, res) => {
     const newStatus = leaveRequest.status;
     const statusChanged = oldStatus !== newStatus;
 
+    let attendanceReconciliation = {
+      checkedDates: 0,
+      updatedAttendances: 0,
+      skippedAttendances: 0,
+    };
+
     if (statusChanged) {
       let delta = 0;
       if (oldStatus !== 'Approved' && newStatus === 'Approved') {
@@ -297,6 +426,14 @@ export const updateLeaveRequest = async (req, res) => {
           await leaveRequest.update({ leaveAllocationId: allocation.leaveAllocationId }, { transaction });
         }
       }
+
+      if (newStatus === 'Approved') {
+        attendanceReconciliation = await reconcileApprovedLeaveAttendance({
+          leaveRequest,
+          transaction,
+          updatedBy: req.body.updatedBy ?? null,
+        });
+      }
     }
 
     const actionBy = Number(req.body.actionBy || req.body.staffId || leaveRequest.staffId);
@@ -330,7 +467,10 @@ export const updateLeaveRequest = async (req, res) => {
     }
 
     await transaction.commit();
-    res.json(leaveRequest);
+    res.json({
+      ...leaveRequest.toJSON(),
+      attendanceReconciliation,
+    });
   } catch (error) {
     await transaction.rollback();
     res.status(400).json({ error: error.message });
