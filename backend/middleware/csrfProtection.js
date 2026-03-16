@@ -10,11 +10,12 @@ const resolveCookieOptions = () => {
   const isProd = process.env.NODE_ENV === 'production';
   return {
     httpOnly: true,
-    sameSite: 'none',
+    sameSite: isProd ? 'none' : 'lax',
     secure: isProd,
     path: '/',
   };
 };
+
 
 export const csrfProtection = (req, res, next) => {
   const method = String(req.method || '').toUpperCase();

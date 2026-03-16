@@ -2,8 +2,11 @@ import db from '../models/index.js';
 import { resolveCompanyContext } from '../utils/companyScope.js';
 import formulaEvaluator from './formulaEvaluator.js';
 
-const { SalaryComponent, Company } = db;
+const { SalaryComponent, Company, Sequelize } = db;
+const { Op } = Sequelize;
 const PROFESSIONAL_TAX_FORMULA = '(isProfessionalTaxMonth == 1) ? (sixMonthGrossAverage <= 20000 ? 0 : sixMonthGrossAverage <= 30000 ? 135 : sixMonthGrossAverage <= 45000 ? 315 : sixMonthGrossAverage <= 60000 ? 690 : sixMonthGrossAverage <= 75000 ? 1025 : 1250) : 0';
+const PROFESSIONAL_TAX_CODE = 'PROFESSIONAL_TAX';
+const PROFESSIONAL_TAX_NAME = 'Professional Tax';
 
 const formatSequelizeError = (error) => {
   if (!error) return 'Operation failed';
@@ -56,6 +59,59 @@ const applyProfessionalTaxHardcoding = (payload, fallback = {}) => {
   };
 };
 
+const ensureProfessionalTaxComponent = async (companyId) => {
+  if (!companyId) return;
+
+  const codeCandidates = ['PT', 'PTAX', 'PROFESSIONAL_TAX', 'PROFESSIONALTAX'];
+  const nameCandidates = ['Professional Tax', 'professional tax'];
+
+  const existing = await SalaryComponent.findOne({
+    where: {
+      companyId,
+      [Op.or]: [
+        { code: { [Op.in]: codeCandidates } },
+        { name: { [Op.in]: nameCandidates } },
+      ],
+    },
+  });
+
+  if (!existing) {
+    await SalaryComponent.create({
+      companyId,
+      name: PROFESSIONAL_TAX_NAME,
+      code: PROFESSIONAL_TAX_CODE,
+      type: 'Deduction',
+      calculationType: 'Formula',
+      formula: PROFESSIONAL_TAX_FORMULA,
+      affectsGrossSalary: false,
+      affectsNetSalary: true,
+      isTaxable: false,
+      isStatutory: true,
+      status: 'Active',
+      displayOrder: 999,
+    });
+    return;
+  }
+
+  const needsUpdate =
+    existing.type !== 'Deduction' ||
+    existing.calculationType !== 'Formula' ||
+    existing.formula !== PROFESSIONAL_TAX_FORMULA ||
+    existing.isStatutory !== true;
+
+  if (needsUpdate) {
+    await SalaryComponent.update(
+      {
+        type: 'Deduction',
+        calculationType: 'Formula',
+        formula: PROFESSIONAL_TAX_FORMULA,
+        isStatutory: true,
+      },
+      { where: { salaryComponentId: existing.salaryComponentId } }
+    );
+  }
+};
+
 const validateFormulaOrThrow = async ({
   formula,
   companyId,
@@ -91,6 +147,10 @@ export const getAllSalaryComponents = async (req, res) => {
   try {
     const where = {};
     if (req.query.companyId) where.companyId = req.query.companyId;
+
+    if (where.companyId) {
+      await ensureProfessionalTaxComponent(where.companyId);
+    }
 
     const salaryComponents = await SalaryComponent.findAll({
       where,

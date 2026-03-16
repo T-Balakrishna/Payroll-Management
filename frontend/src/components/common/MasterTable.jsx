@@ -14,6 +14,8 @@ export default function MasterTable({
   defaultRowsPerPage = 5,
   onRefresh,
   loadingRefresh = false,
+  wrapHeaders = false,
+  wrapCells = false,
 }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(defaultRowsPerPage);
@@ -40,18 +42,22 @@ export default function MasterTable({
 
       {/* Invisible-scrollbar table wrapper */}
       <div
-        className="overflow-auto"
+        className={wrapCells ? "overflow-x-hidden overflow-y-auto" : "overflow-auto"}
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
         <style>{`
           .ms-table-scroll::-webkit-scrollbar { display: none; }
+          .ms-table-wrap th, .ms-table-wrap td { white-space: normal; word-break: break-word; }
         `}</style>
         <div className="ms-table-scroll overflow-auto">
-          <table className="w-full text-left text-sm">
+          <table className={`w-full text-left text-sm ${wrapCells ? "table-fixed ms-table-wrap" : ""}`}>
             <thead className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
               <tr>
                 {columns.map((col, i) => (
-                  <th key={i} className="py-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  <th
+                    key={i}
+                    className={`py-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider ${wrapHeaders ? "" : "whitespace-nowrap"}`}
+                  >
                     {col}
                   </th>
                 ))}

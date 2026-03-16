@@ -56,11 +56,13 @@ export default function AllotedLeaveMaster({ userRole, selectedCompanyId }) {
   const { user } = useAuth();
   const isSuperAdmin = normalizeRole(userRole || user?.role) === 'superadmin';
 
+  const [companyScope, setCompanyScope] = useState(selectedCompanyId || user?.companyId || '');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState(defaultFilters);
   const [appliedFilters, setAppliedFilters] = useState(defaultFilters);
 
+  const [companies, setCompanies] = useState([]);
   const [designations, setDesignations] = useState([]);
   const [employeeGrades, setEmployeeGrades] = useState([]);
   const [leaveTypes, setLeaveTypes] = useState([]);
@@ -69,7 +71,7 @@ export default function AllotedLeaveMaster({ userRole, selectedCompanyId }) {
   const [allocations, setAllocations] = useState([]);
 
   const effectiveCompanyId = isSuperAdmin
-    ? (selectedCompanyId || '')
+    ? (companyScope || selectedCompanyId || '')
     : (selectedCompanyId || user?.companyId || user?.company?.companyId || '');
 
   const designationMap = useMemo(() => new Map((designations || []).map((d) => [String(d.designationId), d.designationName])), [designations]);
@@ -97,6 +99,16 @@ export default function AllotedLeaveMaster({ userRole, selectedCompanyId }) {
     return sorted[0] || null;
   }, [leavePeriods, effectiveCompanyId]);
   const hasActiveLeavePeriod = Boolean(activeLeavePeriod?.startDate && activeLeavePeriod?.endDate);
+
+  const loadCompanies = async () => {
+    if (!isSuperAdmin) return;
+    try {
+      const res = await API.get('/companies');
+      setCompanies(res.data || []);
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Could not load companies'));
+    }
+  };
 
   const loadDesignations = async () => {
     try {
@@ -168,6 +180,14 @@ export default function AllotedLeaveMaster({ userRole, selectedCompanyId }) {
   };
 
   useEffect(() => {
+    loadCompanies();
+  }, [isSuperAdmin]);
+
+  useEffect(() => {
+    setCompanyScope(selectedCompanyId || user?.companyId || '');
+  }, [selectedCompanyId, user?.companyId]);
+
+  useEffect(() => {
     setFilters(defaultFilters);
     setAppliedFilters(defaultFilters);
     setAllocations([]);
@@ -227,145 +247,168 @@ export default function AllotedLeaveMaster({ userRole, selectedCompanyId }) {
         search={search}
         setSearch={setSearch}
         onAddNew={handleApplyFilters}
+        onRefresh={handleApplyFilters}
         placeholder="Search allocated leaves..."
         buttonText="Apply Filters"
-        actions={(
-          <div className="flex flex-col gap-3">
-            <div>
-              <div className="text-xs font-semibold text-slate-600 mb-1">Designation</div>
-              <div className="flex flex-wrap gap-2">
-                {designations.map((d) => (
-                  <label key={d.designationId} className="inline-flex items-center gap-2 text-sm text-slate-700">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                      checked={filters.designationIds.includes(String(d.designationId))}
-                      onChange={() =>
-                        setFilters((p) => ({
-                          ...p,
-                          designationIds: toggleValue(p.designationIds, String(d.designationId)),
-                        }))
-                      }
-                    />
-                    <span>{d.designationName}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
+      />
 
-            <div>
-              <div className="text-xs font-semibold text-slate-600 mb-1">Grade</div>
-              <div className="flex flex-wrap gap-2">
-                {employeeGrades.map((g) => (
-                  <label key={g.employeeGradeId} className="inline-flex items-center gap-2 text-sm text-slate-700">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                      checked={filters.employeeGradeIds.includes(String(g.employeeGradeId))}
-                      onChange={() =>
-                        setFilters((p) => ({
-                          ...p,
-                          employeeGradeIds: toggleValue(p.employeeGradeIds, String(g.employeeGradeId)),
-                        }))
-                      }
-                    />
-                    <span>{g.employeeGradeName}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <div className="text-xs font-semibold text-slate-600 mb-1">Leave Type</div>
-              <div className="flex flex-wrap gap-2">
-                {leaveTypes.map((lt) => (
-                  <label key={lt.leaveTypeId} className="inline-flex items-center gap-2 text-sm text-slate-700">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                      checked={filters.leaveTypeIds.includes(String(lt.leaveTypeId))}
-                      onChange={() =>
-                        setFilters((p) => ({
-                          ...p,
-                          leaveTypeIds: toggleValue(p.leaveTypeIds, String(lt.leaveTypeId)),
-                          leavePolicyIds: [],
-                        }))
-                      }
-                    />
-                    <span>{lt.leaveTypeName || lt.name}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <div className="text-xs font-semibold text-slate-600 mb-1">Leave Policy</div>
-              <div className="flex flex-wrap gap-2">
-                {leavePolicies
-                  .filter((p) =>
-                    filters.leaveTypeIds.length === 0 ||
-                    filters.leaveTypeIds.includes(String(p.leaveTypeId))
-                  )
-                  .map((p) => (
-                    <label key={p.leavePolicyId} className="inline-flex items-center gap-2 text-sm text-slate-700">
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                        checked={filters.leavePolicyIds.includes(String(p.leavePolicyId))}
-                        onChange={() =>
-                          setFilters((prev) => ({
-                            ...prev,
-                            leavePolicyIds: toggleValue(prev.leavePolicyIds, String(p.leavePolicyId)),
-                          }))
-                        }
-                      />
-                      <span>{p.name}</span>
-                    </label>
-                  ))}
-              </div>
-            </div>
-
-            <div>
-              <div className="text-xs font-semibold text-slate-600 mb-1">Status</div>
-              <div className="flex flex-wrap gap-2">
-                {["Active", "Expired", "Cancelled"].map((status) => (
-                  <label key={status} className="inline-flex items-center gap-2 text-sm text-slate-700">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                      checked={filters.statuses.includes(status)}
-                      onChange={() =>
-                        setFilters((prev) => ({
-                          ...prev,
-                          statuses: toggleValue(prev.statuses, status),
-                        }))
-                      }
-                    />
-                    <span>{status}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setFilters(defaultFilters)}
-                className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700"
-              >
-                Reset
-              </button>
-              <button
-                type="button"
-                onClick={handleApplyFilters}
-                className="h-9 rounded-lg bg-indigo-600 px-3 text-sm text-white"
-              >
-                Apply
-              </button>
+      <div className="mb-4 flex flex-wrap items-start gap-6">
+        {isSuperAdmin && (
+          <div className="min-w-[220px] flex-1">
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Company</label>
+            <div className="flex flex-wrap gap-3">
+              {companies.map((company) => (
+                <label key={company.companyId} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                    checked={String(companyScope) === String(company.companyId)}
+                    onChange={() =>
+                      setCompanyScope((prev) =>
+                        String(prev) === String(company.companyId) ? '' : String(company.companyId)
+                      )
+                    }
+                  />
+                  <span>{company.companyName}</span>
+                </label>
+              ))}
             </div>
           </div>
         )}
-      />
+
+        <div className="min-w-[220px] flex-1">
+          <label className="block text-sm font-semibold text-slate-700 mb-2">Designation</label>
+          <div className="flex flex-wrap gap-2">
+            {designations.map((d) => (
+              <label key={d.designationId} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                  checked={filters.designationIds.includes(String(d.designationId))}
+                  onChange={() =>
+                    setFilters((p) => ({
+                      ...p,
+                      designationIds: toggleValue(p.designationIds, String(d.designationId)),
+                    }))
+                  }
+                />
+                <span>{d.designationName}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="min-w-[220px] flex-1">
+          <label className="block text-sm font-semibold text-slate-700 mb-2">Grade</label>
+          <div className="flex flex-wrap gap-2">
+            {employeeGrades.map((g) => (
+              <label key={g.employeeGradeId} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                  checked={filters.employeeGradeIds.includes(String(g.employeeGradeId))}
+                  onChange={() =>
+                    setFilters((p) => ({
+                      ...p,
+                      employeeGradeIds: toggleValue(p.employeeGradeIds, String(g.employeeGradeId)),
+                    }))
+                  }
+                />
+                <span>{g.employeeGradeName}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="min-w-[220px] flex-1">
+          <label className="block text-sm font-semibold text-slate-700 mb-2">Leave Type</label>
+          <div className="flex flex-wrap gap-2">
+            {leaveTypes.map((lt) => (
+              <label key={lt.leaveTypeId} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                  checked={filters.leaveTypeIds.includes(String(lt.leaveTypeId))}
+                  onChange={() =>
+                    setFilters((p) => ({
+                      ...p,
+                      leaveTypeIds: toggleValue(p.leaveTypeIds, String(lt.leaveTypeId)),
+                      leavePolicyIds: [],
+                    }))
+                  }
+                />
+                <span>{lt.leaveTypeName || lt.name}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="min-w-[220px] flex-1">
+          <label className="block text-sm font-semibold text-slate-700 mb-2">Leave Policy</label>
+          <div className="flex flex-wrap gap-2">
+            {leavePolicies
+              .filter((p) =>
+                filters.leaveTypeIds.length === 0 ||
+                filters.leaveTypeIds.includes(String(p.leaveTypeId))
+              )
+              .map((p) => (
+                <label key={p.leavePolicyId} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                    checked={filters.leavePolicyIds.includes(String(p.leavePolicyId))}
+                    onChange={() =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        leavePolicyIds: toggleValue(prev.leavePolicyIds, String(p.leavePolicyId)),
+                      }))
+                    }
+                  />
+                  <span>{p.name}</span>
+                </label>
+              ))}
+          </div>
+        </div>
+
+        <div className="min-w-[200px] flex-1">
+          <label className="block text-sm font-semibold text-slate-700 mb-2">Status</label>
+          <div className="flex flex-wrap gap-2">
+            {['Active', 'Expired', 'Cancelled'].map((status) => (
+              <label key={status} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                  checked={filters.statuses.includes(status)}
+                  onChange={() =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      statuses: toggleValue(prev.statuses, status),
+                    }))
+                  }
+                />
+                <span>{status}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setFilters(defaultFilters)}
+          className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700"
+        >
+          Reset
+        </button>
+        <button
+          type="button"
+          onClick={handleApplyFilters}
+          className="h-9 rounded-lg bg-indigo-600 px-3 text-sm text-white"
+        >
+          Apply
+        </button>
+      </div>
 
       <MasterTable
         loading={loading}
