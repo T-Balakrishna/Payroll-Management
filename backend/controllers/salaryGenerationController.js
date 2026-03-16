@@ -162,7 +162,7 @@ const toFileSafeToken = (value = '') => String(value || '')
   .replace(/\s+/g, '_')
   .replace(/_+/g, '_')
   .replace(/^_+|_+$/g, '');
-const formatCurrencyINR = (value) => `₹ ${Number(value || 0).toLocaleString('en-IN', {
+const formatCurrencyINR = (value) => `INR ${Number(value || 0).toLocaleString('en-IN', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 })}`;
@@ -207,6 +207,33 @@ const numberToWords = (num) => {
 const amountToWordsINR = (amount) => {
   const rounded = Math.round(Number(amount || 0));
   return `INR ${numberToWords(rounded)} only.`;
+};
+const getAttendanceDaySplit = (status = '') => {
+  const normalized = normalize(status);
+
+  if (
+    normalized === 'present' ||
+    normalized === 'late' ||
+    normalized === 'early exit' ||
+    normalized === 'permission' ||
+    normalized.startsWith('permission-')
+  ) {
+    return { present: 1, absent: 0 };
+  }
+
+  if (normalized === 'half-day' || normalized.startsWith('half-day-')) {
+    return { present: 0.5, absent: 0.5 };
+  }
+
+  if (normalized === 'absent-half') {
+    return { present: 0, absent: 0.5 };
+  }
+
+  if (normalized === 'absent' || normalized === 'absent-full') {
+    return { present: 0, absent: 1 };
+  }
+
+  return null;
 };
 
 const parseRemarksJson = (remarks) => {
@@ -459,17 +486,17 @@ const buildAttendanceSummary = ({ attendanceRows, leaveTypeByName, daysInMonth }
 
   for (const row of attendanceRows) {
     const status = normalize(row.attendanceStatus);
+    const split = getAttendanceDaySplit(row.attendanceStatus);
 
-    if (status === 'present' || status === 'late' || status === 'early exit' || status === 'permission') {
-      presentDays += 1;
+    if (split) {
+      presentDays += split.present;
+      absentDays += split.absent;
+      if (status === 'half-day' || status.startsWith('half-day-')) {
+        halfDayCount += 1;
+      }
       continue;
     }
-    if (status === 'half-day') {
-      presentDays += 0.5;
-      absentDays += 0.5;
-      halfDayCount += 1;
-      continue;
-    }
+
     if (status === 'week off') {
       weekOffDays += 1;
       continue;
@@ -478,7 +505,7 @@ const buildAttendanceSummary = ({ attendanceRows, leaveTypeByName, daysInMonth }
       holidayDays += 1;
       continue;
     }
-    if (status === 'absent' || status.includes('absent')) {
+    if (status.includes('absent')) {
       absentDays += 1;
       continue;
     }

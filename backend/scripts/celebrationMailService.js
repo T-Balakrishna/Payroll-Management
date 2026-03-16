@@ -1,4 +1,4 @@
-import { Op, fn, col, where } from 'sequelize';
+import cron from 'node-cron';
 import { pathToFileURL } from 'url';
 import db from '../models/index.js';
 import { sendMail } from '../services/mailService.js';
@@ -141,11 +141,11 @@ const isSameMonthDay = (dateValue, month, day) => {
   return d.getMonth() + 1 === month && d.getDate() === day;
 };
 
-const buildMilestoneRows = ({ eventType, members, recipientId }) => {
+const buildMilestoneRows = ({ eventType, members, recipientId, includeRecipient = false }) => {
   const config = EVENT_CONFIG[eventType];
   const theme = EVENT_THEME[eventType];
   return members
-    .filter((member) => member.employeeId !== recipientId)
+    .filter((member) => includeRecipient || member.employeeId !== recipientId)
     .map(
       (member) => `
         <tr>
@@ -157,55 +157,77 @@ const buildMilestoneRows = ({ eventType, members, recipientId }) => {
     .join('');
 };
 
-const buildCelebrationEmail = ({ eventType, recipientName, recipientYears, members, recipientId, dateOnly }) => {
+export const buildCelebrationEmail = ({ eventType, recipientName, recipientYears, members, recipientId, dateOnly }) => {
   const config = EVENT_CONFIG[eventType];
   const theme = EVENT_THEME[eventType];
-  const othersRows = buildMilestoneRows({ eventType, members, recipientId });
-  const othersCount = members.filter((m) => m.employeeId !== recipientId).length;
+  const isRecipientCelebrant = members.some((m) => m.employeeId === recipientId);
+  const listedMembers = members.filter((m) => isRecipientCelebrant ? m.employeeId !== recipientId : true);
+  const listedRows = buildMilestoneRows({
+    eventType,
+    members,
+    recipientId,
+    includeRecipient: !isRecipientCelebrant,
+  });
+  const listedCount = listedMembers.length;
 
-  const othersSection = othersCount > 0
+  const infoLine = isRecipientCelebrant
+    ? config.personalLine(recipientYears)
+    : `These employees are celebrating ${config.label.toLowerCase()} today.`;
+
+  const listHeading = isRecipientCelebrant ? 'Also celebrating today' : `${config.label} celebrations today`;
+  const subject = isRecipientCelebrant ? config.subject(recipientName) : `${config.label} Celebrations Today`;
+
+  const othersSection = listedCount > 0
     ? `
       <p style="margin:20px 0 8px;font-size:13px;font-weight:600;color:#777;text-transform:uppercase;letter-spacing:0.6px;">
-        Also celebrating today
+        ${listHeading}
       </p>
       <table width="100%" cellspacing="0" cellpadding="0" style="background:${theme.badgeBg};border-radius:8px;overflow:hidden;border:1px solid #e8e8e8;">
-        <tbody>${othersRows}</tbody>
+        <tbody>${listedRows}</tbody>
       </table>`
     : `
       <div style="margin:20px 0;padding:14px 18px;background:${theme.badgeBg};border-left:4px solid ${theme.accentColor};border-radius:6px;font-size:14px;color:${theme.badgeText};">
         You are the only one celebrating ${config.label} today &mdash; making it extra special! ${theme.emojiHtml}
       </div>`;
 
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${config.subject(recipientName)}</title>
-</head>
-<body style="margin:0;padding:0;background-color:#f4f6fb;font-family:'Segoe UI',Arial,sans-serif;">
-  <table width="100%" cellspacing="0" cellpadding="0" style="background-color:#f4f6fb;padding:32px 0;">
-    <tr><td align="center">
-      <table width="600" cellspacing="0" cellpadding="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
-
-        <!-- Header -->
+  const headerSection = isRecipientCelebrant
+    ? `
         <tr>
           <td style="background:${theme.headerBg};padding:40px 36px;text-align:center;">
             <div style="font-size:52px;line-height:1;margin-bottom:12px;">${theme.emojiHtml}</div>
             <h1 style="margin:0 0 8px;font-size:26px;font-weight:700;color:#ffffff;">${theme.headerTitle}</h1>
             <p style="margin:0;font-size:15px;color:rgba(255,255,255,0.88);">${theme.headerSubtitle}</p>
           </td>
-        </tr>
+        </tr>`
+    : '';
+
+  const introSection = isRecipientCelebrant
+    ? `
+            <div style="padding:16px 20px;background:${theme.badgeBg};border-radius:8px;border:1px solid ${theme.accentColor}33;margin-bottom:20px;">
+              <p style="margin:0;font-size:15px;color:${theme.badgeText};font-weight:500;">
+                ${theme.emojiHtml}&nbsp; ${infoLine}
+              </p>
+            </div>`
+    : '';
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${subject}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f6fb;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellspacing="0" cellpadding="0" style="background-color:#f4f6fb;padding:32px 0;">
+    <tr><td align="center">
+      <table width="600" cellspacing="0" cellpadding="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+        ${headerSection}
 
         <!-- Body -->
         <tr>
           <td style="padding:32px 36px 28px;">
             <p style="margin:0 0 16px;font-size:16px;color:#222;">Dear <strong>${recipientName}</strong>,</p>
-            <div style="padding:16px 20px;background:${theme.badgeBg};border-radius:8px;border:1px solid ${theme.accentColor}33;margin-bottom:20px;">
-              <p style="margin:0;font-size:15px;color:${theme.badgeText};font-weight:500;">
-                ${theme.emojiHtml}&nbsp; ${config.personalLine(recipientYears)}
-              </p>
-            </div>
+            ${introSection}
             ${othersSection}
             <p style="margin:28px 0 0;font-size:13px;color:#aaa;border-top:1px solid #f0f0f0;padding-top:16px;">
               &#x1F4C5; Date: <strong style="color:#555;">${dateOnly}</strong>
@@ -237,21 +259,21 @@ const buildCelebrationEmail = ({ eventType, recipientName, recipientYears, membe
 </html>`;
 
   const textOthers = members
-    .filter((m) => m.employeeId !== recipientId)
+    .filter((m) => isRecipientCelebrant ? m.employeeId !== recipientId : true)
     .map((member) => `- ${config.listLine(member.name, member.years)}`)
     .join('\n');
 
   const text = [
     `Dear ${recipientName},`,
-    config.personalLine(recipientYears),
-    othersCount > 0 ? `Also celebrating ${config.label} today:\n${textOthers}` : `You are the only one celebrating ${config.label} today.`,
+    infoLine,
+    listedCount > 0 ? `${listHeading}:\n${textOthers}` : `You are the only one celebrating ${config.label} today.`,
     `Date: ${dateOnly}`,
     'Regards,',
     'HR Team',
   ].join('\n\n');
 
   return {
-    subject: config.subject(recipientName),
+    subject,
     html,
     text,
   };
@@ -265,29 +287,6 @@ const getCelebrantsForToday = async ({ now = new Date(), timeZone }) => {
     where: {
       status: 'Active',
       employmentStatus: 'Active',
-      [Op.or]: [
-        {
-          [Op.and]: [
-            { dateOfBirth: { [Op.ne]: null } },
-            where(fn('MONTH', col('DOB')), month),
-            where(fn('DAY', col('DOB')), day),
-          ],
-        },
-        {
-          [Op.and]: [
-            { dateOfJoining: { [Op.ne]: null } },
-            where(fn('MONTH', col('DOJ')), month),
-            where(fn('DAY', col('DOJ')), day),
-          ],
-        },
-        {
-          [Op.and]: [
-            { weddingDate: { [Op.ne]: null } },
-            where(fn('MONTH', col('weddingDate')), month),
-            where(fn('DAY', col('weddingDate')), day),
-          ],
-        },
-      ],
     },
     attributes: [
       'staffId',
@@ -307,10 +306,12 @@ const getCelebrantsForToday = async ({ now = new Date(), timeZone }) => {
     [EVENT_TYPES.WORK_ANNIVERSARY]: [],
     [EVENT_TYPES.MARRIAGE_ANNIVERSARY]: [],
   };
+  const recipients = [];
 
   for (const employee of activeEmployees) {
     const name = fullName(employee);
     const recipientEmail = pickRecipientEmail(employee);
+    recipients.push({ employeeId: employee.staffId, name, recipientEmail });
 
     if (isSameMonthDay(employee.dateOfBirth, month, day)) {
       const age = yearsSince(employee.dateOfBirth, year);
@@ -334,7 +335,7 @@ const getCelebrantsForToday = async ({ now = new Date(), timeZone }) => {
     }
   }
 
-  return { dateOnly, groups };
+  return { dateOnly, groups, recipients };
 };
 
 const cleanupOldDedupState = (currentDateOnly) => {
@@ -362,7 +363,7 @@ const markAsSentToday = ({ dateOnly, eventType, employeeId }) => {
   keys.add(getDedupKey(eventType, employeeId));
 };
 
-const sendForGroup = async ({ dateOnly, eventType, members }) => {
+const sendForGroup = async ({ dateOnly, eventType, members, recipients }) => {
   if (!members || members.length === 0) {
     return { eventType, groupSize: 0, attempted: 0, sent: 0, skippedNoEmail: 0, skippedDedup: 0, failed: 0 };
   }
@@ -373,27 +374,29 @@ const sendForGroup = async ({ dateOnly, eventType, members }) => {
   let skippedDedup = 0;
   let failed = 0;
 
-  for (const member of members) {
-    if (!member.recipientEmail) { skippedNoEmail += 1; continue; }
-    if (wasAlreadySentToday({ dateOnly, eventType, employeeId: member.employeeId })) { skippedDedup += 1; continue; }
+  for (const recipient of recipients) {
+    const celebrant = members.find((member) => member.employeeId === recipient.employeeId) || null;
+
+    if (!recipient.recipientEmail) { skippedNoEmail += 1; continue; }
+    if (wasAlreadySentToday({ dateOnly, eventType, employeeId: recipient.employeeId })) { skippedDedup += 1; continue; }
 
     attempted += 1;
     try {
       const mail = buildCelebrationEmail({
         eventType,
-        recipientName: member.name,
-        recipientYears: member.years,
+        recipientName: recipient.name,
+        recipientYears: celebrant?.years ?? null,
         members,
-        recipientId: member.employeeId,
+        recipientId: recipient.employeeId,
         dateOnly,
       });
 
-      await sendMail({ to: member.recipientEmail, subject: mail.subject, html: mail.html, text: mail.text });
-      markAsSentToday({ dateOnly, eventType, employeeId: member.employeeId });
+      await sendMail({ to: recipient.recipientEmail, subject: mail.subject, html: mail.html, text: mail.text });
+      markAsSentToday({ dateOnly, eventType, employeeId: recipient.employeeId });
       sent += 1;
     } catch (error) {
       failed += 1;
-      console.error(`${JOB_PREFIX} failed event=${eventType} employeeId=${member.employeeId} email=${member.recipientEmail}: ${error.message}`);
+      console.error(`${JOB_PREFIX} failed event=${eventType} employeeId=${recipient.employeeId} email=${recipient.recipientEmail}: ${error.message}`);
     }
   }
 
@@ -404,12 +407,12 @@ export const sendCelebrationMails = async ({
   now = new Date(),
   timeZone = process.env.CELEBRATION_MAIL_TIMEZONE || 'Asia/Kolkata',
 } = {}) => {
-  const { dateOnly, groups } = await getCelebrantsForToday({ now, timeZone });
+  const { dateOnly, groups, recipients } = await getCelebrantsForToday({ now, timeZone });
   cleanupOldDedupState(dateOnly);
 
-  const birthday = await sendForGroup({ dateOnly, eventType: EVENT_TYPES.BIRTHDAY, members: groups[EVENT_TYPES.BIRTHDAY] });
-  const workAnniversary = await sendForGroup({ dateOnly, eventType: EVENT_TYPES.WORK_ANNIVERSARY, members: groups[EVENT_TYPES.WORK_ANNIVERSARY] });
-  const marriageAnniversary = await sendForGroup({ dateOnly, eventType: EVENT_TYPES.MARRIAGE_ANNIVERSARY, members: groups[EVENT_TYPES.MARRIAGE_ANNIVERSARY] });
+  const birthday = await sendForGroup({ dateOnly, eventType: EVENT_TYPES.BIRTHDAY, members: groups[EVENT_TYPES.BIRTHDAY], recipients });
+  const workAnniversary = await sendForGroup({ dateOnly, eventType: EVENT_TYPES.WORK_ANNIVERSARY, members: groups[EVENT_TYPES.WORK_ANNIVERSARY], recipients });
+  const marriageAnniversary = await sendForGroup({ dateOnly, eventType: EVENT_TYPES.MARRIAGE_ANNIVERSARY, members: groups[EVENT_TYPES.MARRIAGE_ANNIVERSARY], recipients });
 
   const output = { date: dateOnly, groups: { birthday, workAnniversary, marriageAnniversary } };
   console.log(`${JOB_PREFIX} completed`, output);

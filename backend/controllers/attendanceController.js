@@ -720,12 +720,12 @@ export const processPunchesToAttendance = async (req, res) => {
           currentRemaining >= Math.ceil(shortfallHours)
         ) {
           permissionUsedHours = Math.ceil(shortfallHours);
-          attendanceStatus = "Permission";
+          attendanceStatus = `Permission-${permissionUsedHours}`;
         } else if (workingHours >= halfDayHours) {
           if (approvedLeaveName) {
             attendanceStatus = `Leave - ${approvedLeaveName}`;
           } else {
-            attendanceStatus = "Half-Day";
+            attendanceStatus = "Absent-half";
           }
         } else {
           if (isWeekOff) {
@@ -735,7 +735,7 @@ export const processPunchesToAttendance = async (req, res) => {
           } else if (approvedLeaveName) {
             attendanceStatus = `Leave - ${approvedLeaveName}`;
           } else {
-            attendanceStatus = "Absent";
+            attendanceStatus = "Absent-full";
           }
         }
 
