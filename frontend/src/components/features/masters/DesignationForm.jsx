@@ -22,6 +22,9 @@ export default function DesignationForm({
 
   const [designationName, setDesignationName] = useState(editData?.designationName || "");
   const [designationAcr, setDesignationAcr] = useState(editData?.designationAcr || "");
+  const [priorityOrder, setPriorityOrder] = useState(
+    Number.isFinite(Number(editData?.priorityOrder)) ? Number(editData?.priorityOrder) : 0
+  );
   const [companyId, setCompanyId] = useState(
     editData?.companyId || (!isSuperAdmin ? selectedCompanyId : "")
   );
@@ -29,6 +32,9 @@ export default function DesignationForm({
 
   useEffect(() => {
     setCompanyId(editData?.companyId || (!isSuperAdmin ? selectedCompanyId : ""));
+    setPriorityOrder(
+      Number.isFinite(Number(editData?.priorityOrder)) ? Number(editData?.priorityOrder) : 0
+    );
   }, [editData, isSuperAdmin, selectedCompanyId]);
 
   useEffect(() => {
@@ -88,6 +94,7 @@ export default function DesignationForm({
     const payload = {
       designationName: designationName.trim(),
       designationAcr: designationAcr.trim().toUpperCase(),
+      priorityOrder: Number.isFinite(Number(priorityOrder)) ? Number(priorityOrder) : 0,
       status: normalizeStatus(editData?.status),
       companyId: companyId || selectedCompanyId,
       createdBy: editData?.createdBy || currentUserId,
@@ -113,6 +120,15 @@ export default function DesignationForm({
         onChange={(e) => setDesignationAcr(e.target.value)}
         placeholder="Enter short code (e.g. SSE, AM, TL)"
         required
+      />
+
+      <Input
+        label="Priority Order"
+        type="number"
+        value={priorityOrder}
+        onChange={(e) => setPriorityOrder(e.target.value)}
+        placeholder="Enter display priority (lower comes first)"
+        min="0"
       />
 
       <div>

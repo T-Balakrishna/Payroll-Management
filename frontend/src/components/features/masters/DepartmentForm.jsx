@@ -23,6 +23,9 @@ export default function DepartmentForm({
 
   const [departmentName, setDepartmentName] = useState(editData?.departmentName || "");
   const [departmentAcr, setDepartmentAcr] = useState(editData?.departmentAcr || "");
+  const [priorityOrder, setPriorityOrder] = useState(
+    Number.isFinite(Number(editData?.priorityOrder)) ? Number(editData?.priorityOrder) : 0
+  );
   const [companyId, setCompanyId] = useState(
     editData?.companyId || (!isSuperAdmin ? effectiveAdminCompanyId : "")
   );
@@ -32,6 +35,9 @@ export default function DepartmentForm({
     const id = setTimeout(() => {
       setDepartmentName(editData?.departmentName || "");
       setDepartmentAcr(editData?.departmentAcr || "");
+      setPriorityOrder(
+        Number.isFinite(Number(editData?.priorityOrder)) ? Number(editData?.priorityOrder) : 0
+      );
       setCompanyId(editData?.companyId || (!isSuperAdmin ? effectiveAdminCompanyId : ""));
     }, 0);
     return () => clearTimeout(id);
@@ -93,6 +99,7 @@ export default function DepartmentForm({
     const payload = {
       departmentName: departmentName.trim(),
       departmentAcr: departmentAcr.trim().toUpperCase(),
+      priorityOrder: Number.isFinite(Number(priorityOrder)) ? Number(priorityOrder) : 0,
       status: normalizeStatus(editData?.status),
       companyId: companyId || effectiveAdminCompanyId,
       createdBy: editData?.createdBy || currentUserId,
@@ -118,6 +125,15 @@ export default function DepartmentForm({
         onChange={(e) => setDepartmentAcr(e.target.value)}
         placeholder="Enter short code (e.g. HR, FIN, IT)"
         required
+      />
+
+      <Input
+        label="Priority Order"
+        type="number"
+        value={priorityOrder}
+        onChange={(e) => setPriorityOrder(e.target.value)}
+        placeholder="Enter display priority (lower comes first)"
+        min="0"
       />
 
       <div>

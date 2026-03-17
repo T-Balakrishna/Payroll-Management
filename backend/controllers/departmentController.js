@@ -32,6 +32,10 @@ export const getAllDepartments = async (req, res) => {
     const departments = await Department.findAll({
       where,
       paranoid: false,
+      order: [
+        ['priorityOrder', 'ASC'],
+        ['departmentName', 'ASC'],
+      ],
       include: [
         { model: db.Company, as: 'company' },
         

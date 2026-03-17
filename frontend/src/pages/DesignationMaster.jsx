@@ -181,6 +181,11 @@ export default function DesignationMaster({
     });
   };
 
+  const toPriorityOrder = (value) => {
+    const parsed = Number.parseInt(String(value ?? "").trim(), 10);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
   const handleBulkUpload = async (event) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -222,6 +227,7 @@ export default function DesignationMaster({
           return {
             designationName: String(row.designationName || "").trim(),
             designationAcr: String(row.designationAcr || "").trim().toUpperCase(),
+            priorityOrder: toPriorityOrder(row.priorityOrder),
             status: "Active",
             companyId: resolvedCompanyId,
             createdBy: currentUserId,
@@ -257,16 +263,16 @@ export default function DesignationMaster({
 
   const downloadSampleTemplate = () => {
     const headers = isSuperAdmin
-      ? ["designationName", "designationAcr", "companyName", "companyAcr"]
-      : ["designationName", "designationAcr"];
+      ? ["designationName", "designationAcr", "priorityOrder", "companyName", "companyAcr"]
+      : ["designationName", "designationAcr", "priorityOrder"];
     const sampleRows = isSuperAdmin
       ? [
-          ["xx", "yy", "xx", ""],
-          ["xx", "yy", "", "yy"],
+          ["xx", "yy", "1", "xx", ""],
+          ["xx", "yy", "2", "", "yy"],
         ]
       : [
-          ["xx", "yy"],
-          ["xx", "yy"],
+          ["xx", "yy", "1"],
+          ["xx", "yy", "2"],
         ];
 
     const csv = [headers.join(","), ...sampleRows.map((row) => row.join(","))].join("\n");

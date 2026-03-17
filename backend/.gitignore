@@ -5,9 +5,7 @@ node_modules/
 **/scripts/
 !scripts/
 scripts/*
-!scripts/dailyReportService.js
-!scripts/celebrationMailService.js
-!scripts/processAttendance.js
+
 
 # Logs
 npm-debug.log*

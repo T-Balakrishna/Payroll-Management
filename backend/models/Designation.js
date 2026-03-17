@@ -19,6 +19,13 @@ export default (sequelize) => {
       comment: 'Short code/abbreviation (e.g. "SSE", "AM", "TL", "FM")',
     },
 
+    priorityOrder: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+      comment: 'Display priority (lower comes first)',
+    },
+
     status: {
       type: DataTypes.ENUM('Active', 'Inactive', 'Archived'),
       allowNull: false,

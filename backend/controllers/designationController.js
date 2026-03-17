@@ -31,6 +31,10 @@ export const getAllDesignations = async (req, res) => {
     const designations = await Designation.findAll({
       where,
       paranoid: false, // include soft-deleted rows as well
+      order: [
+        ['priorityOrder', 'ASC'],
+        ['designationName', 'ASC'],
+      ],
       include: [
         { model: db.Company, as: 'company' },
         
