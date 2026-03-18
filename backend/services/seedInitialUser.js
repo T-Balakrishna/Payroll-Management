@@ -12,6 +12,7 @@ const INITIAL_ROLE = {
   roleName: "Super Admin",
   status: "Active",
 };
+const STAFF_ROLES = ["Teaching Staff", "Non Teaching Staff"];
 
 const INITIAL_USER = {
   userId: 1,
@@ -53,6 +54,14 @@ export const seedInitialUser = async (db) => {
       console.log("[Seeder] Role created (Super Admin).");
     } else {
       console.log("[Seeder] Role already exists.");
+    }
+
+    for (const roleName of STAFF_ROLES) {
+      const roleExists = await Role.findOne({ where: { roleName } });
+      if (!roleExists) {
+        await Role.create({ roleName, status: "Active" });
+        console.log(`[Seeder] Role created (${roleName}).`);
+      }
     }
 
     /* ---------------------------

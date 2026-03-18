@@ -1,13 +1,55 @@
 import db from '../models/index.js';
 const { Employee, User } = db;
 
+const normalizeFilterValues = (value) => {
+  if (value === undefined || value === null || value === '') return [];
+  return (Array.isArray(value) ? value : [value])
+    .map((item) => String(item).trim())
+    .filter(Boolean);
+};
+
+const buildInFilter = (value, parser = (item) => item) => {
+  const parsed = normalizeFilterValues(value)
+    .map((item) => parser(item))
+    .filter((item) => item !== null && item !== undefined && item !== '');
+
+  if (parsed.length === 0) return undefined;
+  if (parsed.length === 1) return parsed[0];
+  return { [db.Sequelize.Op.in]: parsed };
+};
+
 const buildWhere = (query = {}) => {
   const where = {};
-  if (query.staffId) where.staffId = query.staffId;
-  if (query.departmentId) where.departmentId = query.departmentId;
-  if (query.designationId) where.designationId = query.designationId;
-  if (query.employeeGradeId) where.employeeGradeId = query.employeeGradeId;
-  if (query.status) where.status = query.status;
+
+  const staffId = buildInFilter(query.staffId, (item) => {
+    const parsed = Number.parseInt(item, 10);
+    return Number.isInteger(parsed) ? parsed : undefined;
+  });
+  const companyId = buildInFilter(query.companyId, (item) => {
+    const parsed = Number.parseInt(item, 10);
+    return Number.isInteger(parsed) ? parsed : undefined;
+  });
+  const departmentId = buildInFilter(query.departmentId, (item) => {
+    const parsed = Number.parseInt(item, 10);
+    return Number.isInteger(parsed) ? parsed : undefined;
+  });
+  const designationId = buildInFilter(query.designationId, (item) => {
+    const parsed = Number.parseInt(item, 10);
+    return Number.isInteger(parsed) ? parsed : undefined;
+  });
+  const employeeGradeId = buildInFilter(query.employeeGradeId, (item) => {
+    const parsed = Number.parseInt(item, 10);
+    return Number.isInteger(parsed) ? parsed : undefined;
+  });
+  const status = buildInFilter(query.status);
+
+  if (staffId !== undefined) where.staffId = staffId;
+  if (companyId !== undefined) where.companyId = companyId;
+  if (departmentId !== undefined) where.departmentId = departmentId;
+  if (designationId !== undefined) where.designationId = designationId;
+  if (employeeGradeId !== undefined) where.employeeGradeId = employeeGradeId;
+  if (status !== undefined) where.status = status;
+
   return where;
 };
 
@@ -30,16 +72,13 @@ const resolveRoleIdFromStaffNumber = async (staffNumber) => {
 // Get all employees
 export const getAllEmployees = async (req, res) => {
   try {
-    const companyFilter = req.query.companyId
-      ? { where: { companyId: req.query.companyId }, required: true }
-      : { required: false };
-
     const employees = await Employee.findAll({
       where: buildWhere(req.query),
       include: [
-        { model: db.Department, as: 'department', ...companyFilter },
+        { model: db.Department, as: 'department', required: false },
         { model: db.Role, as: 'role', required: false },
         { model: db.Designation, as: 'designation', required: false },
+        { model: db.EmployeeGrade, as: 'employeeGrade', required: false },
         {
           model: db.User,
           as: 'user',

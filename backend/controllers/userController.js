@@ -5,6 +5,8 @@ const { User, Role, StudentDetails, Employee, Company, Department } = db;
 
 const normalizeRoleName = (value = '') => value.toLowerCase().replace(/[\s-]/g, '');
 const STAFF_ROLE_KEYS = new Set(['teachingstaff', 'nonteachingstaff']);
+const isStaffRoleName = (roleName = '') => STAFF_ROLE_KEYS.has(normalizeRoleName(roleName));
+const isStudentRoleName = (roleName = '') => normalizeRoleName(roleName) === 'student';
 
 const splitNameParts = (fullName = '') => {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
@@ -256,18 +258,25 @@ export const updateUser = async (req, res) => {
     const user = await User.findByPk(req.params.id, { transaction });
 
     if (user) {
+      const roleForUser = await Role.findByPk(user.roleId, { transaction });
+      const isStaffRole = isStaffRoleName(roleForUser?.roleName);
+      const isStudentRole = isStudentRoleName(roleForUser?.roleName);
       const employeeWhere = { staffNumber: previousUserNumber };
       const studentWhere = { registerNumber: previousUserNumber };
 
-      await Employee.update(
-        getEmployeeSyncPayload(user, previousUserNumber),
-        { where: employeeWhere, transaction }
-      );
+      if (isStaffRole) {
+        await Employee.update(
+          getEmployeeSyncPayload(user, previousUserNumber),
+          { where: employeeWhere, transaction }
+        );
+      }
 
-      await StudentDetails.update(
-        getStudentSyncPayload(user, previousUserNumber),
-        { where: studentWhere, transaction }
-      );
+      if (isStudentRole) {
+        await StudentDetails.update(
+          getStudentSyncPayload(user, previousUserNumber),
+          { where: studentWhere, transaction }
+        );
+      }
     }
 
     await transaction.commit();

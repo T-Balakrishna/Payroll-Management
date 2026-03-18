@@ -44,6 +44,73 @@ const buildQueryParams = (params) => {
   return search;
 };
 
+const FilterDropdown = ({
+  label,
+  isOpen,
+  onToggleOpen,
+  options,
+  selectedValues,
+  onToggleValue,
+  getOptionKey,
+  getOptionLabel,
+  maxHeightClass = 'max-h-48',
+  placeholder = 'Select',
+  showSingleLabel = true,
+  renderTop = null,
+}) => {
+  const selectedCount = selectedValues.length;
+  const totalCount = options.length;
+  const summary =
+    selectedCount === 0
+      ? placeholder
+      : selectedCount === 1 && showSingleLabel
+      ? getOptionLabel(options.find((opt) => String(getOptionKey(opt)) === String(selectedValues[0])) || {})
+      : `${selectedCount} selected`;
+
+  return (
+    <div className="relative">
+      <label className="block text-sm font-semibold text-slate-700 mb-2">{label}</label>
+      <button
+        type="button"
+        onClick={onToggleOpen}
+        className="w-full flex items-center justify-between border-2 border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 bg-white"
+      >
+        <span>{summary}</span>
+        <span className="text-slate-400">{isOpen ? '▲' : '▼'}</span>
+      </button>
+      {isOpen && (
+        <div className={`absolute z-20 mt-2 w-full rounded-lg border border-slate-200 bg-white shadow-lg ${maxHeightClass} overflow-y-auto p-3`}>
+          {renderTop}
+          {options.length === 0 && (
+            <div className="text-sm text-slate-500">No options</div>
+          )}
+          {options.map((option) => {
+            const key = getOptionKey(option);
+            const labelText = getOptionLabel(option);
+            const checked = selectedValues.includes(String(key));
+            return (
+              <label key={key} className="flex items-center gap-2 text-sm text-slate-700 py-1">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                  checked={checked}
+                  onChange={() => onToggleValue(String(key))}
+                />
+                <span>{labelText}</span>
+              </label>
+            );
+          })}
+          {options.length > 0 && (
+            <div className="mt-2 text-xs text-slate-500">
+              {selectedCount === 0 ? `${totalCount} options` : `${selectedCount} of ${totalCount} selected`}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const defaultFilters = {
   designationIds: [],
   employeeGradeIds: [],
@@ -61,6 +128,12 @@ export default function AllotedLeaveMaster({ userRole, selectedCompanyId }) {
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState(defaultFilters);
   const [appliedFilters, setAppliedFilters] = useState(defaultFilters);
+  const [openCompanyFilter, setOpenCompanyFilter] = useState(false);
+  const [openDesignationFilter, setOpenDesignationFilter] = useState(false);
+  const [openGradeFilter, setOpenGradeFilter] = useState(false);
+  const [openLeaveTypeFilter, setOpenLeaveTypeFilter] = useState(false);
+  const [openLeavePolicyFilter, setOpenLeavePolicyFilter] = useState(false);
+  const [openStatusFilter, setOpenStatusFilter] = useState(false);
 
   const [companies, setCompanies] = useState([]);
   const [designations, setDesignations] = useState([]);
@@ -99,6 +172,11 @@ export default function AllotedLeaveMaster({ userRole, selectedCompanyId }) {
     return sorted[0] || null;
   }, [leavePeriods, effectiveCompanyId]);
   const hasActiveLeavePeriod = Boolean(activeLeavePeriod?.startDate && activeLeavePeriod?.endDate);
+  const visibleLeavePolicies = useMemo(() => (
+    leavePolicies.filter((p) =>
+      filters.leaveTypeIds.length === 0 || filters.leaveTypeIds.includes(String(p.leaveTypeId))
+    )
+  ), [leavePolicies, filters.leaveTypeIds]);
 
   const loadCompanies = async () => {
     if (!isSuperAdmin) return;
@@ -255,141 +333,224 @@ export default function AllotedLeaveMaster({ userRole, selectedCompanyId }) {
       <div className="mb-4 flex flex-wrap items-start gap-6">
         {isSuperAdmin && (
           <div className="min-w-[220px] flex-1">
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Company</label>
-            <div className="flex flex-wrap gap-3">
-              {companies.map((company) => (
-                <label key={company.companyId} className="inline-flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                    checked={String(companyScope) === String(company.companyId)}
-                    onChange={() =>
-                      setCompanyScope((prev) =>
-                        String(prev) === String(company.companyId) ? '' : String(company.companyId)
-                      )
-                    }
-                  />
-                  <span>{company.companyName}</span>
-                </label>
-              ))}
-            </div>
+            <FilterDropdown
+              label="Company"
+              isOpen={openCompanyFilter}
+              onToggleOpen={() => setOpenCompanyFilter((prev) => !prev)}
+              options={companies}
+              selectedValues={companyScope ? [String(companyScope)] : []}
+              onToggleValue={(value) =>
+                setCompanyScope((prev) => (String(prev) === String(value) ? '' : String(value)))
+              }
+              getOptionKey={(option) => String(option.companyId)}
+              getOptionLabel={(option) => option.companyName}
+              placeholder="Select Company"
+              showSingleLabel
+            />
           </div>
         )}
 
         <div className="min-w-[220px] flex-1">
-          <label className="block text-sm font-semibold text-slate-700 mb-2">Designation</label>
-          <div className="flex flex-wrap gap-2">
-            {designations.map((d) => (
-              <label key={d.designationId} className="inline-flex items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                  checked={filters.designationIds.includes(String(d.designationId))}
-                  onChange={() =>
-                    setFilters((p) => ({
-                      ...p,
-                      designationIds: toggleValue(p.designationIds, String(d.designationId)),
-                    }))
-                  }
-                />
-                <span>{d.designationName}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div className="min-w-[220px] flex-1">
-          <label className="block text-sm font-semibold text-slate-700 mb-2">Grade</label>
-          <div className="flex flex-wrap gap-2">
-            {employeeGrades.map((g) => (
-              <label key={g.employeeGradeId} className="inline-flex items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                  checked={filters.employeeGradeIds.includes(String(g.employeeGradeId))}
-                  onChange={() =>
-                    setFilters((p) => ({
-                      ...p,
-                      employeeGradeIds: toggleValue(p.employeeGradeIds, String(g.employeeGradeId)),
-                    }))
-                  }
-                />
-                <span>{g.employeeGradeName}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div className="min-w-[220px] flex-1">
-          <label className="block text-sm font-semibold text-slate-700 mb-2">Leave Type</label>
-          <div className="flex flex-wrap gap-2">
-            {leaveTypes.map((lt) => (
-              <label key={lt.leaveTypeId} className="inline-flex items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                  checked={filters.leaveTypeIds.includes(String(lt.leaveTypeId))}
-                  onChange={() =>
-                    setFilters((p) => ({
-                      ...p,
-                      leaveTypeIds: toggleValue(p.leaveTypeIds, String(lt.leaveTypeId)),
-                      leavePolicyIds: [],
-                    }))
-                  }
-                />
-                <span>{lt.leaveTypeName || lt.name}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div className="min-w-[220px] flex-1">
-          <label className="block text-sm font-semibold text-slate-700 mb-2">Leave Policy</label>
-          <div className="flex flex-wrap gap-2">
-            {leavePolicies
-              .filter((p) =>
-                filters.leaveTypeIds.length === 0 ||
-                filters.leaveTypeIds.includes(String(p.leaveTypeId))
-              )
-              .map((p) => (
-                <label key={p.leavePolicyId} className="inline-flex items-center gap-2 text-sm text-slate-700">
+          <FilterDropdown
+            label="Designation"
+            isOpen={openDesignationFilter}
+            onToggleOpen={() => setOpenDesignationFilter((prev) => !prev)}
+            options={designations}
+            selectedValues={filters.designationIds}
+            onToggleValue={(value) =>
+              setFilters((p) => ({
+                ...p,
+                designationIds: toggleValue(p.designationIds, String(value)),
+              }))
+            }
+            getOptionKey={(option) => String(option.designationId)}
+            getOptionLabel={(option) => option.designationName}
+            placeholder="Select Designation"
+            maxHeightClass="max-h-56"
+            renderTop={
+              designations.length > 0 ? (
+                <label className="flex items-center gap-2 text-sm text-slate-700 pb-2 border-b border-slate-100 mb-2">
                   <input
                     type="checkbox"
                     className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                    checked={filters.leavePolicyIds.includes(String(p.leavePolicyId))}
+                    checked={filters.designationIds.length === designations.length}
                     onChange={() =>
-                      setFilters((prev) => ({
-                        ...prev,
-                        leavePolicyIds: toggleValue(prev.leavePolicyIds, String(p.leavePolicyId)),
+                      setFilters((p) => ({
+                        ...p,
+                        designationIds:
+                          p.designationIds.length === designations.length
+                            ? []
+                            : designations.map((d) => String(d.designationId)),
                       }))
                     }
                   />
-                  <span>{p.name}</span>
+                  <span>Select All Designations</span>
                 </label>
-              ))}
-          </div>
+              ) : null
+            }
+          />
+        </div>
+
+        <div className="min-w-[220px] flex-1">
+          <FilterDropdown
+            label="Grade"
+            isOpen={openGradeFilter}
+            onToggleOpen={() => setOpenGradeFilter((prev) => !prev)}
+            options={employeeGrades}
+            selectedValues={filters.employeeGradeIds}
+            onToggleValue={(value) =>
+              setFilters((p) => ({
+                ...p,
+                employeeGradeIds: toggleValue(p.employeeGradeIds, String(value)),
+              }))
+            }
+            getOptionKey={(option) => String(option.employeeGradeId)}
+            getOptionLabel={(option) => option.employeeGradeName}
+            placeholder="Select Grade"
+            maxHeightClass="max-h-56"
+            renderTop={
+              employeeGrades.length > 0 ? (
+                <label className="flex items-center gap-2 text-sm text-slate-700 pb-2 border-b border-slate-100 mb-2">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                    checked={filters.employeeGradeIds.length === employeeGrades.length}
+                    onChange={() =>
+                      setFilters((p) => ({
+                        ...p,
+                        employeeGradeIds:
+                          p.employeeGradeIds.length === employeeGrades.length
+                            ? []
+                            : employeeGrades.map((g) => String(g.employeeGradeId)),
+                      }))
+                    }
+                  />
+                  <span>Select All Grades</span>
+                </label>
+              ) : null
+            }
+          />
+        </div>
+
+        <div className="min-w-[220px] flex-1">
+          <FilterDropdown
+            label="Leave Type"
+            isOpen={openLeaveTypeFilter}
+            onToggleOpen={() => setOpenLeaveTypeFilter((prev) => !prev)}
+            options={leaveTypes}
+            selectedValues={filters.leaveTypeIds}
+            onToggleValue={(value) =>
+              setFilters((p) => ({
+                ...p,
+                leaveTypeIds: toggleValue(p.leaveTypeIds, String(value)),
+                leavePolicyIds: [],
+              }))
+            }
+            getOptionKey={(option) => String(option.leaveTypeId)}
+            getOptionLabel={(option) => option.leaveTypeName || option.name}
+            placeholder="Select Leave Type"
+            maxHeightClass="max-h-56"
+            renderTop={
+              leaveTypes.length > 0 ? (
+                <label className="flex items-center gap-2 text-sm text-slate-700 pb-2 border-b border-slate-100 mb-2">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                    checked={filters.leaveTypeIds.length === leaveTypes.length}
+                    onChange={() =>
+                      setFilters((p) => ({
+                        ...p,
+                        leaveTypeIds:
+                          p.leaveTypeIds.length === leaveTypes.length
+                            ? []
+                            : leaveTypes.map((lt) => String(lt.leaveTypeId)),
+                        leavePolicyIds: [],
+                      }))
+                    }
+                  />
+                  <span>Select All Leave Types</span>
+                </label>
+              ) : null
+            }
+          />
+        </div>
+
+        <div className="min-w-[220px] flex-1">
+          <FilterDropdown
+            label="Leave Policy"
+            isOpen={openLeavePolicyFilter}
+            onToggleOpen={() => setOpenLeavePolicyFilter((prev) => !prev)}
+            options={visibleLeavePolicies}
+            selectedValues={filters.leavePolicyIds}
+            onToggleValue={(value) =>
+              setFilters((prev) => ({
+                ...prev,
+                leavePolicyIds: toggleValue(prev.leavePolicyIds, String(value)),
+              }))
+            }
+            getOptionKey={(option) => String(option.leavePolicyId)}
+            getOptionLabel={(option) => option.name}
+            placeholder="Select Leave Policy"
+            maxHeightClass="max-h-56"
+            renderTop={
+              visibleLeavePolicies.length > 0 ? (
+                <label className="flex items-center gap-2 text-sm text-slate-700 pb-2 border-b border-slate-100 mb-2">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                    checked={filters.leavePolicyIds.length === visibleLeavePolicies.length}
+                    onChange={() =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        leavePolicyIds:
+                          prev.leavePolicyIds.length === visibleLeavePolicies.length
+                            ? []
+                            : visibleLeavePolicies.map((p) => String(p.leavePolicyId)),
+                      }))
+                    }
+                  />
+                  <span>Select All Leave Policies</span>
+                </label>
+              ) : null
+            }
+          />
         </div>
 
         <div className="min-w-[200px] flex-1">
-          <label className="block text-sm font-semibold text-slate-700 mb-2">Status</label>
-          <div className="flex flex-wrap gap-2">
-            {['Active', 'Expired', 'Cancelled'].map((status) => (
-              <label key={status} className="inline-flex items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                  checked={filters.statuses.includes(status)}
-                  onChange={() =>
-                    setFilters((prev) => ({
-                      ...prev,
-                      statuses: toggleValue(prev.statuses, status),
-                    }))
-                  }
-                />
-                <span>{status}</span>
-              </label>
-            ))}
-          </div>
+          <FilterDropdown
+            label="Status"
+            isOpen={openStatusFilter}
+            onToggleOpen={() => setOpenStatusFilter((prev) => !prev)}
+            options={['Active', 'Expired', 'Cancelled'].map((value) => ({ value, label: value }))}
+            selectedValues={filters.statuses}
+            onToggleValue={(value) =>
+              setFilters((prev) => ({
+                ...prev,
+                statuses: toggleValue(prev.statuses, value),
+              }))
+            }
+            getOptionKey={(option) => option.value}
+            getOptionLabel={(option) => option.label}
+            placeholder="Select Status"
+            renderTop={
+              true ? (
+                <label className="flex items-center gap-2 text-sm text-slate-700 pb-2 border-b border-slate-100 mb-2">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                    checked={filters.statuses.length === 3}
+                    onChange={() =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        statuses: prev.statuses.length === 3 ? [] : ['Active', 'Expired', 'Cancelled'],
+                      }))
+                    }
+                  />
+                  <span>Select All Statuses</span>
+                </label>
+              ) : null
+            }
+          />
         </div>
       </div>
 

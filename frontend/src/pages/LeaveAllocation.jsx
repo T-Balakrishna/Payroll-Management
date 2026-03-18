@@ -124,6 +124,73 @@ const buildQueryParams = (params) => {
   return search;
 };
 
+const FilterDropdown = ({
+  label,
+  isOpen,
+  onToggleOpen,
+  options,
+  selectedValues,
+  onToggleValue,
+  getOptionKey,
+  getOptionLabel,
+  maxHeightClass = 'max-h-48',
+  placeholder = 'Select',
+  showSingleLabel = true,
+  renderTop = null,
+}) => {
+  const selectedCount = selectedValues.length;
+  const totalCount = options.length;
+  const summary =
+    selectedCount === 0
+      ? placeholder
+      : selectedCount === 1 && showSingleLabel
+      ? getOptionLabel(options.find((opt) => String(getOptionKey(opt)) === String(selectedValues[0])) || {})
+      : `${selectedCount} selected`;
+
+  return (
+    <div className="relative">
+      <label className="block text-sm font-semibold text-slate-700 mb-2">{label}</label>
+      <button
+        type="button"
+        onClick={onToggleOpen}
+        className="w-full flex items-center justify-between border-2 border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 bg-white"
+      >
+        <span>{summary}</span>
+        <span className="text-slate-400">{isOpen ? '▲' : '▼'}</span>
+      </button>
+      {isOpen && (
+        <div className={`absolute z-20 mt-2 w-full rounded-lg border border-slate-200 bg-white shadow-lg ${maxHeightClass} overflow-y-auto p-3`}>
+          {renderTop}
+          {options.length === 0 && (
+            <div className="text-sm text-slate-500">No options</div>
+          )}
+          {options.map((option) => {
+            const key = getOptionKey(option);
+            const labelText = getOptionLabel(option);
+            const checked = selectedValues.includes(String(key));
+            return (
+              <label key={key} className="flex items-center gap-2 text-sm text-slate-700 py-1">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                  checked={checked}
+                  onChange={() => onToggleValue(String(key))}
+                />
+                <span>{labelText}</span>
+              </label>
+            );
+          })}
+          {options.length > 0 && (
+            <div className="mt-2 text-xs text-slate-500">
+              {selectedCount === 0 ? `${totalCount} options` : `${selectedCount} of ${totalCount} selected`}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function LeaveAllocation({ userRole, selectedCompanyId }) {
   const { user } = useAuth();
   const isSuperAdmin = normalizeRole(userRole || user?.role) === 'superadmin';
@@ -132,6 +199,12 @@ export default function LeaveAllocation({ userRole, selectedCompanyId }) {
   const [companyScope, setCompanyScope] = useState(selectedCompanyId || user?.companyId || '');
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState(defaultFilters);
+  const [openCompanyFilter, setOpenCompanyFilter] = useState(false);
+  const [openDepartmentFilter, setOpenDepartmentFilter] = useState(false);
+  const [openRoleFilter, setOpenRoleFilter] = useState(false);
+  const [openGradeFilter, setOpenGradeFilter] = useState(false);
+  const [openDesignationFilter, setOpenDesignationFilter] = useState(false);
+  const [openExperienceFilter, setOpenExperienceFilter] = useState(false);
   const [appliedFilters, setAppliedFilters] = useState(defaultFilters);
 
   const [companies, setCompanies] = useState([]);
@@ -747,140 +820,224 @@ export default function LeaveAllocation({ userRole, selectedCompanyId }) {
       <div className="mb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {isSuperAdmin && (
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Company</label>
-            <div className="flex flex-wrap gap-3">
-              {companies.map((company) => (
-                <label key={company.companyId} className="inline-flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                    checked={String(companyScope) === String(company.companyId)}
-                    onChange={() =>
-                      setCompanyScope((prev) =>
-                        String(prev) === String(company.companyId) ? '' : String(company.companyId)
-                      )
-                    }
-                  />
-                  <span>{company.companyName}</span>
-                </label>
-              ))}
-            </div>
+            <FilterDropdown
+              label="Company"
+              isOpen={openCompanyFilter}
+              onToggleOpen={() => setOpenCompanyFilter((prev) => !prev)}
+              options={companies}
+              selectedValues={companyScope ? [String(companyScope)] : []}
+              onToggleValue={(value) =>
+                setCompanyScope((prev) => (String(prev) === String(value) ? '' : String(value)))
+              }
+              getOptionKey={(option) => String(option.companyId)}
+              getOptionLabel={(option) => option.companyName}
+              placeholder="Select Company"
+              showSingleLabel
+            />
           </div>
         )}
 
         <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-2">Department</label>
-          <div className="flex flex-wrap gap-2">
-            {departments.map((d) => (
-              <label key={d.departmentId} className="inline-flex items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                  checked={filters.departmentIds.includes(String(d.departmentId))}
-                  onChange={() =>
-                    setFilters((p) => ({
-                      ...p,
-                      departmentIds: toggleValue(p.departmentIds, String(d.departmentId)),
-                    }))
-                  }
-                />
-                <span>{d.departmentName}</span>
-              </label>
-            ))}
-          </div>
+          <FilterDropdown
+            label="Department"
+            isOpen={openDepartmentFilter}
+            onToggleOpen={() => setOpenDepartmentFilter((prev) => !prev)}
+            options={departments}
+            selectedValues={filters.departmentIds}
+            onToggleValue={(value) =>
+              setFilters((p) => ({
+                ...p,
+                departmentIds: toggleValue(p.departmentIds, String(value)),
+              }))
+            }
+            getOptionKey={(option) => String(option.departmentId)}
+            getOptionLabel={(option) => option.departmentName}
+            placeholder="Select Department"
+            maxHeightClass="max-h-56"
+            renderTop={
+              departments.length > 0 ? (
+                <label className="flex items-center gap-2 text-sm text-slate-700 pb-2 border-b border-slate-100 mb-2">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                    checked={filters.departmentIds.length === departments.length}
+                    onChange={() =>
+                      setFilters((p) => ({
+                        ...p,
+                        departmentIds:
+                          p.departmentIds.length === departments.length
+                            ? []
+                            : departments.map((d) => String(d.departmentId)),
+                      }))
+                    }
+                  />
+                  <span>Select All Departments</span>
+                </label>
+              ) : null
+            }
+          />
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-2">Role</label>
-          <div className="flex flex-wrap gap-2">
-            {roleOptions.map((roleName) => (
-              <label key={roleName} className="inline-flex items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                  checked={filters.roleNames.includes(roleName)}
-                  onChange={() =>
-                    setFilters((p) => ({
-                      ...p,
-                      roleNames: toggleValue(p.roleNames, roleName),
-                    }))
-                  }
-                />
-                <span>{roleName}</span>
-              </label>
-            ))}
-          </div>
+          <FilterDropdown
+            label="Role"
+            isOpen={openRoleFilter}
+            onToggleOpen={() => setOpenRoleFilter((prev) => !prev)}
+            options={roleOptions}
+            selectedValues={filters.roleNames}
+            onToggleValue={(value) =>
+              setFilters((p) => ({
+                ...p,
+                roleNames: toggleValue(p.roleNames, value),
+              }))
+            }
+            getOptionKey={(option) => option}
+            getOptionLabel={(option) => option}
+            placeholder="Select Role"
+            renderTop={
+              roleOptions.length > 0 ? (
+                <label className="flex items-center gap-2 text-sm text-slate-700 pb-2 border-b border-slate-100 mb-2">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                    checked={filters.roleNames.length === roleOptions.length}
+                    onChange={() =>
+                      setFilters((p) => ({
+                        ...p,
+                        roleNames: p.roleNames.length === roleOptions.length ? [] : [...roleOptions],
+                      }))
+                    }
+                  />
+                  <span>Select All Roles</span>
+                </label>
+              ) : null
+            }
+          />
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-2">Grade</label>
-          <div className="flex flex-wrap gap-2">
-            {employeeGrades.map((g) => (
-              <label key={g.employeeGradeId} className="inline-flex items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                  checked={filters.employeeGradeIds.includes(String(g.employeeGradeId))}
-                  onChange={() =>
-                    setFilters((p) => ({
-                      ...p,
-                      employeeGradeIds: toggleValue(p.employeeGradeIds, String(g.employeeGradeId)),
-                    }))
-                  }
-                />
-                <span>{g.employeeGradeName}</span>
-              </label>
-            ))}
-          </div>
+          <FilterDropdown
+            label="Grade"
+            isOpen={openGradeFilter}
+            onToggleOpen={() => setOpenGradeFilter((prev) => !prev)}
+            options={employeeGrades}
+            selectedValues={filters.employeeGradeIds}
+            onToggleValue={(value) =>
+              setFilters((p) => ({
+                ...p,
+                employeeGradeIds: toggleValue(p.employeeGradeIds, String(value)),
+              }))
+            }
+            getOptionKey={(option) => String(option.employeeGradeId)}
+            getOptionLabel={(option) => option.employeeGradeName}
+            placeholder="Select Grade"
+            maxHeightClass="max-h-56"
+            renderTop={
+              employeeGrades.length > 0 ? (
+                <label className="flex items-center gap-2 text-sm text-slate-700 pb-2 border-b border-slate-100 mb-2">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                    checked={filters.employeeGradeIds.length === employeeGrades.length}
+                    onChange={() =>
+                      setFilters((p) => ({
+                        ...p,
+                        employeeGradeIds:
+                          p.employeeGradeIds.length === employeeGrades.length
+                            ? []
+                            : employeeGrades.map((g) => String(g.employeeGradeId)),
+                      }))
+                    }
+                  />
+                  <span>Select All Grades</span>
+                </label>
+              ) : null
+            }
+          />
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-2">Designation</label>
-          <div className="flex flex-wrap gap-2">
-            {designations.map((d) => (
-              <label key={d.designationId} className="inline-flex items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                  checked={filters.designationIds.includes(String(d.designationId))}
-                  onChange={() =>
-                    setFilters((p) => ({
-                      ...p,
-                      designationIds: toggleValue(p.designationIds, String(d.designationId)),
-                    }))
-                  }
-                />
-                <span>{d.designationName}</span>
-              </label>
-            ))}
-          </div>
+          <FilterDropdown
+            label="Designation"
+            isOpen={openDesignationFilter}
+            onToggleOpen={() => setOpenDesignationFilter((prev) => !prev)}
+            options={designations}
+            selectedValues={filters.designationIds}
+            onToggleValue={(value) =>
+              setFilters((p) => ({
+                ...p,
+                designationIds: toggleValue(p.designationIds, String(value)),
+              }))
+            }
+            getOptionKey={(option) => String(option.designationId)}
+            getOptionLabel={(option) => option.designationName}
+            placeholder="Select Designation"
+            maxHeightClass="max-h-56"
+            renderTop={
+              designations.length > 0 ? (
+                <label className="flex items-center gap-2 text-sm text-slate-700 pb-2 border-b border-slate-100 mb-2">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                    checked={filters.designationIds.length === designations.length}
+                    onChange={() =>
+                      setFilters((p) => ({
+                        ...p,
+                        designationIds:
+                          p.designationIds.length === designations.length
+                            ? []
+                            : designations.map((d) => String(d.designationId)),
+                      }))
+                    }
+                  />
+                  <span>Select All Designations</span>
+                </label>
+              ) : null
+            }
+          />
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-2">Experience</label>
-          <div className="flex flex-wrap gap-2">
-            {[
+          <FilterDropdown
+            label="Experience"
+            isOpen={openExperienceFilter}
+            onToggleOpen={() => setOpenExperienceFilter((prev) => !prev)}
+            options={[
               { value: 'lt1', label: 'Below 1 Year' },
               { value: '1to3', label: '1 to 3 Years' },
               { value: '3to5', label: '3 to 5 Years' },
               { value: '5plus', label: '5+ Years' },
-            ].map((band) => (
-              <label key={band.value} className="inline-flex items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                  checked={filters.experienceBands.includes(band.value)}
-                  onChange={() =>
-                    setFilters((p) => ({
-                      ...p,
-                      experienceBands: toggleValue(p.experienceBands, band.value),
-                    }))
-                  }
-                />
-                <span>{band.label}</span>
-              </label>
-            ))}
-          </div>
+            ]}
+            selectedValues={filters.experienceBands}
+            onToggleValue={(value) =>
+              setFilters((p) => ({
+                ...p,
+                experienceBands: toggleValue(p.experienceBands, value),
+              }))
+            }
+            getOptionKey={(option) => option.value}
+            getOptionLabel={(option) => option.label}
+            placeholder="Select Experience"
+            renderTop={
+              true ? (
+                <label className="flex items-center gap-2 text-sm text-slate-700 pb-2 border-b border-slate-100 mb-2">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                    checked={filters.experienceBands.length === 4}
+                    onChange={() =>
+                      setFilters((p) => ({
+                        ...p,
+                        experienceBands:
+                          p.experienceBands.length === 4 ? [] : ['lt1', '1to3', '3to5', '5plus'],
+                      }))
+                    }
+                  />
+                  <span>Select All Experience</span>
+                </label>
+              ) : null
+            }
+          />
         </div>
       </div>
 

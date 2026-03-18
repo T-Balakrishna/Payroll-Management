@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import { HandCoins, Pencil } from "lucide-react";
+import Swal from "sweetalert2";
 import API from "../api";
 import { useAuth } from "../auth/AuthContext";
 import MasterTable from "../components/common/MasterTable";
@@ -87,22 +88,90 @@ const toggleValue = (values, value) => {
   const key = String(value);
   return values.includes(key) ? values.filter((v) => v !== key) : [...values, key];
 };
-const buildQueryParams = (params) => {
-  const search = new URLSearchParams();
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value === null || value === undefined) return;
-    if (Array.isArray(value)) {
-      value
-        .map((v) => String(v))
-        .filter((v) => v !== "")
-        .forEach((v) => search.append(key, v));
-      return;
-    }
-    const text = String(value).trim();
-    if (!text) return;
-    search.append(key, text);
-  });
-  return search;
+const buildFilterParams = (companyId, filters) => {
+  const params = { companyId };
+
+  if (Array.isArray(filters?.statuses) && filters.statuses.length > 0) {
+    params.status = filters.statuses.map((value) => String(value).trim()).filter(Boolean);
+  }
+  if (Array.isArray(filters?.departmentIds) && filters.departmentIds.length > 0) {
+    params.departmentId = filters.departmentIds.map((value) => String(value).trim()).filter(Boolean);
+  }
+  if (Array.isArray(filters?.designationIds) && filters.designationIds.length > 0) {
+    params.designationId = filters.designationIds.map((value) => String(value).trim()).filter(Boolean);
+  }
+  if (Array.isArray(filters?.employeeGradeIds) && filters.employeeGradeIds.length > 0) {
+    params.employeeGradeId = filters.employeeGradeIds.map((value) => String(value).trim()).filter(Boolean);
+  }
+
+  return params;
+};
+
+const FilterDropdown = ({
+  label,
+  isOpen,
+  onToggleOpen,
+  options,
+  selectedValues,
+  onToggleValue,
+  getOptionKey,
+  getOptionLabel,
+  maxHeightClass = "max-h-48",
+  placeholder = "Select",
+  showSingleLabel = true,
+  renderTop = null,
+}) => {
+  const selectedCount = selectedValues.length;
+  const totalCount = options.length;
+  const summary =
+    selectedCount === 0
+      ? placeholder
+      : selectedCount === 1 && showSingleLabel
+      ? getOptionLabel(options.find((opt) => String(getOptionKey(opt)) === String(selectedValues[0])) || {})
+      : `${selectedCount} selected`;
+
+  return (
+    <div className="relative">
+      <label className="block text-sm font-semibold text-slate-700 mb-2">{label}</label>
+      <button
+        type="button"
+        onClick={onToggleOpen}
+        className="w-full flex items-center justify-between border-2 border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 bg-white"
+      >
+        <span>{summary}</span>
+        <span className="text-slate-400">{isOpen ? "▲" : "▼"}</span>
+      </button>
+      {isOpen && (
+        <div className={`absolute z-20 mt-2 w-full rounded-lg border border-slate-200 bg-white shadow-lg ${maxHeightClass} overflow-y-auto p-3`}>
+          {renderTop}
+          {options.length === 0 && (
+            <div className="text-sm text-slate-500">No options</div>
+          )}
+          {options.map((option) => {
+            const key = getOptionKey(option);
+            const labelText = getOptionLabel(option);
+            const checked = selectedValues.includes(String(key));
+            return (
+              <label key={key} className="flex items-center gap-2 text-sm text-slate-700 py-1">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                  checked={checked}
+                  onChange={() => onToggleValue(String(key))}
+                />
+                <span>{labelText}</span>
+              </label>
+            );
+          })}
+          {options.length > 0 && (
+            <div className="mt-2 text-xs text-slate-500">
+              {selectedCount === 0 ? `${totalCount} options` : `${selectedCount} of ${totalCount} selected`}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) {
@@ -122,6 +191,16 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
 
   const [filters, setFilters] = useState(defaultFilters);
   const [appliedFilters, setAppliedFilters] = useState(defaultFilters);
+  const [openDepartmentFilter, setOpenDepartmentFilter] = useState(false);
+  const [openDesignationFilter, setOpenDesignationFilter] = useState(false);
+  const [openGradeFilter, setOpenGradeFilter] = useState(false);
+  const [openStatusFilter, setOpenStatusFilter] = useState(false);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]);
+  const [bulkComponentId, setBulkComponentId] = useState("");
+  const [bulkFixedAmount, setBulkFixedAmount] = useState("");
+  const [bulkAmountBasis, setBulkAmountBasis] = useState("monthly");
+  const [bulkEffectiveFrom, setBulkEffectiveFrom] = useState(todayDateString);
+  const [bulkEffectiveTo, setBulkEffectiveTo] = useState("");
 
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [activeSalaryMaster, setActiveSalaryMaster] = useState(null);
@@ -134,7 +213,8 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
   const [autoSyncingFormulas, setAutoSyncingFormulas] = useState(false);
   const [formulaDate, setFormulaDate] = useState(todayDateString);
   const [formulaDebugContext, setFormulaDebugContext] = useState(null);
-  const fileInputRef = useRef(null);
+  const [assignmentEffectiveFrom, setAssignmentEffectiveFrom] = useState(todayDateString);
+  const [assignmentEffectiveTo, setAssignmentEffectiveTo] = useState("");
 
   const hasCompanyScope = isSuperAdmin || Boolean(companyId);
 
@@ -169,13 +249,7 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
     if (!companyId) return;
 
     try {
-      const params = buildQueryParams({
-        companyId,
-        status: nextFilters.statuses,
-        departmentId: nextFilters.departmentIds,
-        designationId: nextFilters.designationIds,
-        employeeGradeId: nextFilters.employeeGradeIds,
-      });
+      const params = buildFilterParams(companyId, nextFilters);
       const res = await API.get("/employees", { params });
       const allEmployees = Array.isArray(res.data) ? res.data : [];
       const salaryAssignableEmployees = allEmployees.filter((emp) => {
@@ -198,7 +272,11 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
     setActiveSalaryMaster(null);
     setAssignedMap({});
     setDeductionAssignedMap({});
+    setInputMap({});
+    setAmountBasisMap({});
     setFormulaDebugContext(null);
+    setAssignmentEffectiveFrom(formulaDate);
+    setAssignmentEffectiveTo("");
 
     try {
       setAutoSyncingFormulas(true);
@@ -230,26 +308,40 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
       const map = {};
       const deductionMap = {};
       const components = Array.isArray(currentMaster?.components) ? currentMaster.components : [];
-      components.forEach((c) => {
+      const selectedDate = String(formulaDate || todayDateString());
+      const scopedComponents = components.filter((c) => {
+        if (String(c.status || "Active").toLowerCase() !== "active") return false;
+        const from = String(c.effectiveFrom || "");
+        const to = c.effectiveTo ? String(c.effectiveTo) : "";
+        if (from && from > selectedDate) return false;
+        if (to && to < selectedDate) return false;
+        return true;
+      });
+      const sortedComponents = [...scopedComponents].sort((a, b) => {
+        const aTime = new Date(a.createdAt || 0).getTime();
+        const bTime = new Date(b.createdAt || 0).getTime();
+        return bTime - aTime;
+      });
+      sortedComponents.forEach((c) => {
         if (c.componentType === "Earning") {
-          map[c.componentId] = c;
+          if (!map[c.componentId]) map[c.componentId] = c;
         } else if (c.componentType === "Deduction") {
-          deductionMap[c.componentId] = c;
+          if (!deductionMap[c.componentId]) deductionMap[c.componentId] = c;
         }
       });
       setAssignedMap(map);
       setDeductionAssignedMap(deductionMap);
 
-      setInputMap((prev) => {
-        const next = { ...prev };
+      setInputMap(() => {
+        const next = {};
         Object.keys(map).forEach((componentId) => {
           next[componentId] = String(map[componentId]?.fixedAmount ?? "");
         });
         return next;
       });
 
-      setAmountBasisMap((prev) => {
-        const next = { ...prev };
+      setAmountBasisMap(() => {
+        const next = {};
         Object.keys(map).forEach((componentId) => {
           const meta = parseJsonObject(map[componentId]?.remarks);
           const basis = String(meta.amountBasis || "").toLowerCase() === "daily" ? "daily" : "monthly";
@@ -273,6 +365,9 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
     setEmployees([]);
     setFilters(defaultFilters);
     setAppliedFilters(defaultFilters);
+    setSelectedEmployeeIds([]);
+    setSelectedEmployee(null);
+    setActiveSalaryMaster(null);
   }, [companyId]);
 
   useEffect(() => {
@@ -294,13 +389,106 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
     });
   }, [employees, search]);
 
+  const allVisibleSelected = useMemo(
+    () => filteredEmployees.length > 0 && filteredEmployees.every((emp) => selectedEmployeeIds.includes(emp.staffId)),
+    [filteredEmployees, selectedEmployeeIds]
+  );
+
   const handleApplyFilters = async () => {
     setAppliedFilters(filters);
+    setSelectedEmployeeIds([]);
+    setSelectedEmployee(null);
+    setActiveSalaryMaster(null);
+    setOpenDepartmentFilter(false);
+    setOpenDesignationFilter(false);
+    setOpenGradeFilter(false);
+    setOpenStatusFilter(false);
     await fetchEmployees(filters);
+  };
+
+  const toggleEmployeeSelection = (staffId) => {
+    setSelectedEmployeeIds((prev) => (
+      prev.includes(staffId) ? prev.filter((id) => id !== staffId) : [...prev, staffId]
+    ));
+  };
+
+  const handleSelectAllVisible = () => {
+    const allIds = filteredEmployees.map((emp) => emp.staffId);
+    setSelectedEmployeeIds(allIds);
+  };
+
+  const handleClearAllVisible = () => {
+    setSelectedEmployeeIds([]);
   };
 
   const handleResetFilters = () => {
     setFilters(defaultFilters);
+    setAppliedFilters(defaultFilters);
+    setEmployees([]);
+    setSelectedEmployeeIds([]);
+    setSelectedEmployee(null);
+    setActiveSalaryMaster(null);
+    setOpenDepartmentFilter(false);
+    setOpenDesignationFilter(false);
+    setOpenGradeFilter(false);
+    setOpenStatusFilter(false);
+  };
+
+  const handleBulkAssign = async () => {
+    if (!bulkComponentId) {
+      toast.error("Select a component");
+      return;
+    }
+    if (!bulkEffectiveFrom) {
+      toast.error("Select effective from date");
+      return;
+    }
+    if (selectedEmployeeIds.length === 0) {
+      toast.error("Select employees to assign");
+      return;
+    }
+
+    const component = earningComponents.find(
+      (c) => String(c.salaryComponentId) === String(bulkComponentId)
+    );
+    if (!component) {
+      toast.error("Invalid component");
+      return;
+    }
+    if (String(component.calculationType || "").toLowerCase() === "formula") {
+      toast.error("Formula components are auto-calculated. Choose a fixed component.");
+      return;
+    }
+    if (String(bulkFixedAmount).trim() === "") {
+      toast.error("Enter an amount");
+      return;
+    }
+
+    const payloads = selectedEmployeeIds.map((staffId) => ({
+      staffId,
+      companyId,
+      componentId: component.salaryComponentId,
+      fixedAmount: bulkFixedAmount,
+      amountBasis: bulkAmountBasis,
+      effectiveFrom: bulkEffectiveFrom,
+      effectiveTo: bulkEffectiveTo || null,
+      createdBy: currentUserId,
+      updatedBy: currentUserId,
+    }));
+
+    const results = await Promise.allSettled(
+      payloads.map((payload) => API.post("/employeeSalaryMasters/assign-earning-component", payload))
+    );
+    const successCount = results.filter((r) => r.status === "fulfilled").length;
+    const failCount = results.length - successCount;
+    if (successCount > 0) {
+      await Swal.fire({
+        icon: "success",
+        title: "Assignment completed",
+        text: `Assigned to ${successCount} employee(s).`,
+      });
+    }
+    if (failCount > 0) toast.warning(`${failCount} assignment(s) failed`);
   };
 
   const grossSalary = useMemo(() => {
@@ -338,25 +526,36 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
     if (!selectedEmployee?.staffId) return toast.error("Select an employee");
 
     try {
+      if (!assignmentEffectiveFrom) {
+        toast.error("Select component effective from date");
+        return;
+      }
       setSavingAllFixed(true);
       const payloads = fixedEarningComponents.map((component) => {
         const rawValue = String(inputMap[component.salaryComponentId] ?? "").trim();
-        const amount = rawValue === "" ? 0 : Number.parseFloat(rawValue);
-        const safeAmount = Number.isFinite(amount) && amount >= 0 ? amount : 0;
+        if (rawValue === "") {
+          return null;
+        }
+        const amount = Number.parseFloat(rawValue);
+        if (!Number.isFinite(amount) || amount < 0) {
+          return null;
+        }
         return {
           staffId: selectedEmployee.staffId,
           companyId,
           componentId: component.salaryComponentId,
           formulaDate,
-          fixedAmount: safeAmount,
+          fixedAmount: amount,
           amountBasis: String(amountBasisMap[component.salaryComponentId] || "monthly").toLowerCase() === "daily" ? "daily" : "monthly",
+          effectiveFrom: assignmentEffectiveFrom,
+          effectiveTo: assignmentEffectiveTo || null,
           updatedBy: currentUserId,
           createdBy: currentUserId,
         };
-      });
+      }).filter(Boolean);
 
       if (payloads.length === 0) {
-        toast.info("No fixed components to assign");
+        toast.info("Enter at least one fixed component amount");
         return;
       }
 
@@ -365,7 +564,13 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
       );
       const successCount = results.filter((r) => r.status === "fulfilled").length;
       const failCount = results.length - successCount;
-      if (successCount > 0) toast.success(`${successCount} components assigned`);
+      if (successCount > 0) {
+        await Swal.fire({
+          icon: "success",
+          title: "Assignment completed",
+          text: `${successCount} component(s) assigned.`,
+        });
+      }
       if (failCount > 0) toast.warning(`${failCount} components failed to assign`);
       await loadEmployeeAssignment(selectedEmployee);
     } catch (error) {
@@ -384,12 +589,15 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
     setActiveSalaryMaster(null);
     setAssignedMap({});
     setDeductionAssignedMap({});
+    setInputMap({});
     setAmountBasisMap({});
     setSavingAllFixed(false);
     setLoadingAssignment(false);
     setAutoSyncingFormulas(false);
     setFormulaDate(todayDateString());
     setFormulaDebugContext(null);
+    setAssignmentEffectiveFrom(todayDateString());
+    setAssignmentEffectiveTo("");
   };
 
   const handleBulkUpload = async (event) => {
@@ -492,88 +700,160 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
     <div className="h-full flex flex-col gap-4 px-6">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-white border rounded-lg p-4">
         <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-2">Department</label>
-          <div className="flex flex-wrap gap-2">
-            {departments.map((d) => (
-              <label key={d.departmentId} className="inline-flex items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                  checked={filters.departmentIds.includes(String(d.departmentId))}
-                  onChange={() =>
-                    setFilters((prev) => ({
-                      ...prev,
-                      departmentIds: toggleValue(prev.departmentIds, String(d.departmentId)),
-                    }))
-                  }
-                />
-                <span>{d.departmentName}</span>
-              </label>
-            ))}
-          </div>
+          <FilterDropdown
+            label="Department"
+            isOpen={openDepartmentFilter}
+            onToggleOpen={() => setOpenDepartmentFilter((prev) => !prev)}
+            options={departments}
+            selectedValues={filters.departmentIds}
+            onToggleValue={(value) =>
+              setFilters((prev) => ({
+                ...prev,
+                departmentIds: toggleValue(prev.departmentIds, String(value)),
+              }))
+            }
+            getOptionKey={(option) => String(option.departmentId)}
+            getOptionLabel={(option) => option.departmentName}
+            placeholder="Select Department"
+            maxHeightClass="max-h-56"
+            renderTop={
+              departments.length > 0 ? (
+                <label className="flex items-center gap-2 text-sm text-slate-700 pb-2 border-b border-slate-100 mb-2">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                    checked={filters.departmentIds.length === departments.length}
+                    onChange={() =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        departmentIds:
+                          prev.departmentIds.length === departments.length
+                            ? []
+                            : departments.map((d) => String(d.departmentId)),
+                      }))
+                    }
+                  />
+                  <span>Select All Departments</span>
+                </label>
+              ) : null
+            }
+          />
         </div>
         <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-2">Designation</label>
-          <div className="flex flex-wrap gap-2">
-            {designations.map((d) => (
-              <label key={d.designationId} className="inline-flex items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                  checked={filters.designationIds.includes(String(d.designationId))}
-                  onChange={() =>
-                    setFilters((prev) => ({
-                      ...prev,
-                      designationIds: toggleValue(prev.designationIds, String(d.designationId)),
-                    }))
-                  }
-                />
-                <span>{d.designationName}</span>
-              </label>
-            ))}
-          </div>
+          <FilterDropdown
+            label="Designation"
+            isOpen={openDesignationFilter}
+            onToggleOpen={() => setOpenDesignationFilter((prev) => !prev)}
+            options={designations}
+            selectedValues={filters.designationIds}
+            onToggleValue={(value) =>
+              setFilters((prev) => ({
+                ...prev,
+                designationIds: toggleValue(prev.designationIds, String(value)),
+              }))
+            }
+            getOptionKey={(option) => String(option.designationId)}
+            getOptionLabel={(option) => option.designationName}
+            placeholder="Select Designation"
+            maxHeightClass="max-h-56"
+            renderTop={
+              designations.length > 0 ? (
+                <label className="flex items-center gap-2 text-sm text-slate-700 pb-2 border-b border-slate-100 mb-2">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                    checked={filters.designationIds.length === designations.length}
+                    onChange={() =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        designationIds:
+                          prev.designationIds.length === designations.length
+                            ? []
+                            : designations.map((d) => String(d.designationId)),
+                      }))
+                    }
+                  />
+                  <span>Select All Designations</span>
+                </label>
+              ) : null
+            }
+          />
         </div>
         <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-2">Grade</label>
-          <div className="flex flex-wrap gap-2">
-            {grades.map((g) => (
-              <label key={g.employeeGradeId} className="inline-flex items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                  checked={filters.employeeGradeIds.includes(String(g.employeeGradeId))}
-                  onChange={() =>
-                    setFilters((prev) => ({
-                      ...prev,
-                      employeeGradeIds: toggleValue(prev.employeeGradeIds, String(g.employeeGradeId)),
-                    }))
-                  }
-                />
-                <span>{g.employeeGradeName}</span>
-              </label>
-            ))}
-          </div>
+          <FilterDropdown
+            label="Grade"
+            isOpen={openGradeFilter}
+            onToggleOpen={() => setOpenGradeFilter((prev) => !prev)}
+            options={grades}
+            selectedValues={filters.employeeGradeIds}
+            onToggleValue={(value) =>
+              setFilters((prev) => ({
+                ...prev,
+                employeeGradeIds: toggleValue(prev.employeeGradeIds, String(value)),
+              }))
+            }
+            getOptionKey={(option) => String(option.employeeGradeId)}
+            getOptionLabel={(option) => option.employeeGradeName}
+            placeholder="Select Grade"
+            maxHeightClass="max-h-56"
+            renderTop={
+              grades.length > 0 ? (
+                <label className="flex items-center gap-2 text-sm text-slate-700 pb-2 border-b border-slate-100 mb-2">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                    checked={filters.employeeGradeIds.length === grades.length}
+                    onChange={() =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        employeeGradeIds:
+                          prev.employeeGradeIds.length === grades.length
+                            ? []
+                            : grades.map((g) => String(g.employeeGradeId)),
+                      }))
+                    }
+                  />
+                  <span>Select All Grades</span>
+                </label>
+              ) : null
+            }
+          />
         </div>
         <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-2">Status</label>
-          <div className="flex flex-wrap gap-2">
-            {["Active", "Inactive"].map((status) => (
-              <label key={status} className="inline-flex items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                  checked={filters.statuses.includes(status)}
-                  onChange={() =>
-                    setFilters((prev) => ({
-                      ...prev,
-                      statuses: toggleValue(prev.statuses, status),
-                    }))
-                  }
-                />
-                <span>{status}</span>
-              </label>
-            ))}
-          </div>
+          <FilterDropdown
+            label="Status"
+            isOpen={openStatusFilter}
+            onToggleOpen={() => setOpenStatusFilter((prev) => !prev)}
+            options={["Active", "Inactive"].map((value) => ({ value, label: value }))}
+            selectedValues={filters.statuses}
+            onToggleValue={(value) =>
+              setFilters((prev) => ({
+                ...prev,
+                statuses: toggleValue(prev.statuses, value),
+              }))
+            }
+            getOptionKey={(option) => option.value}
+            getOptionLabel={(option) => option.label}
+            placeholder="Select Status"
+            renderTop={
+              true ? (
+                <label className="flex items-center gap-2 text-sm text-slate-700 pb-2 border-b border-slate-100 mb-2">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                    checked={filters.statuses.length === 2}
+                    onChange={() =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        statuses: prev.statuses.length === 2 ? [] : ["Active", "Inactive"],
+                      }))
+                    }
+                  />
+                  <span>Select All Statuses</span>
+                </label>
+              ) : null
+            }
+          />
         </div>
         <div className="flex items-end gap-2 md:col-span-4">
           <Button type="button" variant="secondary" onClick={handleResetFilters}>
@@ -583,20 +863,90 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
             Apply Filters
           </Button>
         </div>
-        <div className="flex items-end gap-2 md:col-span-4">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv"
-            className="hidden"
-            onChange={handleBulkUpload}
-          />
-          <Button type="button" onClick={() => fileInputRef.current?.click()}>
-            Upload CSV
-          </Button>
-          <Button type="button" variant="secondary" onClick={downloadSampleTemplate}>
-            Download Sample
-          </Button>
+      </div>
+
+      <div className="bg-white border rounded-lg p-4">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+          <div className="md:col-span-2">
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Component</label>
+            <select
+              value={bulkComponentId}
+              onChange={(e) => setBulkComponentId(e.target.value)}
+              className="w-full border-2 border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
+            >
+              <option value="">Select Component</option>
+              {earningComponents
+                .filter((c) => String(c.calculationType || "").toLowerCase() !== "formula")
+                .map((c) => (
+                  <option key={c.salaryComponentId} value={c.salaryComponentId}>
+                    {c.name} ({c.code})
+                  </option>
+                ))}
+            </select>
+          </div>
+          <div>
+            <Input
+              label="Amount"
+              type="number"
+              min={0}
+              step="0.01"
+              value={bulkFixedAmount}
+              onChange={(e) => setBulkFixedAmount(e.target.value)}
+              placeholder="0.00"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Basis</label>
+            <select
+              value={bulkAmountBasis}
+              onChange={(e) => setBulkAmountBasis(e.target.value === "daily" ? "daily" : "monthly")}
+              className="w-full border-2 border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
+            >
+              <option value="monthly">Monthly</option>
+              <option value="daily">Daily</option>
+            </select>
+          </div>
+          <div>
+            <Input
+              label="Effective From"
+              type="date"
+              value={bulkEffectiveFrom}
+              onChange={(e) => setBulkEffectiveFrom(e.target.value)}
+            />
+          </div>
+          <div>
+            <Input
+              label="Effective To"
+              type="date"
+              value={bulkEffectiveTo}
+              onChange={(e) => setBulkEffectiveTo(e.target.value)}
+            />
+          </div>
+          <div className="md:col-span-6 flex flex-wrap items-end gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleSelectAllVisible}
+              className="w-full sm:w-auto whitespace-nowrap"
+            >
+              Select All
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleClearAllVisible}
+              className="w-full sm:w-auto whitespace-nowrap"
+            >
+              Clear
+            </Button>
+            <Button
+              type="button"
+              onClick={handleBulkAssign}
+              className="w-full sm:w-auto whitespace-nowrap"
+            >
+              Assign to Selected
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -616,15 +966,47 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
           />
         </div>
 
-        <MasterTable columns={["Staff ID", "Employee", "Department", "Designation", "Actions"]}>
+        <MasterTable columns={[
+          (
+            <input
+              type="checkbox"
+              className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+              checked={allVisibleSelected}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  handleSelectAllVisible();
+                } else {
+                  handleClearAllVisible();
+                }
+              }}
+              aria-label="Select all"
+            />
+          ),
+          "Staff ID",
+          "Employee",
+          "Department",
+          "Designation",
+          "Actions",
+        ]}>
           {filteredEmployees.map((emp) => {
             const isSelected = String(selectedEmployee?.staffId || "") === String(emp.staffId);
+            const isChecked = selectedEmployeeIds.includes(emp.staffId);
             return (
               <tr
                 key={emp.staffId}
                 className={`border-t cursor-pointer ${isSelected ? "bg-blue-50" : "hover:bg-gray-50"}`}
                 onClick={() => loadEmployeeAssignment(emp)}
               >
+                <td className="py-3 px-4">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                    checked={isChecked}
+                    onChange={() => toggleEmployeeSelection(emp.staffId)}
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label="Select employee"
+                  />
+                </td>
                 <td className="py-3 px-4">{emp.staffId}</td>
                 <td className="py-3 px-4">{`${emp.firstName || ""} ${emp.lastName || ""}`.trim()}</td>
                 <td className="py-3 px-4">{emp.department?.departmentName || "-"}</td>
@@ -647,7 +1029,7 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
           })}
           {filteredEmployees.length === 0 && (
             <tr>
-              <td className="py-4 px-4 text-center text-gray-500" colSpan={5}>
+              <td className="py-4 px-4 text-center text-gray-500" colSpan={6}>
                 No employees found
               </td>
             </tr>
@@ -662,7 +1044,7 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
         icon={HandCoins}
         maxWidth="max-w-4xl"
       >
-        <div className="space-y-4">
+        <div className="space-y-4 pb-20">
           {selectedEmployee && (
             <div className="border rounded-lg p-3 bg-gray-50">
               <div className="font-semibold text-gray-900">
@@ -680,6 +1062,20 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
                   type="date"
                   value={formulaDate}
                   onChange={(e) => setFormulaDate(e.target.value)}
+                />
+              </div>
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <Input
+                  label="Component Effective From"
+                  type="date"
+                  value={assignmentEffectiveFrom}
+                  onChange={(e) => setAssignmentEffectiveFrom(e.target.value)}
+                />
+                <Input
+                  label="Component Effective To"
+                  type="date"
+                  value={assignmentEffectiveTo}
+                  onChange={(e) => setAssignmentEffectiveTo(e.target.value)}
                 />
               </div>
               {formulaDebugContext && (
@@ -759,14 +1155,6 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
               {earningComponents.length === 0 && (
                 <p className="text-sm text-gray-500">No earning components found for this company.</p>
               )}
-              {fixedEarningComponents.length > 0 && (
-                <div className="flex justify-end pt-1">
-                  <Button type="button" onClick={saveAllFixedComponents} disabled={savingAllFixed}>
-                    {savingAllFixed ? "Saving..." : "Assign"}
-                  </Button>
-                </div>
-              )}
-
               <h3 className="text-sm font-semibold text-gray-700 pt-2">Deduction Components (Auto calculated by formula)</h3>
               {deductionComponents.map((component) => (
                 <div key={component.salaryComponentId} className="border rounded-lg p-3 bg-gray-50">
@@ -786,6 +1174,16 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
                 {autoSyncingFormulas && <p className="text-xs mt-1">Syncing formula components...</p>}
               </div>
             </div>
+          )}
+        </div>
+        <div className="sticky bottom-0 -mx-8 px-8 py-3 bg-white border-t border-gray-200 flex justify-end gap-2">
+          <Button type="button" variant="secondary" onClick={closeAssignmentModal}>
+            Close
+          </Button>
+          {fixedEarningComponents.length > 0 && (
+            <Button type="button" onClick={saveAllFixedComponents} disabled={savingAllFixed}>
+              {savingAllFixed ? "Saving..." : "Assign"}
+            </Button>
           )}
         </div>
       </Modal>

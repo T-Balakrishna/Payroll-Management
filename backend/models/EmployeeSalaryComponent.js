@@ -111,6 +111,22 @@ export default (sequelize) => {
             defaultValue: 0,
             comment: 'Order for display in payslip',
         },
+        effectiveFrom: {
+            type: DataTypes.DATEONLY,
+            allowNull: false,
+            comment: 'Date from which this component value is effective',
+            defaultValue: DataTypes.NOW,
+        },
+        effectiveTo: {
+            type: DataTypes.DATEONLY,
+            allowNull: true,
+            comment: 'Date until which this component value is effective (NULL = ongoing)',
+        },
+        status: {
+            type: DataTypes.ENUM('Active', 'Inactive'),
+            allowNull: false,
+            defaultValue: 'Active',
+        },
         remarks: {
             type: DataTypes.TEXT,
             allowNull: true,
@@ -127,6 +143,15 @@ export default (sequelize) => {
             },
             {
                 fields: ['componentCode']
+            },
+            {
+                fields: ['status']
+            },
+            {
+                fields: ['effectiveFrom']
+            },
+            {
+                fields: ['effectiveTo']
             }
         ],
         validate: {

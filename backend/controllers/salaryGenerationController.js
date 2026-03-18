@@ -786,6 +786,24 @@ export const generateMonthlySalary = async (req, res) => {
       const monthlyPayableFactor = Number((payableDays / STANDARD_MONTH_DAYS).toFixed(6));
       const formulaContext = {};
       activeComponentCodes.forEach((component) => setFormulaContextValue(formulaContext, component.code, 0));
+      // Provide a stable object for formulas that reference employeeSalaryMaster.*
+      formulaContext.employeeSalaryMaster = salaryMaster
+        ? {
+            employeeSalaryMasterId: salaryMaster.employeeSalaryMasterId,
+            staffId: salaryMaster.staffId,
+            companyId: salaryMaster.companyId,
+            effectiveFrom: salaryMaster.effectiveFrom || null,
+            effectiveTo: salaryMaster.effectiveTo || null,
+            basicSalary: toSafeNumber(salaryMaster.basicSalary),
+            grossSalary: toSafeNumber(salaryMaster.grossSalary),
+            totalDeductions: toSafeNumber(salaryMaster.totalDeductions),
+            netSalary: toSafeNumber(salaryMaster.netSalary),
+            ctcAnnual: toSafeNumber(salaryMaster.ctcAnnual),
+            ctcMonthly: toSafeNumber(salaryMaster.ctcMonthly),
+            revisionType: salaryMaster.revisionType || '',
+            status: salaryMaster.status || '',
+          }
+        : {};
       formulaContext.designation = salaryMaster?.employees?.designation?.designationName || '';
       formulaContext.designationLower = String(formulaContext.designation || '').trim().toLowerCase();
       formulaContext.department = salaryMaster?.employees?.department?.departmentName || '';
@@ -827,11 +845,55 @@ export const generateMonthlySalary = async (req, res) => {
       formulaContext.isProfessionalTaxMonth = isProfessionalTaxMonth ? 1 : 0;
       formulaContext.ptApplicableMonth = formulaContext.isProfessionalTaxMonth;
 
-      const components = await EmployeeSalaryComponent.findAll({
-        where: { employeeSalaryMasterId: salaryMaster.employeeSalaryMasterId },
-        order: [['displayOrder', 'ASC']],
+      await EmployeeSalaryComponent.update(
+        { status: 'Inactive' },
+        {
+          where: {
+            employeeSalaryMasterId: salaryMaster.employeeSalaryMasterId,
+            status: 'Active',
+            effectiveTo: { [db.Sequelize.Op.lt]: start },
+          },
+          transaction,
+        }
+      );
+
+      const componentsRaw = await EmployeeSalaryComponent.findAll({
+        where: {
+          employeeSalaryMasterId: salaryMaster.employeeSalaryMasterId,
+          [db.Sequelize.Op.or]: [
+            { status: 'Active' },
+            { status: null },
+          ],
+          [db.Sequelize.Op.or]: [
+            { effectiveFrom: null },
+            { effectiveFrom: { [db.Sequelize.Op.lte]: end } },
+          ],
+          [db.Sequelize.Op.or]: [
+            { effectiveTo: null },
+            { effectiveTo: { [db.Sequelize.Op.gte]: start } },
+          ],
+        },
+        order: [['createdAt', 'DESC']],
         transaction,
       });
+
+      const latestByComponent = new Map();
+      for (const comp of componentsRaw) {
+        const key = String(comp.componentId);
+        const existing = latestByComponent.get(key);
+        if (!existing) {
+          latestByComponent.set(key, comp);
+          continue;
+        }
+        const currentCreated = new Date(comp.createdAt || 0).getTime();
+        const existingCreated = new Date(existing.createdAt || 0).getTime();
+        if (currentCreated >= existingCreated) {
+          latestByComponent.set(key, comp);
+        }
+      }
+      const components = [...latestByComponent.values()].sort(
+        (a, b) => Number(a.displayOrder ?? 0) - Number(b.displayOrder ?? 0)
+      );
 
       let totalEarnings = 0;
       let totalDeductions = 0;

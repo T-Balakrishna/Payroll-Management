@@ -35,6 +35,73 @@ const buildQueryParams = (params) => {
   return search;
 };
 
+const FilterDropdown = ({
+  label,
+  isOpen,
+  onToggleOpen,
+  options,
+  selectedValues,
+  onToggleValue,
+  getOptionKey,
+  getOptionLabel,
+  maxHeightClass = "max-h-48",
+  placeholder = "Select",
+  showSingleLabel = true,
+  renderTop = null,
+}) => {
+  const selectedCount = selectedValues.length;
+  const totalCount = options.length;
+  const summary =
+    selectedCount === 0
+      ? placeholder
+      : selectedCount === 1 && showSingleLabel
+      ? getOptionLabel(options.find((opt) => String(getOptionKey(opt)) === String(selectedValues[0])) || {})
+      : `${selectedCount} selected`;
+
+  return (
+    <div className="relative">
+      <label className="block text-sm font-semibold text-slate-700 mb-2">{label}</label>
+      <button
+        type="button"
+        onClick={onToggleOpen}
+        className="w-full flex items-center justify-between border-2 border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 bg-white"
+      >
+        <span>{summary}</span>
+        <span className="text-slate-400">{isOpen ? "▲" : "▼"}</span>
+      </button>
+      {isOpen && (
+        <div className={`absolute z-20 mt-2 w-full rounded-lg border border-slate-200 bg-white shadow-lg ${maxHeightClass} overflow-y-auto p-3`}>
+          {renderTop}
+          {options.length === 0 && (
+            <div className="text-sm text-slate-500">No options</div>
+          )}
+          {options.map((option) => {
+            const key = getOptionKey(option);
+            const labelText = getOptionLabel(option);
+            const checked = selectedValues.includes(String(key));
+            return (
+              <label key={key} className="flex items-center gap-2 text-sm text-slate-700 py-1">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                  checked={checked}
+                  onChange={() => onToggleValue(String(key))}
+                />
+                <span>{labelText}</span>
+              </label>
+            );
+          })}
+          {options.length > 0 && (
+            <div className="mt-2 text-xs text-slate-500">
+              {selectedCount === 0 ? `${totalCount} options` : `${selectedCount} of ${totalCount} selected`}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function BiometricPunchMaster({ userRole, selectedCompanyId }) {
   const { user } = useAuth();
   const isSuperAdmin = normalizeRole(userRole || user?.role) === "superadmin";
@@ -45,6 +112,11 @@ export default function BiometricPunchMaster({ userRole, selectedCompanyId }) {
   const [grades, setGrades] = useState([]);
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [openCompanyFilter, setOpenCompanyFilter] = useState(false);
+  const [openDepartmentFilter, setOpenDepartmentFilter] = useState(false);
+  const [openGradeFilter, setOpenGradeFilter] = useState(false);
+  const [openRoleTypeFilter, setOpenRoleTypeFilter] = useState(false);
+  const [openDeviceFilter, setOpenDeviceFilter] = useState(false);
 
   const [filters, setFilters] = useState({
     companyId: selectedCompanyId || "",
@@ -193,117 +265,184 @@ export default function BiometricPunchMaster({ userRole, selectedCompanyId }) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           {isSuperAdmin && (
             <div className="lg:col-span-2">
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Company</label>
-              <div className="flex flex-wrap gap-3">
-                {companies.map((company) => (
-                  <label key={company.companyId} className="inline-flex items-center gap-2 text-sm text-slate-700">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                      checked={String(filters.companyId) === String(company.companyId)}
-                      onChange={() =>
-                        setFilters((prev) => ({
-                          ...prev,
-                          companyId:
-                            String(prev.companyId) === String(company.companyId)
-                              ? ""
-                              : String(company.companyId),
-                        }))
-                      }
-                    />
-                    <span>{company.companyName}</span>
-                  </label>
-                ))}
-              </div>
+              <FilterDropdown
+                label="Company"
+                isOpen={openCompanyFilter}
+                onToggleOpen={() => setOpenCompanyFilter((prev) => !prev)}
+                options={companies}
+                selectedValues={filters.companyId ? [String(filters.companyId)] : []}
+                onToggleValue={(value) =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    companyId: String(prev.companyId) === String(value) ? "" : String(value),
+                  }))
+                }
+                getOptionKey={(option) => String(option.companyId)}
+                getOptionLabel={(option) => option.companyName}
+                placeholder="Select Company"
+                showSingleLabel
+              />
             </div>
           )}
 
           <div className="lg:col-span-2">
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Department</label>
-            <div className="flex flex-wrap gap-3">
-              {departments.map((dept) => (
-                <label key={dept.departmentId} className="inline-flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                    checked={filters.departmentIds.includes(String(dept.departmentId))}
-                    onChange={() =>
-                      setFilters((prev) => ({
-                        ...prev,
-                        departmentIds: toggleValue(prev.departmentIds, String(dept.departmentId)),
-                      }))
-                    }
-                  />
-                  <span>{dept.departmentName}</span>
-                </label>
-              ))}
-            </div>
+            <FilterDropdown
+              label="Department"
+              isOpen={openDepartmentFilter}
+              onToggleOpen={() => setOpenDepartmentFilter((prev) => !prev)}
+              options={departments}
+              selectedValues={filters.departmentIds}
+              onToggleValue={(value) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  departmentIds: toggleValue(prev.departmentIds, String(value)),
+                }))
+              }
+              getOptionKey={(option) => String(option.departmentId)}
+              getOptionLabel={(option) => option.departmentName}
+              placeholder="Select Department"
+              maxHeightClass="max-h-56"
+              renderTop={
+                departments.length > 0 ? (
+                  <label className="flex items-center gap-2 text-sm text-slate-700 pb-2 border-b border-slate-100 mb-2">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                      checked={filters.departmentIds.length === departments.length}
+                      onChange={() =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          departmentIds:
+                            prev.departmentIds.length === departments.length
+                              ? []
+                              : departments.map((d) => String(d.departmentId)),
+                        }))
+                      }
+                    />
+                    <span>Select All Departments</span>
+                  </label>
+                ) : null
+              }
+            />
           </div>
 
           <div className="lg:col-span-2">
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Grade</label>
-            <div className="flex flex-wrap gap-3">
-              {grades.map((grade) => (
-                <label key={grade.employeeGradeId} className="inline-flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                    checked={filters.employeeGradeIds.includes(String(grade.employeeGradeId))}
-                    onChange={() =>
-                      setFilters((prev) => ({
-                        ...prev,
-                        employeeGradeIds: toggleValue(prev.employeeGradeIds, String(grade.employeeGradeId)),
-                      }))
-                    }
-                  />
-                  <span>{grade.employeeGradeName}</span>
-                </label>
-              ))}
-            </div>
+            <FilterDropdown
+              label="Grade"
+              isOpen={openGradeFilter}
+              onToggleOpen={() => setOpenGradeFilter((prev) => !prev)}
+              options={grades}
+              selectedValues={filters.employeeGradeIds}
+              onToggleValue={(value) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  employeeGradeIds: toggleValue(prev.employeeGradeIds, String(value)),
+                }))
+              }
+              getOptionKey={(option) => String(option.employeeGradeId)}
+              getOptionLabel={(option) => option.employeeGradeName}
+              placeholder="Select Grade"
+              maxHeightClass="max-h-56"
+              renderTop={
+                grades.length > 0 ? (
+                  <label className="flex items-center gap-2 text-sm text-slate-700 pb-2 border-b border-slate-100 mb-2">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                      checked={filters.employeeGradeIds.length === grades.length}
+                      onChange={() =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          employeeGradeIds:
+                            prev.employeeGradeIds.length === grades.length
+                              ? []
+                              : grades.map((g) => String(g.employeeGradeId)),
+                        }))
+                      }
+                    />
+                    <span>Select All Grades</span>
+                  </label>
+                ) : null
+              }
+            />
           </div>
 
           <div className="lg:col-span-2">
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Role Type</label>
-            <div className="flex flex-wrap gap-3">
-              {["Teaching", "Non-Teaching"].map((role) => (
-                <label key={role} className="inline-flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                    checked={filters.roleTypes.includes(role)}
-                    onChange={() =>
-                      setFilters((prev) => ({
-                        ...prev,
-                        roleTypes: toggleValue(prev.roleTypes, role),
-                      }))
-                    }
-                  />
-                  <span>{role}</span>
-                </label>
-              ))}
-            </div>
+            <FilterDropdown
+              label="Role Type"
+              isOpen={openRoleTypeFilter}
+              onToggleOpen={() => setOpenRoleTypeFilter((prev) => !prev)}
+              options={["Teaching", "Non-Teaching"].map((value) => ({ value, label: value }))}
+              selectedValues={filters.roleTypes}
+              onToggleValue={(value) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  roleTypes: toggleValue(prev.roleTypes, value),
+                }))
+              }
+              getOptionKey={(option) => option.value}
+              getOptionLabel={(option) => option.label}
+              placeholder="Select Role Type"
+              renderTop={
+                true ? (
+                  <label className="flex items-center gap-2 text-sm text-slate-700 pb-2 border-b border-slate-100 mb-2">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                      checked={filters.roleTypes.length === 2}
+                      onChange={() =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          roleTypes: prev.roleTypes.length === 2 ? [] : ["Teaching", "Non-Teaching"],
+                        }))
+                      }
+                    />
+                    <span>Select All Role Types</span>
+                  </label>
+                ) : null
+              }
+            />
           </div>
 
           <div className="lg:col-span-2">
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Device</label>
-            <div className="flex flex-wrap gap-3">
-              {devices.map((device) => (
-                <label key={device.deviceId} className="inline-flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                    checked={filters.biometricDeviceIds.includes(String(device.deviceId))}
-                    onChange={() =>
-                      setFilters((prev) => ({
-                        ...prev,
-                        biometricDeviceIds: toggleValue(prev.biometricDeviceIds, String(device.deviceId)),
-                      }))
-                    }
-                  />
-                  <span>{device.name}</span>
-                </label>
-              ))}
-            </div>
+            <FilterDropdown
+              label="Device"
+              isOpen={openDeviceFilter}
+              onToggleOpen={() => setOpenDeviceFilter((prev) => !prev)}
+              options={devices}
+              selectedValues={filters.biometricDeviceIds}
+              onToggleValue={(value) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  biometricDeviceIds: toggleValue(prev.biometricDeviceIds, String(value)),
+                }))
+              }
+              getOptionKey={(option) => String(option.deviceId)}
+              getOptionLabel={(option) => option.name}
+              placeholder="Select Device"
+              maxHeightClass="max-h-56"
+              renderTop={
+                devices.length > 0 ? (
+                  <label className="flex items-center gap-2 text-sm text-slate-700 pb-2 border-b border-slate-100 mb-2">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                      checked={filters.biometricDeviceIds.length === devices.length}
+                      onChange={() =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          biometricDeviceIds:
+                            prev.biometricDeviceIds.length === devices.length
+                              ? []
+                              : devices.map((d) => String(d.deviceId)),
+                        }))
+                      }
+                    />
+                    <span>Select All Devices</span>
+                  </label>
+                ) : null
+              }
+            />
           </div>
 
           <Input

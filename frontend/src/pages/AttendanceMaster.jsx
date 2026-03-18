@@ -30,6 +30,73 @@ const buildQueryParams = (params) => {
   return search;
 };
 
+const FilterDropdown = ({
+  label,
+  isOpen,
+  onToggleOpen,
+  options,
+  selectedValues,
+  onToggleValue,
+  getOptionKey,
+  getOptionLabel,
+  maxHeightClass = "max-h-48",
+  placeholder = "Select",
+  showSingleLabel = true,
+  renderTop = null,
+}) => {
+  const selectedCount = selectedValues.length;
+  const totalCount = options.length;
+  const summary =
+    selectedCount === 0
+      ? placeholder
+      : selectedCount === 1 && showSingleLabel
+      ? getOptionLabel(options.find((opt) => String(getOptionKey(opt)) === String(selectedValues[0])) || {})
+      : `${selectedCount} selected`;
+
+  return (
+    <div className="relative">
+      <label className="block text-sm font-semibold text-slate-700 mb-2">{label}</label>
+      <button
+        type="button"
+        onClick={onToggleOpen}
+        className="w-full flex items-center justify-between border-2 border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 bg-white"
+      >
+        <span>{summary}</span>
+        <span className="text-slate-400">{isOpen ? "▲" : "▼"}</span>
+      </button>
+      {isOpen && (
+        <div className={`absolute z-20 mt-2 w-full rounded-lg border border-slate-200 bg-white shadow-lg ${maxHeightClass} overflow-y-auto p-3`}>
+          {renderTop}
+          {options.length === 0 && (
+            <div className="text-sm text-slate-500">No options</div>
+          )}
+          {options.map((option) => {
+            const key = getOptionKey(option);
+            const labelText = getOptionLabel(option);
+            const checked = selectedValues.includes(String(key));
+            return (
+              <label key={key} className="flex items-center gap-2 text-sm text-slate-700 py-1">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                  checked={checked}
+                  onChange={() => onToggleValue(String(key))}
+                />
+                <span>{labelText}</span>
+              </label>
+            );
+          })}
+          {options.length > 0 && (
+            <div className="mt-2 text-xs text-slate-500">
+              {selectedCount === 0 ? `${totalCount} options` : `${selectedCount} of ${totalCount} selected`}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function AttendanceMaster({ userRole, selectedCompanyId }) {
   const { user } = useAuth();
   const isSuperAdmin = normalizeRole(userRole || user?.role) === "superadmin";
@@ -43,6 +110,7 @@ export default function AttendanceMaster({ userRole, selectedCompanyId }) {
   const [statusDrafts, setStatusDrafts] = useState({});
   const [savingAttendanceId, setSavingAttendanceId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [openStatusFilter, setOpenStatusFilter] = useState(false);
   const [filters, setFilters] = useState({
     companyId: selectedCompanyId || "",
     status: [],
@@ -50,6 +118,18 @@ export default function AttendanceMaster({ userRole, selectedCompanyId }) {
     dateTo: "",
     q: "",
   });
+
+  const statusOptions = [
+    "Present",
+    "Absent",
+    "Half-Day",
+    "Late",
+    "Early Exit",
+    "Leave",
+    "Holiday",
+    "Week Off",
+    "Permission",
+  ];
 
   const effectiveCompanyId = isSuperAdmin
     ? (filters.companyId || selectedCompanyId || "")
@@ -257,37 +337,46 @@ export default function AttendanceMaster({ userRole, selectedCompanyId }) {
           )}
 
           <div className="lg:col-span-2">
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Status</label>
-            <div className="flex flex-wrap gap-3">
-              {[
-                "Present",
-                "Absent",
-                "Half-Day",
-                "Late",
-                "Early Exit",
-                "Leave",
-                "Holiday",
-                "Week Off",
-                "Permission",
-              ].map((status) => (
-                <label key={status} className="inline-flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                    checked={filters.status.includes(status)}
-                    onChange={() =>
-                      setFilters((prev) => ({
-                        ...prev,
-                        status: toggleValue(prev.status, status),
-                      }))
-                    }
-                  />
-                  <span>{status}</span>
-                </label>
-              ))}
-            </div>
+            <FilterDropdown
+              label="Status"
+              isOpen={openStatusFilter}
+              onToggleOpen={() => setOpenStatusFilter((prev) => !prev)}
+              options={statusOptions}
+              selectedValues={filters.status}
+              onToggleValue={(value) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  status: toggleValue(prev.status, value),
+                }))
+              }
+              getOptionKey={(option) => option}
+              getOptionLabel={(option) => option}
+              placeholder="Select Status"
+              maxHeightClass="max-h-56"
+              renderTop={
+                statusOptions.length > 0 ? (
+                  <label className="flex items-center gap-2 text-sm text-slate-700 pb-2 border-b border-slate-100 mb-2">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                      checked={filters.status.length === statusOptions.length}
+                      onChange={() =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          status:
+                            prev.status.length === statusOptions.length
+                              ? []
+                              : [...statusOptions],
+                        }))
+                      }
+                    />
+                    <span>Select All Statuses</span>
+                  </label>
+                ) : null
+              }
+            />
           </div>
-
+          <br></br>
           <Input
             label="Date From"
             type="date"

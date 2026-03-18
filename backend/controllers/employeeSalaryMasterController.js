@@ -71,6 +71,8 @@ const toOptionalNonNegativeNumber = (value, fieldName) => {
   if (value === null || value === undefined || String(value).trim() === '') return undefined;
   return toNonNegativeNumber(value, fieldName);
 };
+const isDeadlockError = (error) => /deadlock/i.test(String(error?.message || ''));
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const MONTH_NAMES = [
   'January',
@@ -203,6 +205,24 @@ const buildFormulaContext = async ({
   });
 
   const context = {};
+  // Provide a stable object for formulas that reference employeeSalaryMaster.*
+  context.employeeSalaryMaster = employeeSalaryMaster
+    ? {
+        employeeSalaryMasterId: employeeSalaryMaster.employeeSalaryMasterId,
+        staffId: employeeSalaryMaster.staffId,
+        companyId: employeeSalaryMaster.companyId,
+        effectiveFrom: employeeSalaryMaster.effectiveFrom || null,
+        effectiveTo: employeeSalaryMaster.effectiveTo || null,
+        basicSalary: toSafeNumber(employeeSalaryMaster.basicSalary),
+        grossSalary: toSafeNumber(employeeSalaryMaster.grossSalary),
+        totalDeductions: toSafeNumber(employeeSalaryMaster.totalDeductions),
+        netSalary: toSafeNumber(employeeSalaryMaster.netSalary),
+        ctcAnnual: toSafeNumber(employeeSalaryMaster.ctcAnnual),
+        ctcMonthly: toSafeNumber(employeeSalaryMaster.ctcMonthly),
+        revisionType: employeeSalaryMaster.revisionType || '',
+        status: employeeSalaryMaster.status || '',
+      }
+    : {};
   // Ensure every active component code exists in context to avoid "X is not defined".
   allActiveComponents.forEach((component) => {
     setContextValue(context, component.code, 0);
@@ -397,6 +417,11 @@ const syncFormulaComponentsForSalaryMaster = async ({
   lossOfPayLeaveOverride,
   transaction,
 }) => {
+  const employeeSalaryMaster = await EmployeeSalaryMaster.findByPk(employeeSalaryMasterId, { transaction });
+  if (!employeeSalaryMaster) {
+    throw new Error('Employee salary master not found');
+  }
+
   const context = await buildFormulaContext({
     companyId,
     employeeSalaryMasterId,
@@ -450,7 +475,20 @@ const syncFormulaComponentsForSalaryMaster = async ({
       throw new Error(`Formula missing for component "${component.name}"`);
     }
 
-    const evaluation = formulaEvaluator.evaluate(formula, context);
+    let evaluation;
+    try {
+      evaluation = formulaEvaluator.evaluate(formula, context);
+    } catch (error) {
+      console.error('Formula evaluation failed', {
+        employeeSalaryMasterId,
+        componentId: component.salaryComponentId,
+        componentCode: component.code,
+        componentName: component.name,
+        formula,
+        error: error?.message || error,
+      });
+      throw error;
+    }
     const calculatedAmount = Math.max(0, toSafeNumber(evaluation));
     const annualAmount = Number((calculatedAmount * 12).toFixed(2));
 
@@ -484,6 +522,9 @@ const syncFormulaComponentsForSalaryMaster = async ({
       affectsGrossSalary: Boolean(component.affectsGrossSalary),
       affectsNetSalary: Boolean(component.affectsNetSalary),
       displayOrder: component.displayOrder ?? 0,
+      effectiveFrom: employeeSalaryMaster?.effectiveFrom || toDateOnlyString(new Date()),
+      effectiveTo: employeeSalaryMaster?.effectiveTo || null,
+      status: 'Active',
       remarks: existingAssignment?.remarks || null,
     };
 
@@ -499,7 +540,10 @@ const syncFormulaComponentsForSalaryMaster = async ({
 
 const recalculateSalaryMasterTotals = async (employeeSalaryMasterId, transaction) => {
   const components = await EmployeeSalaryComponent.findAll({
-    where: { employeeSalaryMasterId },
+    where: {
+      employeeSalaryMasterId,
+      status: 'Active',
+    },
     transaction,
   });
 
@@ -695,175 +739,197 @@ const ensureActiveSalaryMaster = async ({
 };
 
 export const assignEarningComponentToEmployee = async (req, res) => {
-  const transaction = await db.sequelize.transaction();
+  const maxRetries = 2;
+  let lastError = null;
 
-  try {
-    const staffId = parseOptionalInt(req.body.staffId);
-    const companyId = parseOptionalInt(req.body.companyId);
-    const componentId = parseOptionalInt(req.body.componentId);
-    const updatedBy = parseOptionalInt(req.body.updatedBy) || null;
-    const createdBy = parseOptionalInt(req.body.createdBy) || updatedBy;
-    const effectiveFrom = String(req.body.effectiveFrom || new Date().toISOString().slice(0, 10));
-    const formulaDate = String(req.body.formulaDate || effectiveFrom);
-    const payPeriodStart = req.body.payPeriodStart ? String(req.body.payPeriodStart) : undefined;
-    const payPeriodEnd = req.body.payPeriodEnd ? String(req.body.payPeriodEnd) : undefined;
-    const presentDaysOverride = toOptionalNonNegativeNumber(req.body.presentDays, 'presentDays');
-    const leaveDaysOverride = toOptionalNonNegativeNumber(req.body.leaveDays, 'leaveDays');
-    const lossOfPayLeaveOverride = toOptionalNonNegativeNumber(req.body.lossOfPayLeave, 'lossOfPayLeave');
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    const transaction = await db.sequelize.transaction();
+    try {
+      const staffId = parseOptionalInt(req.body.staffId);
+      const companyId = parseOptionalInt(req.body.companyId);
+      const componentId = parseOptionalInt(req.body.componentId);
+      const updatedBy = parseOptionalInt(req.body.updatedBy) || null;
+      const createdBy = parseOptionalInt(req.body.createdBy) || updatedBy;
+      const effectiveFrom = String(req.body.effectiveFrom || new Date().toISOString().slice(0, 10));
+      const effectiveToRaw = req.body.effectiveTo ? String(req.body.effectiveTo) : null;
+      const formulaDate = String(req.body.formulaDate || effectiveFrom);
+      const payPeriodStart = req.body.payPeriodStart ? String(req.body.payPeriodStart) : undefined;
+      const payPeriodEnd = req.body.payPeriodEnd ? String(req.body.payPeriodEnd) : undefined;
+      const presentDaysOverride = toOptionalNonNegativeNumber(req.body.presentDays, 'presentDays');
+      const leaveDaysOverride = toOptionalNonNegativeNumber(req.body.leaveDays, 'leaveDays');
+      const lossOfPayLeaveOverride = toOptionalNonNegativeNumber(req.body.lossOfPayLeave, 'lossOfPayLeave');
 
-    if (!staffId || !companyId || !componentId) {
-      throw new Error('staffId, companyId and componentId are required');
-    }
+      if (!staffId || !companyId || !componentId) {
+        throw new Error('staffId, companyId and componentId are required');
+      }
 
-    const employee = await Employee.findByPk(staffId, {
-      include: [{ model: db.Role, as: 'role', required: false }],
-      transaction,
-    });
-    if (!employee) {
-      throw new Error('Employee not found');
-    }
+      if (effectiveToRaw && effectiveToRaw < effectiveFrom) {
+        throw new Error('effectiveTo must be on or after effectiveFrom');
+      }
 
-    if (String(employee.companyId) !== String(companyId)) {
-      throw new Error('Employee does not belong to the selected company');
-    }
-
-    // Salary assignment is allowed only for Teaching/Non Teaching staff.
-    let roleName = employee?.role?.roleName || '';
-    if (!roleName) {
-      const mappedUser = await User.findOne({
-        where: { userNumber: employee.staffNumber },
-        include: [{ model: db.Role, as: 'role', attributes: ['roleId', 'roleName'], required: false }],
+      const employee = await Employee.findByPk(staffId, {
+        include: [{ model: db.Role, as: 'role', required: false }],
         transaction,
       });
-      roleName = mappedUser?.role?.roleName || '';
-    }
-    if (!STAFF_ROLE_KEYS.has(normalizeRoleName(roleName))) {
-      throw new Error('Salary assignment is allowed only for Teaching Staff and Non Teaching Staff');
-    }
+      if (!employee) {
+        throw new Error('Employee not found');
+      }
 
-    const salaryComponent = await SalaryComponent.findByPk(componentId, { transaction });
-    if (!salaryComponent) {
-      throw new Error('Salary component not found');
-    }
+      if (String(employee.companyId) !== String(companyId)) {
+        throw new Error('Employee does not belong to the selected company');
+      }
 
-    if (String(salaryComponent.companyId) !== String(companyId)) {
-      throw new Error('Salary component does not belong to the selected company');
-    }
+      // Salary assignment is allowed only for Teaching/Non Teaching staff.
+      let roleName = employee?.role?.roleName || '';
+      if (!roleName) {
+        const mappedUser = await User.findOne({
+          where: { userNumber: employee.staffNumber },
+          include: [{ model: db.Role, as: 'role', attributes: ['roleId', 'roleName'], required: false }],
+          transaction,
+        });
+        roleName = mappedUser?.role?.roleName || '';
+      }
+      if (!STAFF_ROLE_KEYS.has(normalizeRoleName(roleName))) {
+        throw new Error('Salary assignment is allowed only for Teaching Staff and Non Teaching Staff');
+      }
 
-    if (salaryComponent.type !== 'Earning') {
-      throw new Error('Only earning components can be assigned from salary assignment page');
-    }
-    const hasFixedAmount =
-      req.body.fixedAmount !== null &&
-      req.body.fixedAmount !== undefined &&
-      String(req.body.fixedAmount).trim() !== '';
-    if (salaryComponent.calculationType === 'Fixed' && !hasFixedAmount) {
-      throw new Error('fixedAmount is required for fixed earning component');
-    }
+      const salaryComponent = await SalaryComponent.findByPk(componentId, { transaction });
+      if (!salaryComponent) {
+        throw new Error('Salary component not found');
+      }
 
-    const fixedAmount =
-      salaryComponent.calculationType === 'Fixed'
-        ? toNonNegativeNumber(req.body.fixedAmount, 'fixedAmount')
-        : null;
+      if (String(salaryComponent.companyId) !== String(companyId)) {
+        throw new Error('Salary component does not belong to the selected company');
+      }
 
-    const salaryMaster = await ensureActiveSalaryMaster({
-      staffId,
-      companyId,
-      effectiveFrom,
-      createdBy,
-      updatedBy,
-      transaction,
-    });
+      if (salaryComponent.type !== 'Earning') {
+        throw new Error('Only earning components can be assigned from salary assignment page');
+      }
+      const hasFixedAmount =
+        req.body.fixedAmount !== null &&
+        req.body.fixedAmount !== undefined &&
+        String(req.body.fixedAmount).trim() !== '';
+      if (salaryComponent.calculationType === 'Fixed' && !hasFixedAmount) {
+        throw new Error('fixedAmount is required for fixed earning component');
+      }
 
-    let assignment = await EmployeeSalaryComponent.findOne({
-      where: {
+      const fixedAmount =
+        salaryComponent.calculationType === 'Fixed'
+          ? toNonNegativeNumber(req.body.fixedAmount, 'fixedAmount')
+          : null;
+
+      const salaryMaster = await ensureActiveSalaryMaster({
+        staffId,
+        companyId,
+        effectiveFrom,
+        createdBy,
+        updatedBy,
+        transaction,
+      });
+
+      await EmployeeSalaryComponent.update(
+        { status: 'Inactive' },
+        {
+          where: {
+            employeeSalaryMasterId: salaryMaster.employeeSalaryMasterId,
+            componentId: salaryComponent.salaryComponentId,
+            status: 'Active',
+          },
+          transaction,
+        }
+      );
+
+      const assignmentPayload = {
         employeeSalaryMasterId: salaryMaster.employeeSalaryMasterId,
         componentId: salaryComponent.salaryComponentId,
-      },
-      transaction,
-      lock: transaction.LOCK.UPDATE,
-    });
+        componentName: salaryComponent.name,
+        componentCode: salaryComponent.code,
+        componentType: salaryComponent.type,
+        valueType: salaryComponent.calculationType === 'Formula' ? 'Formula' : 'Fixed',
+        fixedAmount,
+        percentageValue: null,
+        percentageBase: null,
+        formulaId: null,
+        formulaExpression: salaryComponent.calculationType === 'Formula' ? salaryComponent.formula : null,
+        calculatedAmount: salaryComponent.calculationType === 'Formula' ? 0 : fixedAmount,
+        annualAmount: Number(((salaryComponent.calculationType === 'Formula' ? 0 : fixedAmount) * 12).toFixed(2)),
+        isStatutory: Boolean(salaryComponent.isStatutory),
+        isTaxable: Boolean(salaryComponent.isTaxable),
+        affectsGrossSalary: Boolean(salaryComponent.affectsGrossSalary),
+        affectsNetSalary: Boolean(salaryComponent.affectsNetSalary),
+        displayOrder: salaryComponent.displayOrder ?? 0,
+        effectiveFrom,
+        effectiveTo: effectiveToRaw || null,
+        status: effectiveToRaw && effectiveToRaw < new Date().toISOString().slice(0, 10) ? 'Inactive' : 'Active',
+        remarks: (() => {
+          const previous = {};
+          const requestedBasis = String(req.body.amountBasis || 'monthly').trim().toLowerCase();
+          const amountBasis = requestedBasis === 'daily' ? 'daily' : 'monthly';
+          const note = String(req.body.remarks || '').trim();
+          return JSON.stringify({
+            ...previous,
+            amountBasis,
+            note: note || undefined,
+          });
+        })(),
+      };
 
-    const assignmentPayload = {
-      employeeSalaryMasterId: salaryMaster.employeeSalaryMasterId,
-      componentId: salaryComponent.salaryComponentId,
-      componentName: salaryComponent.name,
-      componentCode: salaryComponent.code,
-      componentType: salaryComponent.type,
-      valueType: salaryComponent.calculationType === 'Formula' ? 'Formula' : 'Fixed',
-      fixedAmount,
-      percentageValue: null,
-      percentageBase: null,
-      formulaId: null,
-      formulaExpression: salaryComponent.calculationType === 'Formula' ? salaryComponent.formula : null,
-      calculatedAmount: salaryComponent.calculationType === 'Formula' ? 0 : fixedAmount,
-      annualAmount: Number(((salaryComponent.calculationType === 'Formula' ? 0 : fixedAmount) * 12).toFixed(2)),
-      isStatutory: Boolean(salaryComponent.isStatutory),
-      isTaxable: Boolean(salaryComponent.isTaxable),
-      affectsGrossSalary: Boolean(salaryComponent.affectsGrossSalary),
-      affectsNetSalary: Boolean(salaryComponent.affectsNetSalary),
-      displayOrder: salaryComponent.displayOrder ?? 0,
-      remarks: (() => {
-        const previous = parseJsonObject(assignment?.remarks);
-        const requestedBasis = String(req.body.amountBasis || previous.amountBasis || 'monthly').trim().toLowerCase();
-        const amountBasis = requestedBasis === 'daily' ? 'daily' : 'monthly';
-        const note = String(req.body.remarks || previous.note || '').trim();
-        return JSON.stringify({
-          ...previous,
-          amountBasis,
-          note: note || undefined,
-        });
-      })(),
-    };
+      const assignment = await EmployeeSalaryComponent.create(assignmentPayload, { transaction });
 
-    if (assignment) {
-      await assignment.update(assignmentPayload, { transaction });
-    } else {
-      assignment = await EmployeeSalaryComponent.create(assignmentPayload, { transaction });
+      await syncFormulaComponentsForSalaryMaster({
+        companyId,
+        employeeSalaryMasterId: salaryMaster.employeeSalaryMasterId,
+        formulaDate,
+        payPeriodStart,
+        payPeriodEnd,
+        presentDaysOverride,
+        leaveDaysOverride,
+        lossOfPayLeaveOverride,
+        transaction,
+      });
+
+      const totals = await recalculateSalaryMasterTotals(salaryMaster.employeeSalaryMasterId, transaction);
+
+      await EmployeeSalaryMaster.update(
+        { ...totals, updatedBy },
+        {
+          where: { employeeSalaryMasterId: salaryMaster.employeeSalaryMasterId },
+          transaction,
+        }
+      );
+
+      const updatedSalaryMaster = await EmployeeSalaryMaster.findByPk(
+        salaryMaster.employeeSalaryMasterId,
+        {
+          include: [{ model: db.EmployeeSalaryComponent, as: 'components' }],
+          transaction,
+        }
+      );
+
+      await transaction.commit();
+
+      res.status(200).json({
+        message: 'Earning component assigned successfully',
+        salaryMaster: updatedSalaryMaster,
+        assignment,
+        totals,
+      });
+      return;
+    } catch (error) {
+      lastError = error;
+      if (!transaction.finished) {
+        await transaction.rollback();
+      }
+      if (isDeadlockError(error) && attempt < maxRetries) {
+        await wait(100 * (attempt + 1));
+        continue;
+      }
+      res.status(400).json({ error: error.message });
+      return;
     }
-
-    await syncFormulaComponentsForSalaryMaster({
-      companyId,
-      employeeSalaryMasterId: salaryMaster.employeeSalaryMasterId,
-      formulaDate,
-      payPeriodStart,
-      payPeriodEnd,
-      presentDaysOverride,
-      leaveDaysOverride,
-      lossOfPayLeaveOverride,
-      transaction,
-    });
-
-    const totals = await recalculateSalaryMasterTotals(salaryMaster.employeeSalaryMasterId, transaction);
-
-    await EmployeeSalaryMaster.update(
-      { ...totals, updatedBy },
-      {
-        where: { employeeSalaryMasterId: salaryMaster.employeeSalaryMasterId },
-        transaction,
-      }
-    );
-
-    const updatedSalaryMaster = await EmployeeSalaryMaster.findByPk(
-      salaryMaster.employeeSalaryMasterId,
-      {
-        include: [{ model: db.EmployeeSalaryComponent, as: 'components' }],
-        transaction,
-      }
-    );
-
-    await transaction.commit();
-
-    res.status(200).json({
-      message: 'Earning component assigned successfully',
-      salaryMaster: updatedSalaryMaster,
-      assignment,
-      totals,
-    });
-  } catch (error) {
-    await transaction.rollback();
-    res.status(400).json({ error: error.message });
   }
+
+  res.status(400).json({ error: lastError?.message || 'Assignment failed' });
 };
 
 export const syncFormulaComponentsForEmployee = async (req, res) => {
@@ -945,7 +1011,9 @@ export const syncFormulaComponentsForEmployee = async (req, res) => {
       formulaContext,
     });
   } catch (error) {
-    await transaction.rollback();
+    if (!transaction.finished) {
+      await transaction.rollback();
+    }
     res.status(400).json({ error: error.message });
   }
 };
