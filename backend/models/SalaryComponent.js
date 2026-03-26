@@ -173,11 +173,14 @@ export default (sequelize) => {
           }
 
           if (this.type === 'Deduction') {
-            if (this.calculationType !== 'Formula') {
-              throw new Error('Deduction components must use Formula calculation type');
+            if (!['Fixed', 'Formula'].includes(this.calculationType)) {
+              throw new Error('Deduction components must use Fixed or Formula calculation type');
             }
-            if (!hasText(this.formula)) {
-              throw new Error('formula is required for Deduction components');
+            if (this.calculationType === 'Fixed' && hasText(this.formula)) {
+              throw new Error('Deduction components cannot keep formula when calculationType is Fixed');
+            }
+            if (this.calculationType === 'Formula' && !hasText(this.formula)) {
+              throw new Error('formula is required when Deduction component uses Formula calculation type');
             }
           }
         },
@@ -198,9 +201,7 @@ export default (sequelize) => {
     instance.formula = normalizeNullableText(instance.formula);
     instance.percentageBase = normalizeNullableText(instance.percentageBase)?.toUpperCase() || null;
 
-    if (instance.type === 'Deduction') {
-      instance.calculationType = 'Formula';
-    } else if (instance.type === 'Earning' && !['Fixed', 'Formula'].includes(instance.calculationType)) {
+    if (!['Fixed', 'Formula'].includes(instance.calculationType)) {
       instance.calculationType = 'Fixed';
     }
 

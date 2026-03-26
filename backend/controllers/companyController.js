@@ -1,5 +1,16 @@
 import db from '../models/index.js';
+import { invalidateCacheByPrefixes } from '../services/cacheService.js';
+import { CACHE_PREFIXES } from '../services/cacheKeys.js';
 const { Company } = db;
+
+const COMPANY_RELATED_CACHE_PREFIXES = [
+  CACHE_PREFIXES.companies,
+  CACHE_PREFIXES.departments,
+  CACHE_PREFIXES.designations,
+  CACHE_PREFIXES.leaveTypes,
+  CACHE_PREFIXES.shiftTypes,
+  CACHE_PREFIXES.employeeGrades,
+];
 // Get all companies
 // (In multi-tenant systems this is usually restricted to super-admins only)
 export const getAllCompanies = async (req, res) => {
@@ -45,6 +56,7 @@ export const getCompanyById = async (req, res) => {
 export const createCompany = async (req, res) => {
   try {
     const company = await Company.create(req.body);
+    await invalidateCacheByPrefixes(...COMPANY_RELATED_CACHE_PREFIXES);
     res.status(201).json(company);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -63,6 +75,7 @@ export const updateCompany = async (req, res) => {
     }
 
     const company = await Company.findByPk(req.params.id);
+    await invalidateCacheByPrefixes(...COMPANY_RELATED_CACHE_PREFIXES);
     res.json(company);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -81,6 +94,7 @@ export const deleteCompany = async (req, res) => {
       return res.status(404).json({ message: 'Company not found' });
     }
 
+    await invalidateCacheByPrefixes(...COMPANY_RELATED_CACHE_PREFIXES);
     res.json({ message: 'Company deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });

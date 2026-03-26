@@ -56,10 +56,7 @@ export default function SalaryComponentForm({
         ...DEFAULT_FORM,
         ...editData,
         type,
-        calculationType:
-          type === "Deduction"
-            ? "Formula"
-            : (editData?.calculationType === "Formula" ? "Formula" : "Fixed"),
+        calculationType: editData?.calculationType === "Formula" ? "Formula" : "Fixed",
         formula: editData?.formula || "",
         displayOrder: editData?.displayOrder ?? 0,
       });
@@ -105,12 +102,12 @@ export default function SalaryComponentForm({
     const value = e?.target?.type === "checkbox" ? e.target.checked : e.target.value;
 
     if (key === "type") {
-      const calculationType = value === "Deduction" ? "Formula" : "Fixed";
+      const calculationType = "Fixed";
       setForm((prev) => ({
         ...prev,
         type: value,
         calculationType,
-        formula: value === "Deduction" ? prev.formula : (calculationType === "Formula" ? prev.formula : ""),
+        formula: calculationType === "Formula" ? prev.formula : "",
       }));
       return;
     }
@@ -119,7 +116,7 @@ export default function SalaryComponentForm({
       const nextValue = value === "Formula" ? "Formula" : "Fixed";
       setForm((prev) => ({
         ...prev,
-        calculationType: prev.type === "Deduction" ? "Formula" : nextValue,
+        calculationType: nextValue,
         formula: nextValue === "Formula" ? prev.formula : "",
       }));
       return;
@@ -146,9 +143,7 @@ export default function SalaryComponentForm({
       return toast.error("Display order must be a non-negative integer");
     }
 
-    const calculationType = form.type === "Deduction"
-      ? "Formula"
-      : (form.calculationType === "Formula" ? "Formula" : "Fixed");
+    const calculationType = form.calculationType === "Formula" ? "Formula" : "Fixed";
 
     if (calculationType === "Formula" && !String(form.formula || "").trim()) {
       return toast.error("Formula is required for formula-based component");
@@ -220,15 +215,10 @@ export default function SalaryComponentForm({
           label="Calculation Type"
           value={form.calculationType}
           onChange={setField("calculationType")}
-          options={
-            form.type === "Deduction"
-              ? [{ value: "Formula", label: "Formula" }]
-              : [
-                  { value: "Fixed", label: "Fixed" },
-                  { value: "Formula", label: "Formula" },
-                ]
-          }
-          disabled={form.type === "Deduction"}
+          options={[
+            { value: "Fixed", label: "Fixed" },
+            { value: "Formula", label: "Formula" },
+          ]}
         />
         <Input
           label="Display Order"
@@ -240,9 +230,9 @@ export default function SalaryComponentForm({
         />
       </div>
 
-      {form.type === "Earning" && form.calculationType === "Fixed" && (
+      {form.calculationType === "Fixed" && (
         <div className="text-sm text-gray-600 bg-gray-50 border rounded-lg p-3">
-          Earning components do not keep a default amount. Assign employee-specific values in Salary Assignment.
+          Fixed components do not keep a default amount. Assign employee-specific values in Salary Assignment.
         </div>
       )}
 

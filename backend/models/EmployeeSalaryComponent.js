@@ -186,11 +186,22 @@ export default (sequelize) => {
                 }
 
                 if (this.componentType === 'Deduction') {
-                    if (this.valueType !== 'Formula') {
-                        throw new Error('Deduction components must use Formula valueType');
+                    if (!['Fixed', 'Formula'].includes(this.valueType)) {
+                        throw new Error('Deduction components must use Fixed or Formula valueType');
                     }
-                    if (!hasText(this.formulaExpression)) {
-                        throw new Error('formulaExpression is required for Deduction components');
+
+                    if (this.valueType === 'Fixed') {
+                        const amount = toNumber(this.fixedAmount);
+                        if (!Number.isFinite(amount) || amount < 0) {
+                            throw new Error('fixedAmount is required and must be a non-negative number for Deduction components');
+                        }
+                        if (hasText(this.formulaExpression)) {
+                            throw new Error('Deduction components cannot have formulaExpression when valueType is Fixed');
+                        }
+                    }
+
+                    if (this.valueType === 'Formula' && !hasText(this.formulaExpression)) {
+                        throw new Error('formulaExpression is required when Deduction component uses Formula valueType');
                     }
                 }
             }

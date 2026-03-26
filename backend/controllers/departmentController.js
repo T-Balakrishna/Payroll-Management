@@ -1,5 +1,7 @@
 import db from '../models/index.js';
 import { resolveCompanyContext } from '../utils/companyScope.js';
+import { invalidateCacheByPrefixes } from '../services/cacheService.js';
+import { CACHE_PREFIXES } from '../services/cacheKeys.js';
 
 const { Department } = db;
 const normalizeStatus = (status) => {
@@ -99,6 +101,7 @@ export const createDepartment = async (req, res) => {
       status: normalizeStatus(req.body?.status),
     };
     const department = await Department.create(payload);
+    await invalidateCacheByPrefixes(CACHE_PREFIXES.departments);
     res.status(201).json(department);
   } catch (error) {
     const statusCode = error.name?.startsWith('Sequelize') ? 400 : 500;
@@ -144,6 +147,7 @@ export const updateDepartment = async (req, res) => {
     }
 
     const updatedDepartment = await Department.findByPk(req.params.id, { paranoid: false });
+    await invalidateCacheByPrefixes(CACHE_PREFIXES.departments);
     res.status(200).json(updatedDepartment);
   } catch (error) {
     const statusCode = error.name?.startsWith('Sequelize') ? 400 : 500;
@@ -168,6 +172,7 @@ export const deleteDepartment = async (req, res) => {
       updatedBy: req.body?.updatedBy || department.updatedBy,
     });
 
+    await invalidateCacheByPrefixes(CACHE_PREFIXES.departments);
     res.json({ message: 'Department marked as inactive successfully' });
   } catch (error) {
     const statusCode = error.name?.startsWith('Sequelize') ? 400 : 500;

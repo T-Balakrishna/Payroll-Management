@@ -10,6 +10,7 @@ dotenv.config();
 import db from './models/index.js';
 import mountRoutes from './routes/mountRoutes.js';
 import { csrfProtection, csrfTokenHandler } from './middleware/csrfProtection.js';
+import { connectRedis } from './services/cacheService.js';
 import { startAttendanceScheduler } from './scripts/processAttendance.js';
 import { seedInitialUser } from './services/seedInitialUser.js';
 import { startDailyReportScheduler } from './scripts/dailyReportService.js';
@@ -55,6 +56,7 @@ mountRoutes(app);
 db.sequelize.authenticate()
   .then(async () => {
     console.log('Database connection established successfully.');
+    await connectRedis();
     if (shouldSync) {
       await db.sequelize.sync({
         alter: shouldAlter

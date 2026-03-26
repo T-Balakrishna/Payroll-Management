@@ -1,4 +1,6 @@
 import db from '../models/index.js';
+import { invalidateCacheByPrefixes } from '../services/cacheService.js';
+import { CACHE_PREFIXES } from '../services/cacheKeys.js';
 const { ShiftType } = db;
 
 const WEEKLY_OFF_DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -79,6 +81,7 @@ export const getShiftTypeById = async (req, res) => {
 export const createShiftType = async (req, res) => {
   try {
     const shiftType = await ShiftType.create(withNormalizedWeeklyOff(req.body));
+    await invalidateCacheByPrefixes(CACHE_PREFIXES.shiftTypes);
     res.status(201).json(shiftType);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -97,6 +100,7 @@ export const updateShiftType = async (req, res) => {
     }
 
     const shiftType = await ShiftType.findByPk(req.params.id);
+    await invalidateCacheByPrefixes(CACHE_PREFIXES.shiftTypes);
     res.json(shiftType);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -114,6 +118,7 @@ export const deleteShiftType = async (req, res) => {
       return res.status(404).json({ message: 'Shift type not found' });
     }
 
+    await invalidateCacheByPrefixes(CACHE_PREFIXES.shiftTypes);
     res.json({ message: 'Shift type deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });

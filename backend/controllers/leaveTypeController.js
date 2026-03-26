@@ -1,4 +1,6 @@
 import db from '../models/index.js';
+import { invalidateCacheByPrefixes } from '../services/cacheService.js';
+import { CACHE_PREFIXES } from '../services/cacheKeys.js';
 
 const { LeaveType } = db;
 
@@ -52,6 +54,7 @@ export const getLeaveTypeById = async (req, res) => {
 export const createLeaveType = async (req, res) => {
   try {
     const leaveType = await LeaveType.create(req.body);
+    await invalidateCacheByPrefixes(CACHE_PREFIXES.leaveTypes);
     res.status(201).json(leaveType);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -69,6 +72,7 @@ export const updateLeaveType = async (req, res) => {
     }
 
     const leaveType = await LeaveType.findByPk(req.params.id);
+    await invalidateCacheByPrefixes(CACHE_PREFIXES.leaveTypes);
     res.json(leaveType);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -85,6 +89,7 @@ export const deleteLeaveType = async (req, res) => {
       return res.status(404).json({ message: 'Leave type not found' });
     }
 
+    await invalidateCacheByPrefixes(CACHE_PREFIXES.leaveTypes);
     res.json({ message: 'Leave type deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });

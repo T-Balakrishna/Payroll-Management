@@ -29,6 +29,7 @@ const normalizeStatus = (status) => {
 
 const normalizeFormulaOperators = (formula) =>
   String(formula || '').replace(/!==/g, '!=').replace(/===/g, '==');
+const normalizeCalculationType = (value) => (value === 'Formula' ? 'Formula' : 'Fixed');
 
 const isProfessionalTaxComponent = ({ code, name, type }) => {
   const normalizedCode = String(code || '').trim().toUpperCase();
@@ -205,10 +206,7 @@ export const createSalaryComponent = async (req, res) => {
     }
 
     const intendedType = hardenedPayload.type;
-    const intendedCalculationType =
-      intendedType === 'Deduction'
-        ? 'Formula'
-        : (hardenedPayload.calculationType === 'Formula' ? 'Formula' : 'Fixed');
+    const intendedCalculationType = normalizeCalculationType(hardenedPayload.calculationType);
 
     await validateFormulaOrThrow({
       formula: hardenedPayload.formula,
@@ -266,10 +264,7 @@ export const updateSalaryComponent = async (req, res) => {
 
     const resultingType = hardenedPayload.type || existingComponent.type;
     const resultingCalculationType = hardenedPayload.calculationType || existingComponent.calculationType;
-    const effectiveCalculationType =
-      resultingType === 'Deduction'
-        ? 'Formula'
-        : (resultingCalculationType === 'Formula' ? 'Formula' : 'Fixed');
+    const effectiveCalculationType = normalizeCalculationType(resultingCalculationType);
     const resultingCompanyId =
       (companyContext.actor && !companyContext.isSuperAdmin
         ? companyContext.effectiveCompanyId

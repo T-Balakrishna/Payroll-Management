@@ -334,19 +334,23 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
 
       setInputMap(() => {
         const next = {};
-        Object.keys(map).forEach((componentId) => {
-          next[componentId] = String(map[componentId]?.fixedAmount ?? "");
-        });
+        [...Object.values(map), ...Object.values(deductionMap)]
+          .filter((item) => String(item?.valueType || "").toLowerCase() === "fixed")
+          .forEach((item) => {
+            next[item.componentId] = String(item?.fixedAmount ?? "");
+          });
         return next;
       });
 
       setAmountBasisMap(() => {
         const next = {};
-        Object.keys(map).forEach((componentId) => {
-          const meta = parseJsonObject(map[componentId]?.remarks);
-          const basis = String(meta.amountBasis || "").toLowerCase() === "daily" ? "daily" : "monthly";
-          next[componentId] = basis;
-        });
+        [...Object.values(map), ...Object.values(deductionMap)]
+          .filter((item) => String(item?.valueType || "").toLowerCase() === "fixed")
+          .forEach((item) => {
+            const meta = parseJsonObject(item?.remarks);
+            const basis = String(meta.amountBasis || "").toLowerCase() === "daily" ? "daily" : "monthly";
+            next[item.componentId] = basis;
+          });
         return next;
       });
     } catch (error) {
@@ -521,6 +525,18 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
     () => earningComponents.filter((c) => String(c.calculationType || "").toLowerCase() !== "formula"),
     [earningComponents]
   );
+  const fixedDeductionComponents = useMemo(
+    () => deductionComponents.filter((c) => String(c.calculationType || "").toLowerCase() !== "formula"),
+    [deductionComponents]
+  );
+  const formulaDeductionComponents = useMemo(
+    () => deductionComponents.filter((c) => String(c.calculationType || "").toLowerCase() === "formula"),
+    [deductionComponents]
+  );
+  const fixedAssignableComponents = useMemo(
+    () => [...fixedEarningComponents, ...fixedDeductionComponents],
+    [fixedDeductionComponents, fixedEarningComponents]
+  );
 
   const saveAllFixedComponents = async () => {
     if (!selectedEmployee?.staffId) return toast.error("Select an employee");
@@ -531,7 +547,7 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
         return;
       }
       setSavingAllFixed(true);
-      const payloads = fixedEarningComponents.map((component) => {
+      const payloads = fixedAssignableComponents.map((component) => {
         const rawValue = String(inputMap[component.salaryComponentId] ?? "").trim();
         if (rawValue === "") {
           return null;
@@ -1155,8 +1171,55 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
               {earningComponents.length === 0 && (
                 <p className="text-sm text-gray-500">No earning components found for this company.</p>
               )}
-              <h3 className="text-sm font-semibold text-gray-700 pt-2">Deduction Components (Auto calculated by formula)</h3>
-              {deductionComponents.map((component) => (
+              <h3 className="text-sm font-semibold text-gray-700 pt-2">Deduction Components</h3>
+              {fixedDeductionComponents.map((component) => (
+                <div key={component.salaryComponentId} className="border rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <p className="font-medium text-gray-900">{component.name}</p>
+                      <p className="text-xs text-gray-500">{component.code}</p>
+                      <p className="text-xs text-gray-500 mt-1">Calculation: Fixed value per employee</p>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Current: {deductionAssignedMap[component.salaryComponentId]?.calculatedAmount ?? deductionAssignedMap[component.salaryComponentId]?.fixedAmount ?? "-"}
+                    </p>
+                  </div>
+
+                  <div className="flex items-end gap-2">
+                    <Input
+                      label="Amount"
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={inputMap[component.salaryComponentId] ?? ""}
+                      onChange={(e) =>
+                        setInputMap((prev) => ({
+                          ...prev,
+                          [component.salaryComponentId]: e.target.value,
+                        }))
+                      }
+                      placeholder="0.00"
+                    />
+                    <div className="w-44">
+                      <label className="block text-xs text-gray-600 mb-1">Basis</label>
+                      <select
+                        value={amountBasisMap[component.salaryComponentId] || "monthly"}
+                        onChange={(e) =>
+                          setAmountBasisMap((prev) => ({
+                            ...prev,
+                            [component.salaryComponentId]: e.target.value === "daily" ? "daily" : "monthly",
+                          }))
+                        }
+                        className="w-full border border-gray-300 rounded px-2 py-2 text-sm"
+                      >
+                        <option value="monthly">Monthly</option>
+                        <option value="daily">Daily</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {formulaDeductionComponents.map((component) => (
                 <div key={component.salaryComponentId} className="border rounded-lg p-3 bg-gray-50">
                   <p className="font-medium text-gray-900">{component.name} ({component.code})</p>
                   <p className="text-sm text-gray-700 mt-1">
@@ -1165,12 +1228,15 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
                   <p className="text-xs text-gray-600 break-words mt-1">Formula: {component.formula || "No formula"}</p>
                 </div>
               ))}
+              {deductionComponents.length === 0 && (
+                <p className="text-sm text-gray-500">No deduction components found for this company.</p>
+              )}
 
               <div className="border rounded-lg p-3 bg-blue-50 text-sm text-blue-900">
                 <p>Gross Salary: {grossSalary}</p>
                 <p>Total Deductions: {totalDeductions}</p>
                 <p>Net Salary: {netSalary}</p>
-                <p className="text-xs mt-1">Formula-based earning and deduction components are auto-assigned and auto-calculated.</p>
+                <p className="text-xs mt-1">Formula-based components are auto-assigned and auto-calculated. Fixed components are saved per employee.</p>
                 {autoSyncingFormulas && <p className="text-xs mt-1">Syncing formula components...</p>}
               </div>
             </div>
@@ -1180,7 +1246,7 @@ export default function SalaryAssignmentMaster({ userRole, selectedCompanyId }) 
           <Button type="button" variant="secondary" onClick={closeAssignmentModal}>
             Close
           </Button>
-          {fixedEarningComponents.length > 0 && (
+          {fixedAssignableComponents.length > 0 && (
             <Button type="button" onClick={saveAllFixedComponents} disabled={savingAllFixed}>
               {savingAllFixed ? "Saving..." : "Assign"}
             </Button>

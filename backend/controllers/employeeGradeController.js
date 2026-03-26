@@ -1,5 +1,7 @@
 import db from '../models/index.js';
 import { resolveCompanyContext } from '../utils/companyScope.js';
+import { invalidateCacheByPrefixes } from '../services/cacheService.js';
+import { CACHE_PREFIXES } from '../services/cacheKeys.js';
 const { EmployeeGrade, Company } = db;
 
 const formatSequelizeError = (error) => {
@@ -66,6 +68,7 @@ export const createEmployeeGrade = async (req, res) => {
       companyId: companyContext.effectiveCompanyId,
     };
     const employeeGrade = await EmployeeGrade.create(payload);
+    await invalidateCacheByPrefixes(CACHE_PREFIXES.employeeGrades);
     res.status(201).json(employeeGrade);
   } catch (error) {
     const statusCode = error.name?.startsWith('Sequelize') ? 400 : 500;
@@ -106,6 +109,7 @@ export const updateEmployeeGrade = async (req, res) => {
     }
 
     const employeeGrade = await EmployeeGrade.findByPk(req.params.id);
+    await invalidateCacheByPrefixes(CACHE_PREFIXES.employeeGrades);
     res.json(employeeGrade);
   } catch (error) {
     const statusCode = error.name?.startsWith('Sequelize') ? 400 : 500;
@@ -124,6 +128,7 @@ export const deleteEmployeeGrade = async (req, res) => {
       return res.status(404).json({ message: "Employee grade not found" });
     }
 
+    await invalidateCacheByPrefixes(CACHE_PREFIXES.employeeGrades);
     res.json({ message: "Employee grade deleted successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });

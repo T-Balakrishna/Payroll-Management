@@ -1,5 +1,7 @@
 import db from '../models/index.js';
 import { resolveCompanyContext } from '../utils/companyScope.js';
+import { invalidateCacheByPrefixes } from '../services/cacheService.js';
+import { CACHE_PREFIXES } from '../services/cacheKeys.js';
 const { Designation } = db;
 const normalizeStatus = (status) => {
   const value = String(status || '').trim().toLowerCase();
@@ -86,6 +88,7 @@ export const createDesignation = async (req, res) => {
       status: normalizeStatus(req.body?.status),
     };
     const designation = await Designation.create(payload);
+    await invalidateCacheByPrefixes(CACHE_PREFIXES.designations);
     res.status(201).json(designation);
   } catch (error) {
     const statusCode = error.name?.startsWith('Sequelize') ? 400 : 500;
@@ -129,6 +132,7 @@ export const updateDesignation = async (req, res) => {
     }
 
     const designation = await Designation.findByPk(req.params.id);
+    await invalidateCacheByPrefixes(CACHE_PREFIXES.designations);
     res.json(designation);
   } catch (error) {
     const statusCode = error.name?.startsWith('Sequelize') ? 400 : 500;
@@ -154,6 +158,7 @@ export const deleteDesignation = async (req, res) => {
       updatedBy: req.body?.updatedBy || designation.updatedBy,
     });
 
+    await invalidateCacheByPrefixes(CACHE_PREFIXES.designations);
     res.json({ message: 'Designation marked as inactive successfully' });
   } catch (error) {
     const statusCode = error.name?.startsWith('Sequelize') ? 400 : 500;

@@ -1,4 +1,6 @@
 import db from '../models/index.js';
+import { invalidateCacheByPrefixes } from '../services/cacheService.js';
+import { CACHE_PREFIXES } from '../services/cacheKeys.js';
 const { Role } = db;
 // Get all roles
 export const getAllRoles = async (req, res) => {
@@ -39,6 +41,7 @@ export const getRoleById = async (req, res) => {
 export const createRole = async (req, res) => {
   try {
     const role = await Role.create(req.body);
+    await invalidateCacheByPrefixes(CACHE_PREFIXES.roles);
     res.status(201).json(role);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -57,6 +60,7 @@ export const updateRole = async (req, res) => {
     }
 
     const role = await Role.findByPk(req.params.id);
+    await invalidateCacheByPrefixes(CACHE_PREFIXES.roles);
     res.json(role);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -74,6 +78,7 @@ export const deleteRole = async (req, res) => {
       return res.status(404).json({ message: 'Role not found' });
     }
 
+    await invalidateCacheByPrefixes(CACHE_PREFIXES.roles);
     res.json({ message: 'Role deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });

@@ -101,27 +101,53 @@ const buildAssignmentPayload = async ({ body, existingRecord = null }) => {
         : Number((calculatedAmount * 12).toFixed(2));
     }
   } else if (salaryComponent.type === 'Deduction') {
-    const formulaExpression = isProfessionalTaxComponent(salaryComponent)
-      ? PROFESSIONAL_TAX_FORMULA
-      : salaryComponent.formula;
-    if (!formulaExpression || !String(formulaExpression).trim()) {
-      throw new Error('Deduction component must have formula at component level');
+    if (salaryComponent.calculationType === 'Formula') {
+      const formulaExpression = isProfessionalTaxComponent(salaryComponent)
+        ? PROFESSIONAL_TAX_FORMULA
+        : salaryComponent.formula;
+      if (!formulaExpression || !String(formulaExpression).trim()) {
+        throw new Error('Deduction component must have formula at component level');
+      }
+
+      const calculatedAmount = hasValue(body?.calculatedAmount)
+        ? toNonNegativeNumber(body.calculatedAmount, 'calculatedAmount')
+        : 0;
+
+      payload.valueType = 'Formula';
+      payload.fixedAmount = null;
+      payload.percentageValue = null;
+      payload.percentageBase = null;
+      payload.formulaId = body?.formulaId ?? existingRecord?.formulaId ?? null;
+      payload.formulaExpression = formulaExpression;
+      payload.calculatedAmount = calculatedAmount;
+      payload.annualAmount = hasValue(body?.annualAmount)
+        ? toNonNegativeNumber(body.annualAmount, 'annualAmount')
+        : Number((calculatedAmount * 12).toFixed(2));
+    } else {
+      if (!hasValue(body?.fixedAmount) && !hasValue(existingRecord?.fixedAmount)) {
+        throw new Error('fixedAmount is required for Deduction component assignment');
+      }
+
+      const fixedAmount = toNonNegativeNumber(
+        hasValue(body?.fixedAmount) ? body.fixedAmount : existingRecord.fixedAmount,
+        'fixedAmount'
+      );
+
+      const calculatedAmount = hasValue(body?.calculatedAmount)
+        ? toNonNegativeNumber(body.calculatedAmount, 'calculatedAmount')
+        : fixedAmount;
+
+      payload.valueType = 'Fixed';
+      payload.fixedAmount = fixedAmount;
+      payload.percentageValue = null;
+      payload.percentageBase = null;
+      payload.formulaId = null;
+      payload.formulaExpression = null;
+      payload.calculatedAmount = calculatedAmount;
+      payload.annualAmount = hasValue(body?.annualAmount)
+        ? toNonNegativeNumber(body.annualAmount, 'annualAmount')
+        : Number((calculatedAmount * 12).toFixed(2));
     }
-
-    const calculatedAmount = hasValue(body?.calculatedAmount)
-      ? toNonNegativeNumber(body.calculatedAmount, 'calculatedAmount')
-      : 0;
-
-    payload.valueType = 'Formula';
-    payload.fixedAmount = null;
-    payload.percentageValue = null;
-    payload.percentageBase = null;
-    payload.formulaId = body?.formulaId ?? existingRecord?.formulaId ?? null;
-    payload.formulaExpression = formulaExpression;
-    payload.calculatedAmount = calculatedAmount;
-    payload.annualAmount = hasValue(body?.annualAmount)
-      ? toNonNegativeNumber(body.annualAmount, 'annualAmount')
-      : Number((calculatedAmount * 12).toFixed(2));
   } else {
     throw new Error('Invalid component type');
   }

@@ -802,15 +802,15 @@ export const assignEarningComponentToEmployee = async (req, res) => {
         throw new Error('Salary component does not belong to the selected company');
       }
 
-      if (salaryComponent.type !== 'Earning') {
-        throw new Error('Only earning components can be assigned from salary assignment page');
+      if (!['Earning', 'Deduction'].includes(salaryComponent.type)) {
+        throw new Error('Only earning or deduction components can be assigned from salary assignment page');
       }
       const hasFixedAmount =
         req.body.fixedAmount !== null &&
         req.body.fixedAmount !== undefined &&
         String(req.body.fixedAmount).trim() !== '';
       if (salaryComponent.calculationType === 'Fixed' && !hasFixedAmount) {
-        throw new Error('fixedAmount is required for fixed earning component');
+        throw new Error(`fixedAmount is required for fixed ${String(salaryComponent.type || 'component').toLowerCase()} component`);
       }
 
       const fixedAmount =
@@ -909,7 +909,7 @@ export const assignEarningComponentToEmployee = async (req, res) => {
       await transaction.commit();
 
       res.status(200).json({
-        message: 'Earning component assigned successfully',
+        message: `${salaryComponent.type} component assigned successfully`,
         salaryMaster: updatedSalaryMaster,
         assignment,
         totals,
