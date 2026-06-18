@@ -109,6 +109,31 @@ export default (sequelize) => {
       defaultValue: 0.00,
     },
 
+    overtimeRequestedHours: {
+      type: DataTypes.DECIMAL(5, 2),
+      allowNull: true,
+      defaultValue: 0.00,
+      comment: 'System calculated OT hours after shift end when greater than threshold',
+    },
+
+    overtimeApprovedHours: {
+      type: DataTypes.DECIMAL(5, 2),
+      allowNull: true,
+      defaultValue: 0.00,
+      comment: 'Admin approved payable OT hours',
+    },
+
+    overtimeStatus: {
+      type: DataTypes.ENUM('None', 'Pending', 'Approved', 'Rejected'),
+      allowNull: false,
+      defaultValue: 'None',
+    },
+
+    overtimeRemarks: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+
     // Status & flags
     attendanceStatus: {
       type: DataTypes.STRING(100),
@@ -176,6 +201,21 @@ export default (sequelize) => {
       allowNull: true,
     },
 
+    overtimeApprovedBy: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'userId',
+      },
+      onDelete: 'SET NULL',
+    },
+
+    overtimeApprovedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+
     createdBy: {
       type: DataTypes.INTEGER,
       allowNull: true,
@@ -223,6 +263,10 @@ export default (sequelize) => {
         fields: ['approvedBy'],
         name: 'idx_approved_by',
       },
+      {
+        fields: ['companyId', 'overtimeStatus'],
+        name: 'idx_company_overtime_status',
+      },
     ],
   });
 
@@ -251,6 +295,11 @@ export default (sequelize) => {
     Attendance.belongsTo(models.User, {
       foreignKey: 'approvedBy',
       as: 'approver',
+    });
+
+    Attendance.belongsTo(models.User, {
+      foreignKey: 'overtimeApprovedBy',
+      as: 'overtimeApprover',
     });
 
     Attendance.belongsTo(models.User, {

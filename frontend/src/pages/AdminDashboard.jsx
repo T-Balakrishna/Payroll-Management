@@ -33,6 +33,7 @@ import EmployeeGradeMaster from './EmployeeGradeMaster.jsx';
 import BiometricDeviceMaster from './BiometricDeviceMaster.jsx';
 import BiometricPunchMaster from './BiometricPunchMaster.jsx';
 import AttendanceMaster from './AttendanceMaster.jsx';
+import OvertimeManagement from './OvertimeManagement.jsx';
 import ShiftTypeMaster from './ShiftTypeMaster.jsx';
 import ShiftAssignmentMaster from './ShiftAssignmentMaster.jsx';
 import LeaveTypeMaster from './LeaveTypeMaster.jsx';
@@ -264,6 +265,7 @@ const AdminDashboard = () => {
       { id: 'employeeGrade', label: t('Employee Grade Master'), icon: List, color: 'text-amber-500', category: 'Organization' },
 
       { id: 'attendance', label: t('Attendance Master'), icon: Activity, color: 'text-emerald-600', category: 'Attendance' },
+      { id: 'overtime', label: t('Overtime Management') || 'Overtime Management', icon: AlarmClockCheck, color: 'text-orange-500', category: 'Attendance' },
       { id: 'shiftType', label: t('Shift Type Master'), icon: Clock, color: 'text-cyan-500', category: 'Attendance' },
       { id: 'shiftAssignment', label: t('Shift Assignment Master'), icon: Briefcase, color: 'text-blue-400', category: 'Attendance' },
       { id: 'biometricDevice', label: t('Biometric Device Master'), icon: Monitor, color: 'text-slate-500', category: 'Attendance' },
@@ -467,6 +469,7 @@ const AdminDashboard = () => {
       case "roles": return <RoleMaster {...common} />;
       case "employeeGrade": return <EmployeeGradeMaster {...common} />;
       case "attendance": return <AttendanceMaster {...common} />;
+      case "overtime": return <OvertimeManagement {...common} />;
       case "shiftType": return <ShiftTypeMaster {...common} />;
       case "shiftAssignment": return <ShiftAssignmentMaster {...common} />;
       case "biometricDevice": return <BiometricDeviceMaster {...common} />;

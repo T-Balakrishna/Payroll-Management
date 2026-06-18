@@ -74,6 +74,59 @@ const diffHours = (a, b) => {
   return Math.max(0, (b.getTime() - a.getTime()) / (1000 * 60 * 60));
 };
 
+const roundHours = (value) => Number(Math.max(0, Number(value || 0)).toFixed(2));
+
+const buildOvertimeFields = ({ emp, scheduledEnd, lastCheckOut, existing }) => {
+  const extraAfterShiftHours =
+    scheduledEnd && lastCheckOut && lastCheckOut > scheduledEnd
+      ? diffHours(scheduledEnd, lastCheckOut)
+      : 0;
+  const isOvertimeApplicable = Boolean(emp?.isOvertimeApplicable);
+  const overtimeRequestedHours =
+    isOvertimeApplicable && extraAfterShiftHours > 1
+      ? roundHours(extraAfterShiftHours)
+      : 0;
+
+  const defaultStatus =
+    overtimeRequestedHours > 0
+      ? "Pending"
+      : extraAfterShiftHours > 0
+      ? "Rejected"
+      : "None";
+
+  if (existing) {
+    const previousRequestedHours = roundHours(existing.overtimeRequestedHours ?? existing.overtimeHours);
+    const previousStatus = existing.overtimeStatus || "None";
+    const wasAdminReviewed = ["Approved", "Rejected"].includes(previousStatus);
+    const requestUnchanged = previousRequestedHours === overtimeRequestedHours;
+
+    if (overtimeRequestedHours > 0 && wasAdminReviewed && requestUnchanged) {
+      return {
+        overtimeHours: overtimeRequestedHours,
+        overtimeRequestedHours,
+        overtimeApprovedHours: roundHours(existing.overtimeApprovedHours),
+        overtimeStatus: previousStatus,
+        overtimeRemarks: existing.overtimeRemarks || null,
+        overtimeApprovedBy: existing.overtimeApprovedBy || null,
+        overtimeApprovedAt: existing.overtimeApprovedAt || null,
+      };
+    }
+  }
+
+  return {
+    overtimeHours: overtimeRequestedHours,
+    overtimeRequestedHours,
+    overtimeApprovedHours: 0,
+    overtimeStatus: defaultStatus,
+    overtimeRemarks:
+      defaultStatus === "Rejected" && extraAfterShiftHours > 0
+        ? "Rejected automatically: extra time is not greater than 1 hour."
+        : null,
+    overtimeApprovedBy: null,
+    overtimeApprovedAt: null,
+  };
+};
+
 const normalizeRecurringDays = (value) => {
   if (Array.isArray(value)) return value;
   if (!value) return [];
@@ -260,6 +313,14 @@ export const getAllAttendances = async (req, res) => {
       where.attendanceStatus = req.query.status;
     }
 
+    if (req.query.overtimeStatus) {
+      where.overtimeStatus = req.query.overtimeStatus;
+    }
+
+    if (!req.query.overtimeStatus && String(req.query.overtimeOnly || "").toLowerCase() === "true") {
+      where.overtimeStatus = { [Op.in]: ["Pending", "Approved", "Rejected"] };
+    }
+
     const dateFrom = toDateOnly(req.query.dateFrom);
     const dateTo = toDateOnly(req.query.dateTo);
 
@@ -317,6 +378,7 @@ export const getAllAttendances = async (req, res) => {
         { model: db.ShiftType, as: "shiftType", attributes: ["shiftTypeId", "name"] },
         { model: db.ShiftAssignment, as: "shiftAssignment", attributes: ["shiftAssignmentId", "startDate", "endDate", "recurringPattern", "recurringDays"] },
         { model: db.User, as: "approver", attributes: ["userId", "userName"] },
+        { model: db.User, as: "overtimeApprover", attributes: ["userId", "userName"] },
       ],
       order: [["attendanceDate", "DESC"], ["attendanceId", "DESC"]],
     });
@@ -370,7 +432,32 @@ export const createAttendance = async (req, res) => {
 // Update attendance
 export const updateAttendance = async (req, res) => {
   try {
-    const [updated] = await Attendance.update(req.body, {
+    const payload = { ...req.body };
+
+    if (Object.prototype.hasOwnProperty.call(payload, "overtimeApprovedHours")) {
+      payload.overtimeApprovedHours = roundHours(payload.overtimeApprovedHours);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, "overtimeStatus")) {
+      const nextStatus = String(payload.overtimeStatus || "").trim();
+      if (!["None", "Pending", "Approved", "Rejected"].includes(nextStatus)) {
+        return res.status(400).json({ error: "Invalid overtimeStatus" });
+      }
+
+      payload.overtimeStatus = nextStatus;
+      if (nextStatus === "Approved" || nextStatus === "Rejected") {
+        payload.overtimeApprovedBy = req.user?.id || payload.updatedBy || payload.overtimeApprovedBy || null;
+        payload.overtimeApprovedAt = new Date();
+      } else {
+        payload.overtimeApprovedBy = null;
+        payload.overtimeApprovedAt = null;
+        if (nextStatus === "None") {
+          payload.overtimeApprovedHours = 0;
+        }
+      }
+    }
+
+    const [updated] = await Attendance.update(payload, {
       where: { attendanceId: req.params.id }
     });
 
@@ -447,6 +534,7 @@ export const processPunchesToAttendance = async (req, res) => {
         "employeeGradeId",
         "shiftTypeId",
         "remainingPermissionHours",
+        "isOvertimeApplicable",
         "status",
         "employmentStatus",
       ],
@@ -678,9 +766,6 @@ export const processPunchesToAttendance = async (req, res) => {
         const breakHours = 0;
         const workingHours = Math.max(0, rawWorkingHours - breakHours);
 
-        const scheduledHours = scheduledStart && scheduledEnd ? diffHours(scheduledStart, scheduledEnd) : 0;
-        const overtimeHours = Math.max(0, workingHours - scheduledHours);
-
         const lateGrace = Number(shiftType?.lateGracePeriod || 0);
         const earlyExitPeriod = Number(shiftType?.earlyExitPeriod || 0);
 
@@ -739,6 +824,17 @@ export const processPunchesToAttendance = async (req, res) => {
           }
         }
 
+        const existing = await Attendance.findOne({
+          where: { staffId: emp.staffId, attendanceDate: dateOnly },
+        });
+
+        const overtimeFields = buildOvertimeFields({
+          emp,
+          scheduledEnd,
+          lastCheckOut,
+          existing,
+        });
+
         const payload = {
           staffId: emp.staffId,
           companyId,
@@ -753,7 +849,7 @@ export const processPunchesToAttendance = async (req, res) => {
           totalCheckOuts,
           workingHours: Number((workingHours + permissionUsedHours).toFixed(2)),
           breakHours: Number(breakHours.toFixed(2)),
-          overtimeHours: Number(overtimeHours.toFixed(2)),
+          ...overtimeFields,
           attendanceStatus,
           isLate,
           lateByMinutes,
@@ -771,10 +867,6 @@ export const processPunchesToAttendance = async (req, res) => {
             ? toTimeString(lastCheckOut)
             : null;
         const permissionEndTime = scheduledEnd ? toTimeString(scheduledEnd) : null;
-
-        const existing = await Attendance.findOne({
-          where: { staffId: emp.staffId, attendanceDate: dateOnly },
-        });
 
         if (existing) {
           const prevPermUsed = parsePermissionUsedHours(existing.remarks);
