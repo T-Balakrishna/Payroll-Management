@@ -452,6 +452,7 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
             "";
           const roleKey = roleKeyById.get(String(roleId)) || "";
           const isSuperAdminRole = roleKey === "superadmin";
+          const requiresDepartment = !isSuperAdminRole;
           const departmentId = isSuperAdminRole
             ? null
             : resolveDepartmentId(row, companyId, departmentIdByName, departmentIdByAcr);
@@ -467,7 +468,7 @@ export default function AddUser({ selectedCompanyId, selectedCompanyName }) {
             status: "Active",
             createdBy: currentUserId,
             updatedBy: currentUserId,
-            _requiresDepartment: !isSuperAdminRole,
+            _requiresDepartment: requiresDepartment,
           };
         })
         .filter(

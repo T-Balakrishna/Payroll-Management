@@ -1,4 +1,5 @@
 import { Op } from "sequelize";
+import { hashPassword } from "../utils/password.js";
 
 const INITIAL_COMPANY = {
   companyId: 1,
@@ -12,15 +13,14 @@ const INITIAL_ROLE = {
   roleName: "Super Admin",
   status: "Active",
 };
-const STAFF_ROLES = ["Teaching Staff", "Non Teaching Staff"];
 
 const INITIAL_USER = {
   userId: 1,
   roleId: 1,
   companyId: 1,
-  userMail: "2312080@nec.edu.in",
-  userNumber: "cset23",
-  password: "$2b$10$h.pGuNnEZJRJcWzZcnw.xObKoFwjF/xnfDwZyqDfRoHia7VI9DT5W",
+  userMail: "sks@nec.edu.in",
+  userNumber: "sad1",
+  password: "123",
 };
 
 export const seedInitialUser = async (db) => {
@@ -32,41 +32,17 @@ export const seedInitialUser = async (db) => {
       return;
     }
 
-    /* ---------------------------
-       1️⃣  Seed Company
-    ----------------------------*/
-    const existingCompany = await Company.findByPk(INITIAL_COMPANY.companyId);
+    const [company] = await Company.findOrCreate({
+      where: { companyId: INITIAL_COMPANY.companyId },
+      defaults: INITIAL_COMPANY,
+    });
 
-    if (!existingCompany) {
-      await Company.create(INITIAL_COMPANY);
-      console.log("[Seeder] Company created (NEC).");
-    } else {
-      console.log("[Seeder] Company already exists.");
-    }
+    const [role] = await Role.findOrCreate({
+      where: { roleId: INITIAL_ROLE.roleId },
+      defaults: INITIAL_ROLE,
+    });
 
-    /* ---------------------------
-       2️⃣  Seed Role
-    ----------------------------*/
-    const existingRole = await Role.findByPk(INITIAL_ROLE.roleId);
-
-    if (!existingRole) {
-      await Role.create(INITIAL_ROLE);
-      console.log("[Seeder] Role created (Super Admin).");
-    } else {
-      console.log("[Seeder] Role already exists.");
-    }
-
-    for (const roleName of STAFF_ROLES) {
-      const roleExists = await Role.findOne({ where: { roleName } });
-      if (!roleExists) {
-        await Role.create({ roleName, status: "Active" });
-        console.log(`[Seeder] Role created (${roleName}).`);
-      }
-    }
-
-    /* ---------------------------
-       3️⃣  Seed User
-    ----------------------------*/
+    const hashedPassword = await hashPassword(INITIAL_USER.password);
     const existingUser = await User.findOne({
       where: {
         [Op.or]: [
@@ -78,16 +54,25 @@ export const seedInitialUser = async (db) => {
     });
 
     if (existingUser) {
-      console.log("[Seeder] Initial user already exists.");
-      return;
+      await existingUser.update({
+        userNumber: INITIAL_USER.userNumber,
+        userMail: INITIAL_USER.userMail,
+        companyId: company.companyId,
+        roleId: role.roleId,
+        password: hashedPassword,
+        status: "Active",
+      });
+    } else {
+      await User.create({
+        ...INITIAL_USER,
+        companyId: company.companyId,
+        roleId: role.roleId,
+        password: hashedPassword,
+        status: "Active",
+      });
     }
 
-    await User.create({
-      ...INITIAL_USER,
-      status: "Active",
-    });
-
-    console.log("[Seeder] Initial user created successfully.");
+    console.log("[Seeder] Initial super admin user ensured.");
   } catch (error) {
     console.error("[Seeder] Failed:", error.message);
   }

@@ -38,80 +38,80 @@ import reportGeneratorRoutes from './reportGeneratorRoutes.js';
 
 const mountRoutes = (app) => {
   // Core
-  app.use('/api/companies', companyRoutes);
+  app.use('/companies', companyRoutes);
 
-  app.use('/api/users', userRoutes);
+  app.use('/users', userRoutes);
 
-  app.use('/api/roles', roleRoutes);
+  app.use('/roles', roleRoutes);
 
-  app.use('/api/auth', authRoutes);
+  app.use('/auth', authRoutes);
 
   // Organization
-  app.use('/api/departments', departmentRoutes);
+  app.use('/departments', departmentRoutes);
 
-  app.use('/api/designations', designationRoutes);
+  app.use('/designations', designationRoutes);
 
 
-  app.use('/api/employeeGrades', employeeGradeRoutes);
+  app.use('/employeeGrades', employeeGradeRoutes);
 
   // Employee & related
-  app.use('/api/employees', employeeRoutes);
+  app.use('/employees', employeeRoutes);
 
-  app.use('/api/buses', busRoutes);
+  app.use('/buses', busRoutes);
 
   // Holiday
-  app.use('/api/holidayPlans', holidayPlanRoutes);
+  app.use('/holidayPlans', holidayPlanRoutes);
 
-  app.use('/api/holidays', holidayRoutes);
+  app.use('/holidays', holidayRoutes);
 
   // Leave
-  app.use('/api/leaveTypes', leaveTypeRoutes);
-  app.use('/api/leavePeriods', leavePeriodRoutes);
+  app.use('/leaveTypes', leaveTypeRoutes);
+  app.use('/leavePeriods', leavePeriodRoutes);
 
-  app.use('/api/leavePolicies', leavePolicyRoutes);
+  app.use('/leavePolicies', leavePolicyRoutes);
 
-  app.use('/api/leaveAllocations', leaveAllocationRoutes);
+  app.use('/leaveAllocations', leaveAllocationRoutes);
 
-  app.use('/api/leaveRequests', leaveRequestRoutes);
+  app.use('/leaveRequests', leaveRequestRoutes);
 
-  app.use('/api/leaveApprovals', leaveApprovalRoutes);
+  app.use('/leaveApprovals', leaveApprovalRoutes);
 
-  app.use('/api/leaveRequestHistories', leaveRequestHistoryRoutes);
+  app.use('/leaveRequestHistories', leaveRequestHistoryRoutes);
 
   // Shift & Attendance
-  app.use('/api/shiftTypes', shiftTypeRoutes);
+  app.use('/shiftTypes', shiftTypeRoutes);
 
-  app.use('/api/shiftAssignments', shiftAssignmentRoutes);
+  app.use('/shiftAssignments', shiftAssignmentRoutes);
 
-  app.use('/api/attendances', attendanceRoutes);
+  app.use('/attendances', attendanceRoutes);
 
-  app.use('/api/biometricDevices', biometricDeviceRoutes);
+  app.use('/biometricDevices', biometricDeviceRoutes);
 
-  app.use('/api/biometricPunches', biometricPunchRoutes);
+  app.use('/biometricPunches', biometricPunchRoutes);
 
   // Salary & Payroll
-  app.use('/api/salaryComponents', salaryComponentRoutes);
+  app.use('/salaryComponents', salaryComponentRoutes);
 
-  app.use('/api/employeeSalaryComponents', employeeSalaryComponentRoutes);
+  app.use('/employeeSalaryComponents', employeeSalaryComponentRoutes);
 
-  app.use('/api/employeeSalaryMasters', employeeSalaryMasterRoutes);
+  app.use('/employeeSalaryMasters', employeeSalaryMasterRoutes);
 
-  app.use('/api/salaryGenerations', salaryGenerationRoutes);
+  app.use('/salaryGenerations', salaryGenerationRoutes);
 
-  app.use('/api/salaryGenerationDetails', salaryGenerationDetailRoutes);
+  app.use('/salaryGenerationDetails', salaryGenerationDetailRoutes);
 
-  app.use('/api/salaryRevisionHistories', salaryRevisionHistoryRoutes);
+  app.use('/salaryRevisionHistories', salaryRevisionHistoryRoutes);
 
   // Other / Auxiliary
-  app.use('/api/employeeLoans', employeeLoanRoutes);
+  app.use('/employeeLoans', employeeLoanRoutes);
 
-  app.use('/api/formulas', formulaRoutes);
+  app.use('/formulas', formulaRoutes);
 
-  app.use('/api/permissions', permissionRoutes);
+  app.use('/permissions', permissionRoutes);
 
-  app.use('/api/statuaryReports', statuaryReportsRoutes);
+  app.use('/statuaryReports', statuaryReportsRoutes);
 
-  app.use('/api/reportGenerator', reportGeneratorRoutes);
+  app.use('/reportGenerator', reportGeneratorRoutes);
 };
 
 export default mountRoutes;

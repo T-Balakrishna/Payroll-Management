@@ -1,7 +1,11 @@
 import axios from "axios";
 
-const backendPort = Number(import.meta.env.VITE_BACKEND_PORT) || 5000;
-const baseURL = `http://localhost:${backendPort}/api`;
+const isLocalhost =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1";
+const baseURL = isLocalhost
+  ? "http://localhost:5000"
+  : "/payroll_management";
 
 const API = axios.create({
   baseURL,
@@ -17,13 +21,16 @@ let csrfTokenCache = null;
 const UNSAFE_METHODS = new Set(['post', 'put', 'patch', 'delete']);
 
 const ensureCsrfToken = async () => {
-  if (csrfTokenCache) return csrfTokenCache;
   const res = await CSRF_API.get('/csrf');
   const token = res?.data?.csrfToken;
   if (token) {
     csrfTokenCache = token;
   }
   return csrfTokenCache;
+};
+
+export const clearCsrfTokenCache = () => {
+  csrfTokenCache = null;
 };
 
 API.interceptors.request.use(async (config) => {

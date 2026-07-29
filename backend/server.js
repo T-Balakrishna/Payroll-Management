@@ -35,7 +35,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(csrfProtection);
 
-app.get('/api/csrf', csrfTokenHandler);
+app.get('/csrf', csrfTokenHandler);
 
 // Health & root endpoints
 app.get('/', (req, res) => {
@@ -56,7 +56,7 @@ mountRoutes(app);
 db.sequelize.authenticate()
   .then(async () => {
     console.log('Database connection established successfully.');
-    await connectRedis();
+    //await connectRedis();
     if (shouldSync) {
       await db.sequelize.sync({
         alter: shouldAlter

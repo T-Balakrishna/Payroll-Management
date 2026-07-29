@@ -3,7 +3,7 @@ import crypto from 'crypto';
 const CSRF_COOKIE_NAME = 'XSRF-TOKEN';
 const CSRF_HEADER_NAME = 'X-XSRF-TOKEN';
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
-const CSRF_EXEMPT_PATH_PREFIXES = ['/api/auth'];
+const CSRF_EXEMPT_PATH_PREFIXES = ['/payroll_management/auth', '/api/auth'];
 
 const generateToken = () => crypto.randomBytes(32).toString('hex');
 const resolveCookieOptions = () => {

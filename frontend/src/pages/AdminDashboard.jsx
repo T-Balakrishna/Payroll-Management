@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import API from '../api';
+import API, { clearCsrfTokenCache } from '../api';
+import { withAppBase } from '../config/appBase';
 import { useAuth } from '../auth/AuthContext';
 import {
   Chart as ChartJS,
@@ -593,8 +594,9 @@ const AdminDashboard = () => {
                 } catch (err) {
                   console.error('Logout error:', err);
                 } finally {
+                  clearCsrfTokenCache();
                   sessionStorage.clear();
-                  window.location.href = '/login';
+                  window.location.href = withAppBase('/login');
                 }
               }}
               className="flex items-center w-full px-3 py-2.5 rounded-xl text-left text-gray-500 hover:bg-red-50 hover:text-red-600 border border-transparent hover:border-red-200 transition-all duration-150"
