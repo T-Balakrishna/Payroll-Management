@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pencil } from 'lucide-react';
 import { toast } from 'react-toastify';
 import API from '../api';
@@ -10,7 +10,7 @@ import Button from '../components/ui/Button';
 
 const normalizeRole = (role) => String(role || '').replace(/\s+/g, '').toLowerCase();
 
-const parseCsvLine = (line) => {
+const parseCsvLine = (line, delimiter = ',') => {
   const values = [];
   let current = '';
   let inQuotes = false;
@@ -24,7 +24,7 @@ const parseCsvLine = (line) => {
       } else {
         inQuotes = !inQuotes;
       }
-    } else if (char === ',' && !inQuotes) {
+    } else if (char === delimiter && !inQuotes) {
       values.push(current.trim());
       current = '';
     } else {
@@ -36,17 +36,41 @@ const parseCsvLine = (line) => {
   return values.map((v) => v.replace(/^"(.*)"$/, '$1').trim());
 };
 
+const detectDelimiter = (headerLine) => {
+  const line = String(headerLine || '');
+  if (line.includes('\t')) return '\t';
+  if (line.includes(';') && !line.includes(',')) return ';';
+  return ',';
+};
+
 const parseCsvText = (text) => {
-  const lines = String(text || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const cleanText = String(text || '').replace(/^\uFEFF/, '');
+  const lines = cleanText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   if (lines.length < 2) return [];
-  const headers = parseCsvLine(lines[0]);
+  const delimiter = detectDelimiter(lines[0]);
+  const headers = parseCsvLine(lines[0], delimiter);
   return lines.slice(1).map((line) => {
-    const values = parseCsvLine(line);
+    const values = parseCsvLine(line, delimiter);
     return headers.reduce((acc, key, idx) => {
       acc[key] = values[idx] ?? '';
       return acc;
     }, {});
   });
+};
+
+const getRowField = (row, fieldType) => {
+  if (!row || typeof row !== 'object') return undefined;
+  const staffKeys = ['staffnumber', 'staffnum', 'staffno', 'staffid', 'employeenumber', 'employeeid', 'empno', 'empid'];
+  const bioKeys = ['biometricnumber', 'biometricnum', 'biometricno', 'biometricid', 'bionumber', 'biono', 'bioid'];
+  const targetKeys = fieldType === 'staffNumber' ? staffKeys : bioKeys;
+
+  for (const [key, val] of Object.entries(row)) {
+    const cleanKey = key.replace(/^\uFEFF/, '').trim().toLowerCase().replace(/[\s_.-]+/g, '');
+    if (targetKeys.includes(cleanKey)) {
+      return val;
+    }
+  }
+  return undefined;
 };
 
 export default function BiometricDeviceAssignMaster({ userRole, selectedCompanyId }) {
@@ -127,7 +151,6 @@ export default function BiometricDeviceAssignMaster({ userRole, selectedCompanyI
       return;
     }
     const file = event.target.files?.[0];
-    event.target.value = '';
     if (!file) return;
 
     try {
@@ -138,28 +161,58 @@ export default function BiometricDeviceAssignMaster({ userRole, selectedCompanyI
         return;
       }
 
-      const employeeByStaffNumber = new Map(
-        employees.map((emp) => [String(emp.staffNumber || '').trim().toLowerCase(), emp])
-      );
+      const sampleRow = rows[0];
+      const hasStaffCol = getRowField(sampleRow, 'staffNumber') !== undefined;
+      const hasBioCol = getRowField(sampleRow, 'biometricNumber') !== undefined;
 
-      const payloads = rows
-        .map((row) => {
-          const staffNumberKey = String(row.staffNumber || '').trim().toLowerCase();
-          const employee = employeeByStaffNumber.get(staffNumberKey);
-          if (!employee) return null;
-
-          return {
-            staffId: employee.staffId,
-            biometricNumber: String(row.biometricNumber || '').trim() || null,
-          };
-        })
-        .filter(Boolean);
-
-      if (!payloads.length) {
-        toast.error('CSV must contain valid staffNumber and biometricNumber columns');
+      if (!hasStaffCol || !hasBioCol) {
+        toast.error("CSV header must contain 'staffNumber' and 'biometricNumber' columns");
         return;
       }
 
+      const normalizeStaffNo = (val) => String(val || '').trim().toLowerCase();
+      const stripNonAlphaNum = (val) => String(val || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      const employeeByStaffNumber = new Map();
+      const employeeByAlphaNum = new Map();
+
+      employees.forEach((emp) => {
+        const norm = normalizeStaffNo(emp.staffNumber);
+        if (norm) employeeByStaffNumber.set(norm, emp);
+        const alpha = stripNonAlphaNum(emp.staffNumber);
+        if (alpha) employeeByAlphaNum.set(alpha, emp);
+      });
+
+      let unmatchedCount = 0;
+      const payloads = [];
+
+      rows.forEach((row) => {
+        const rawStaffNum = getRowField(row, 'staffNumber');
+        const rawBioNum = getRowField(row, 'biometricNumber');
+
+        if (rawStaffNum === undefined) return;
+
+        const normStaff = normalizeStaffNo(rawStaffNum);
+        const alphaStaff = stripNonAlphaNum(rawStaffNum);
+        const employee = employeeByStaffNumber.get(normStaff) || employeeByAlphaNum.get(alphaStaff);
+
+        if (!employee) {
+          unmatchedCount += 1;
+          return;
+        }
+        console.log("Here 3")
+        const bioVal = String(rawBioNum || '').trim();
+        payloads.push({
+          staffId: employee.staffId,
+          biometricNumber: bioVal || null,
+        });
+      });
+
+      if (!payloads.length) {
+        toast.error('No matching staff numbers found in the system for the uploaded CSV rows');
+        return;
+      }
+      console.log("here 4")
       const results = await Promise.allSettled(
         payloads.map((p) =>
           API.put(`/employees/${p.staffId}`, {
@@ -171,12 +224,15 @@ export default function BiometricDeviceAssignMaster({ userRole, selectedCompanyI
 
       const successCount = results.filter((r) => r.status === 'fulfilled').length;
       const failCount = results.length - successCount;
-      if (successCount > 0) toast.success(`${successCount} records updated`);
-      if (failCount > 0) toast.warning(`${failCount} records failed`);
+      if (successCount > 0) toast.success(`${successCount} staff biometric assignments updated successfully`);
+      if (failCount > 0) toast.warning(`${failCount} server updates failed`);
+      if (unmatchedCount > 0) toast.info(`${unmatchedCount} rows ignored (staff number not found in active staff)`);
 
       await fetchEmployees();
     } catch (error) {
       toast.error('Bulk upload failed');
+    } finally {
+      if (event.target) event.target.value = '';
     }
   };
 

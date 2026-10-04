@@ -9,13 +9,17 @@ import dotenv from 'dotenv';
 dotenv.config();
 import db from './models/index.js';
 import mountRoutes from './routes/mountRoutes.js';
-import { csrfProtection, csrfTokenHandler } from './middleware/csrfProtection.js';
 import { connectRedis } from './services/cacheService.js';
 import { startAttendanceScheduler } from './scripts/processAttendance.js';
 import { seedInitialUser } from './services/seedInitialUser.js';
 import { startDailyReportScheduler } from './scripts/dailyReportService.js';
 import { startCelebrationMailScheduler } from './scripts/celebrationMailService.js';
+
+import { startBiometricPunchScheduler } from './scripts/biometricPunchService.js';
+
 const app = express();
+app.set('trust proxy', 1);
+
 const PORT = process.env.PORT || 5000;
 const shouldSync = process.env.DB_SYNC === "true";
 const shouldAlter = process.env.DB_SYNC_ALTER === "true";
@@ -27,15 +31,12 @@ const frontendOrigin = process.env.FRONTEND_ORIGIN || `http://localhost:${fronte
 app.use(cors({
   origin: frontendOrigin,
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-XSRF-TOKEN']
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(morgan('combined'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use(csrfProtection);
-
-app.get('/csrf', csrfTokenHandler);
 
 // Health & root endpoints
 app.get('/', (req, res) => {
@@ -66,11 +67,12 @@ db.sequelize.authenticate()
       console.log('DB sync disabled (DB_SYNC != "true").');
     }
 
-    // await seedInitialUser(db);
+    await seedInitialUser(db);
 
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
       console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+      startBiometricPunchScheduler();
       // startAttendanceScheduler();
       // startDailyReportScheduler();
       // startCelebrationMailScheduler();

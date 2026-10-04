@@ -4,7 +4,7 @@ import { resolveCompanyContext } from '../utils/companyScope.js';
 const { User, Role, StudentDetails, Employee, Company, Department } = db;
 
 const normalizeRoleName = (value = '') => value.toLowerCase().replace(/[\s-]/g, '');
-const STAFF_ROLE_KEYS = new Set(['teachingstaff', 'nonteachingstaff']);
+const STAFF_ROLE_KEYS = new Set(['teaching', 'nonteaching']);
 const isStaffRoleName = (roleName = '') => STAFF_ROLE_KEYS.has(normalizeRoleName(roleName));
 const isStudentRoleName = (roleName = '') => normalizeRoleName(roleName) === 'student';
 

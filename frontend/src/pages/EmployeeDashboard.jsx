@@ -8,7 +8,7 @@ import Button from "../components/ui/Button";
 import EmployeeProfilePage from "./EmployeeProfilePage";
 import CalendarPage from "./CalendarPage";
 import TakeLeavePage from "./TakeLeavePage";
-import API, { clearCsrfTokenCache } from "../api";
+import API from "../api";
 import { withAppBase } from "../config/appBase";
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
@@ -196,7 +196,6 @@ export default function EmployeeDashboard() {
     } catch (err) {
       console.error("Logout error:", err);
     } finally {
-      clearCsrfTokenCache();
       window.location.href = withAppBase("/login");
     }
   };

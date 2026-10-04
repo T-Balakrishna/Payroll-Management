@@ -12,39 +12,6 @@ const API = axios.create({
   withCredentials: true,
 });
 
-const CSRF_API = axios.create({
-  baseURL,
-  withCredentials: true,
-});
-
-let csrfTokenCache = null;
-const UNSAFE_METHODS = new Set(['post', 'put', 'patch', 'delete']);
-
-const ensureCsrfToken = async () => {
-  const res = await CSRF_API.get('/csrf');
-  const token = res?.data?.csrfToken;
-  if (token) {
-    csrfTokenCache = token;
-  }
-  return csrfTokenCache;
-};
-
-export const clearCsrfTokenCache = () => {
-  csrfTokenCache = null;
-};
-
-API.interceptors.request.use(async (config) => {
-  const method = String(config?.method || 'get').toLowerCase();
-  if (UNSAFE_METHODS.has(method)) {
-    const token = await ensureCsrfToken();
-    if (token) {
-      config.headers = config.headers || {};
-      config.headers['X-XSRF-TOKEN'] = token;
-    }
-  }
-  return config;
-});
-
 const DEFAULT_NAME_FIELDS = ["companyName", "departmentName", "designationName"];
 
 const isDefaultName = (value) =>

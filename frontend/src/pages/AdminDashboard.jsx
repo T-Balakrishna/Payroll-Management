@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import API, { clearCsrfTokenCache } from '../api';
+import API from '../api';
 import { withAppBase } from '../config/appBase';
 import { useAuth } from '../auth/AuthContext';
 import {
@@ -32,6 +32,7 @@ import DesignationMaster from './DesignationMaster.jsx';
 import RoleMaster from './RoleMaster.jsx';
 import EmployeeGradeMaster from './EmployeeGradeMaster.jsx';
 import BiometricDeviceMaster from './BiometricDeviceMaster.jsx';
+import BiometricDeviceAssignMaster from './BiometricDeviceAssignMaster.jsx';
 import BiometricPunchMaster from './BiometricPunchMaster.jsx';
 import AttendanceMaster from './AttendanceMaster.jsx';
 import OvertimeManagement from './OvertimeManagement.jsx';
@@ -270,6 +271,7 @@ const AdminDashboard = () => {
       { id: 'shiftType', label: t('Shift Type Master'), icon: Clock, color: 'text-cyan-500', category: 'Attendance' },
       { id: 'shiftAssignment', label: t('Shift Assignment Master'), icon: Briefcase, color: 'text-blue-400', category: 'Attendance' },
       { id: 'biometricDevice', label: t('Biometric Device Master'), icon: Monitor, color: 'text-slate-500', category: 'Attendance' },
+      { id: 'biometricDeviceAssign', label: t('Biometric Assign Master') || 'Biometric Assign Master', icon: UserCheck, color: 'text-teal-600', category: 'Attendance' },
       { id: 'punches', label: t('Biometric Punch Master'), icon: Fingerprint, color: 'text-purple-600', category: 'Attendance' },
 
       { id: 'leaveType', label: t('Leave Type Master'), icon: List, color: 'text-cyan-600', category: 'Leave' },
@@ -474,6 +476,7 @@ const AdminDashboard = () => {
       case "shiftType": return <ShiftTypeMaster {...common} />;
       case "shiftAssignment": return <ShiftAssignmentMaster {...common} />;
       case "biometricDevice": return <BiometricDeviceMaster {...common} />;
+      case "biometricDeviceAssign": return <BiometricDeviceAssignMaster {...common} />;
       case "punches": return <BiometricPunchMaster {...common} />;
       case "holidayPlan": return <HolidayPlanMaster {...common} />;
       case "leaveType": return <LeaveTypeMaster {...common} />;
@@ -594,7 +597,6 @@ const AdminDashboard = () => {
                 } catch (err) {
                   console.error('Logout error:', err);
                 } finally {
-                  clearCsrfTokenCache();
                   sessionStorage.clear();
                   window.location.href = withAppBase('/login');
                 }

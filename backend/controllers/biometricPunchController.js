@@ -208,71 +208,75 @@ export const deleteBiometricPunch = async (req, res) => {
   }
 };
 
+export const executeFetchPunches = async (companyId = null) => {
+  const deviceQuery = { where: { status: "Active", isAutoSyncEnabled: true } };
+  if (companyId) {
+    deviceQuery.where.companyId = companyId;
+  }
+
+  const devices = await BiometricDevice.findAll(deviceQuery);
+  const newLogs = [];
+
+  for (const device of devices) {
+    try {
+      const zk = new ZKLib(device.deviceIp, 4370, 10000, 4000);
+      await zk.createSocket();
+
+      const logs = await zk.getAttendances();
+      const attendanceLogs = Array.isArray(logs?.data) ? logs.data : [];
+
+      for (const log of attendanceLogs) {
+        const recordTime = new Date(log.recordTime);
+        const biometricNumber = String(log.deviceUserId || "").trim();
+        if (!biometricNumber || Number.isNaN(recordTime.getTime())) continue;
+
+        // Check if already exists
+        const exists = await BiometricPunch.findOne({
+          where: {
+            biometricNumber,
+            punchTimestamp: recordTime,
+            biometricDeviceId: device.deviceId,
+          },
+        });
+
+        if (!exists) {
+          // Find matching employee
+          const employee = await Employee.findOne({
+            where: { biometricNumber },
+          });
+
+          if (employee) {
+            const saved = await BiometricPunch.create({
+              biometricNumber,
+              staffId: employee.staffId,
+              punchTimestamp: recordTime,
+              punchDate: `${recordTime.getFullYear()}-${String(recordTime.getMonth() + 1).padStart(2, "0")}-${String(recordTime.getDate()).padStart(2, "0")}`,
+              biometricDeviceId: device.deviceId,
+              companyId: employee.companyId,
+              status: "Valid",
+            });
+
+            newLogs.push(saved);
+          } else {
+            console.warn(`No employee found for biometricNumber: ${biometricNumber}`);
+          }
+        }
+      }
+
+      await zk.disconnect();
+    } catch (err) {
+      console.error(`Error connecting to device ${device.deviceIp}:`, err.message);
+      continue; // Skip failed device
+    }
+  }
+
+  return newLogs;
+};
+
 export const fetchPunches = async (req, res) => {
   try {
     const { companyId } = req.query; // Optional: sync only for one company
-
-    const deviceQuery = { where: { status: "Active", isAutoSyncEnabled: true } };
-    if (companyId) {
-      deviceQuery.where.companyId = companyId;
-    }
-
-    const devices = await BiometricDevice.findAll(deviceQuery);
-
-    const newLogs = [];
-
-    for (const device of devices) {
-      try {
-        const zk = new ZKLib(device.deviceIp, 4370, 10000, 4000);
-        await zk.createSocket();
-
-        const logs = await zk.getAttendances();
-        const attendanceLogs = Array.isArray(logs?.data) ? logs.data : [];
-
-        for (const log of attendanceLogs) {
-          const recordTime = new Date(log.recordTime);
-          const biometricNumber = String(log.deviceUserId || "").trim();
-          if (!biometricNumber || Number.isNaN(recordTime.getTime())) continue;
-
-          // Check if already exists
-          const exists = await BiometricPunch.findOne({
-            where: {
-              biometricNumber,
-              punchTimestamp: recordTime,
-              biometricDeviceId: device.deviceId,
-            },
-          });
-
-          if (!exists) {
-            // Find matching employee
-            const employee = await Employee.findOne({
-              where: { biometricNumber },
-            });
-
-            if (employee) {
-              const saved = await BiometricPunch.create({
-                biometricNumber,
-                staffId: employee.staffId,
-                punchTimestamp: recordTime,
-                punchDate: `${recordTime.getFullYear()}-${String(recordTime.getMonth() + 1).padStart(2, "0")}-${String(recordTime.getDate()).padStart(2, "0")}`,
-                biometricDeviceId: device.deviceId,
-                companyId: employee.companyId,
-                status: "Valid",
-              });
-
-              newLogs.push(saved);
-            } else {
-              console.warn(`No employee found for biometricNumber: ${biometricNumber}`);
-            }
-          }
-        }
-
-        await zk.disconnect();
-      } catch (err) {
-        console.error(`Error connecting to device ${device.deviceIp}:`, err.message);
-        continue; // Skip failed device
-      }
-    }
+    const newLogs = await executeFetchPunches(companyId);
 
     res.json({
       message: "Punches fetched and stored successfully",
@@ -284,3 +288,4 @@ export const fetchPunches = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+

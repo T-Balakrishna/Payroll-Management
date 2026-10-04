@@ -7,6 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon server.js",
     "dev": "nodemon server.js",
+    "biometric-punch:cron": "node scripts/biometricPunchService.js",
     "daily-report:run-once": "node scripts/dailyReportService.js",
     "celebration-mail:run-once": "node scripts/celebrationMailService.js",
     "migrate:add-staff-roleid": "node scripts/addRoleIdToStaffDetails.js",
